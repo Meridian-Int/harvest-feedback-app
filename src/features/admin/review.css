@@ -1,5 +1,5 @@
 #view-admin .admin-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
-#view-admin .pagehead h1 { font-family: var(--font-sans); font-weight: 550; }
+#view-admin .pagehead h1 { font-family: var(--font-sans); font-weight: 400; }
 #view-admin .admin-review-panel { min-height: 0; }
 #view-admin .admin-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 #view-admin .admin-filters input { flex: 1 1 230px; width: auto; }
