@@ -16,7 +16,7 @@ Before a live release, verify owner isolation and admin-only fields directly thr
 - Full Vitest suite with coverage: 128 tests passed, 22 files. Overall lines 96.09%; client logic lines/functions 100%, branches 98.82%; shared lib lines 98.78%. Required thresholds passed. Tests mock AWS/service boundaries.
 - npm run build: passed (existing large-bundle advisory).
 - Running integrated app: /feedback/new redirects signed-out visitors to /sign-in; submitting a sample email without outputs shows “Harvest sign-in is not configured yet.”
-- Sandbox invitation, real OTP, three live submission types, emails, CLOSED transition, cross-account API isolation and admin-change clearing: could not verify without AWS access/deployed sandbox.
+- Real OTP, three live submission types, emails, CLOSED transition, cross-account API isolation and admin-change clearing: could not verify without AWS access/deployed sandbox.
 - Shared changes: src/lib/feedback.ts, its test, src/app/routes.test.tsx, only. No amplify/ files, data model, existing shared components or workflows changed. The user subsequently requested that shared product-area options retain only Payment — payout account setup among payment areas. No new environment variables.
 - Installation: npm install succeeds; npm ci fails on bundled Amplify dependency entries (semver and @opentelemetry/core). The upstream lockfile was retained; this needs resolution before CI/release.
 - Review branch: codex/client-feedback-integration. AWS deployment and live verification remain pending.

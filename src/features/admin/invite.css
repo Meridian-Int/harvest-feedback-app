@@ -1,7 +1,0 @@
-.invite-page { width: 100%; max-width: 740px; margin-inline: auto; }
-.invite-page .pagehead h1 { font-family: var(--font-sans); font-weight: 400; }
-.invite-page .panel-head h2 { font-family: var(--font-sans); font-weight: 550; }
-.invite-panel { padding-bottom: 24px; }
-.invite-panel form { display: grid; gap: 18px; padding: 4px 24px 0; }
-.invite-panel .btn { justify-self: start; }
-.invite-success { color: var(--accent); }

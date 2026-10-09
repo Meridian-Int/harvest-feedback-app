@@ -1,6 +1,6 @@
 # Integration handoff
 
-The app code and environment variable names are in place. Complete this checklist when account access is available. Do not put tokens, passwords, or `.env.local` in Git.
+The app code and environment variable names are in place. Complete this checklist when account access is available. Do not put tokens, passwords, or `.env.local` in Git. Partner invitations have been removed. HARVEST users and existing login credentials are the intended auth source; that integration has not been implemented yet.
 
 ## One working branch
 
@@ -25,7 +25,7 @@ The app code and environment variable names are in place. Complete this checklis
 
 1. Copy `.env.example` to ignored `.env.local` for local frontend values. Enter only the values needed for the environment being tested.
 2. Configure the backend values and Sentry secret in the intended Amplify environment, then deploy the backend. Keep generated `amplify_outputs.json` out of Git. For the complete app, use the generated outputs; the optional Cognito-only environment variables connect sign-in alone and do not configure Data or Storage.
-3. Create test client and admin users through the approved AWS process, with the required persona/company attributes and `admins` group membership.
+3. Until HARVEST login is integrated, create temporary test client and admin users through the approved AWS process, with the required persona/company attributes and `admins` group membership.
 4. Run the live acceptance checks in `AGENTS.md` §12, including API checks that a client cannot read another client's report or change admin-only fields. Also verify that a client cannot submit a report pointing to another client's uploaded attachment. The server now resolves the caller's Cognito identity and checks the object's owner path and metadata, but this still needs a live cross-user check.
 5. Run a fresh `npm ci`, the test suite, typecheck, and production build before opening the PR from `codex/harvest-integration` to `dev`.
 
@@ -35,7 +35,7 @@ Account provisioning, deployment, and real-user checks remain pending until acce
 
 Pull `codex/harvest-integration`, copy the sandbox owner's generated `amplify_outputs.json` into the repository root through a private channel, then run `npm ci` and `npm run dev`. The outputs file is ignored and contains the frontend service configuration; do not share AWS access keys, passwords, `.env.local`, or CLI login caches. AWS IAM credentials are needed to deploy or change the sandbox, not to sign in and test the running app.
 
-An invited admin must be in the Cognito `admins` group. On first sign-in, verify the inbox using the eight-digit email code. Users may create a password for later sign-ins or continue using email codes. The app sends admins to admin review and other users to client feedback based on their Cognito group. The account creator assigns Company or Partner in `custom:persona` for new client accounts; users do not select a role or persona in the app. Existing Operator accounts remain supported for sign-in.
+For the current Cognito sandbox, an admin must be in the `admins` group. On first sign-in, verify the inbox using the eight-digit email code. Users may create a password for later sign-ins or continue using email codes. The app sends admins to admin review and other users to client feedback based on their Cognito group. The account creator assigns Company or Partner in `custom:persona` for new client accounts; users do not select a role or persona in the app. Existing Operator accounts remain supported for sign-in. The HARVEST login integration must replace this separate credential flow before release.
 
 Account-type selection and new `custom:clientPersona` provisioning were removed after the sandbox schema failure. Existing `custom:clientPersona` values, if any, remain readable; otherwise the app uses the required `custom:persona` attribute. The legacy `/account/setup` URL redirects to the appropriate workspace.
 
@@ -47,17 +47,15 @@ The sandbox is for testing, not production hosting. Do not describe the app as l
 
 Email OTP and password creation have been observed for the first sandbox client. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
 
-Local checks passed after the invite and notification changes: clean `npm ci`, 221 tests, coverage thresholds, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
+After invitation removal, 220 tests and the coverage thresholds passed. The frontend build (including TypeScript) and Amplify TypeScript check also passed. No production deployment or release approval is implied.
 
-### Partner invitation and admin notification demo
+### Admin notification demo
 
-The admin-only **Invite partner** screen now calls a Cognito `AdminCreateUser` mutation. It assigns `Partner`, the company and the person's name from the admin form. Cognito sends the invitation through the user pool's configured email delivery; the app does not ask the partner to choose a role. The partner signs in with email OTP, then may set an optional password.
+A new report arriving while an admin is signed in shows an in-app toast. The report submit pipeline also tries to send a short SES email to every enabled Cognito `admins` group member. It does not include the description or reporter email. Mail failures are logged; the saved report still succeeds, so a mail outage cannot cause duplicate submissions from a retry. Check Lambda logs and inboxes during the live test.
 
-Admin navigation shows the count of reports in `NEW` status. A new report arriving while an admin is signed in shows an in-app toast. The report submit pipeline also tries to send a short SES email to every enabled Cognito `admins` group member. It does not include the description or reporter email. Mail failures are logged; the saved report still succeeds, so a mail outage cannot cause duplicate submissions from a retry. Check Lambda logs and inboxes during the live test.
+Before testing, Manasa should pull the latest `codex/harvest-integration` and set `ADMIN_NOTIFICATION_FROM_EMAIL` to a verified SES sender before deploying this backend in the agreed sandbox. Set `APP_BASE_URL` to the sandbox app URL for direct links in email. If SES is still in its sandbox, recipient admin addresses also need verification. These are backend build environment values, not `VITE_` browser values. Keep any outputs file ignored.
 
-Before testing, Manasa should pull the latest `codex/harvest-integration`, confirm the existing Cognito user pool invitation email configuration, and set `ADMIN_NOTIFICATION_FROM_EMAIL` to a verified SES sender before deploying this backend in the agreed sandbox. Set `APP_BASE_URL` to the sandbox app URL for direct links in email. If SES is still in its sandbox, recipient admin addresses also need verification. These are backend build environment values, not `VITE_` browser values. Keep any outputs file ignored.
-
-Run this sequence with test addresses: admin opens Invite partner → partner receives the Cognito invitation → partner signs in by email code → partner submits a report → admin sees the Review queue count and live toast → admin receives SES email → admin opens the report and changes status/owner → partner sees the update. Test upload, screen recording, and cross-user API authorization separately. Neither the invitation nor SES delivery has been verified against the live sandbox yet. No AWS deployment was run from this checkout.
+Run this sequence with approved test accounts: client signs in → submits a report → admin sees the live toast → admin receives SES email → admin opens the report and changes status/owner → client sees the update. Test upload, screen recording, and cross-user API authorization separately. SES delivery has not been verified against the live sandbox yet. No AWS deployment was run from this checkout.
 
 ### Account type assignment
 

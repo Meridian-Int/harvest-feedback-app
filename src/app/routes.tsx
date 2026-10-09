@@ -8,7 +8,6 @@ import { NewFeedbackPage } from '../features/client/NewFeedbackPage';
 import { MyReportsPage } from '../features/client/MyReportsPage';
 import { ReviewPage } from '../features/admin/ReviewPage';
 import { InsightsPage } from '../features/admin/InsightsPage';
-import { InvitePartnerPage } from '../features/admin/InvitePartnerPage';
 import { isAdmin } from '../lib/auth';
 import { useAuth } from './AuthProvider';
 
@@ -26,7 +25,6 @@ export function AppRoutes() {
       <Route element={<RequireAdmin />}>
         <Route path="/admin/reviews" element={<ReviewPage />} />
         <Route path="/admin/insights" element={<InsightsPage />} />
-        <Route path="/admin/invite" element={<InvitePartnerPage />} />
         <Route path="/admin/*" element={<Navigate to="/admin/reviews" replace />} />
       </Route>
     </Route></Route>

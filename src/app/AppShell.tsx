@@ -15,9 +15,9 @@ export function AppShell() {
   const knownReports = useRef<Set<string> | null>(null);
   const reportsPage = pathname === '/feedback/mine' || pathname === '/admin/reviews';
   const links: { to: string; text: string; icon: IconName }[] = admin ? [
-    { to: '/admin/reviews', text: 'Review queue', icon: 'list' }, { to: '/admin/insights', text: 'Insights', icon: 'chart' }, { to: '/admin/invite', text: 'Invite partner', icon: 'plus' },
+    { to: '/admin/reviews', text: 'Review queue', icon: 'list' }, { to: '/admin/insights', text: 'Insights', icon: 'chart' },
   ] : [{ to: '/feedback/new', text: 'New feedback', icon: 'plus' }, { to: '/feedback/mine', text: 'My reports', icon: 'list' }];
-  const crumb = pathname === '/feedback/new' ? 'New feedback' : pathname === '/feedback/mine' ? 'My reports' : pathname === '/admin/reviews' ? 'Feedback review' : pathname === '/admin/invite' ? 'Invite a partner' : 'Product insights';
+  const crumb = pathname === '/feedback/new' ? 'New feedback' : pathname === '/feedback/mine' ? 'My reports' : pathname === '/admin/reviews' ? 'Feedback review' : 'Product insights';
   useEffect(() => {
     if (!admin) return;
     try {

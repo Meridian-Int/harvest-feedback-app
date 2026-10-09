@@ -1,6 +1,5 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 import { sentryIssues } from '../functions/sentry-issues/resource';
-import { invitePartner } from '../functions/invite-partner/resource';
 
 // Field rules replace model rules. Every immutable value is therefore protected
 // explicitly so an owner can request an update without editing report content.
@@ -139,11 +138,6 @@ const schema = a.schema({
     .returns(a.ref('SentryIssuesResult'))
     .authorization((allow) => [allow.group('admins')])
     .handler(a.handler.function(sentryIssues)),
-  invitePartner: a.mutation()
-    .arguments({ email: a.string().required(), name: a.string().required(), company: a.string().required() })
-    .returns(a.string().required())
-    .authorization((allow) => [allow.group('admins')])
-    .handler(a.handler.function(invitePartner)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

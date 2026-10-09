@@ -16,7 +16,7 @@
 #auth-demo-code { margin-bottom: 12px; font-size: 11px; }
 #auth-back { margin-top: 8px; }
 #auth-error { margin-top: 16px; }
-.auth-invitation { margin-top: 12px; font-size: 10px; line-height: 1.5; }
+.auth-guidance { margin-top: 12px; font-size: 10px; line-height: 1.5; }
 .auth-note { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 16px; font-size: 11px; color: var(--dim); line-height: 1.5; }
 .auth-bottom { text-align: center; color: var(--dim); font-size: 10px; }
 @media (max-width: 700px) { .auth-screen { padding: 14px 18px; } .auth-card { padding: 20px; } .auth-card input:not(#auth-code) { font-size: 16px; min-height: 40px; height: 40px; } .auth-continue { min-height: 40px; } .auth-top { font-size: 14px; } }

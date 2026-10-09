@@ -57,7 +57,7 @@ export function SignInPage() {
         {(step === 'code' || step === 'password') && <TextButton id="auth-back" disabled={busy} onClick={() => { setStep('email'); setError(null); setCode(''); setPassword(''); window.setTimeout(() => emailInput.current?.focus(), 0); }}>{step === 'password' ? 'Use an email code instead' : 'Use a different email'}</TextButton>}
       </form>
       {error && <p className="error" id="auth-error" role="alert">{error}</p>}
-      <p className="helper auth-invitation">Use the work email associated with your invitation.</p>
+      <p className="helper auth-guidance">Use your work email.</p>
     </div>
     <div className="auth-bottom">HARVEST · By Meridian Intelligence</div>
   </section>;
