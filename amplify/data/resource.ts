@@ -125,7 +125,10 @@ const schema = a.schema({
     })
     .returns(a.ref('Feedback'))
     .authorization((allow) => [allow.authenticated()])
-    .handler(a.handler.custom({ dataSource: a.ref('Feedback'), entry: './submit-feedback.js' })),
+    .handler([
+      a.handler.custom({ dataSource: 'VerifyAttachment', entry: './verify-attachment.js' }),
+      a.handler.custom({ dataSource: a.ref('Feedback'), entry: './submit-feedback.js' }),
+    ]),
   feedbackSubmitted: a.subscription()
     .for(a.ref('submitFeedback'))
     .handler(a.handler.custom({ entry: './feedback-submitted.js' }))

@@ -3,8 +3,6 @@ import * as ddb from '@aws-appsync/utils/dynamodb';
 
 const PRODUCT_AREAS = [
   'Onboarding', 'Data room', 'Payment — payout account setup',
-  'Payment — payout status or delay', 'Payment — amount or calculation',
-  'Payment — failed or missing payout', 'Payment — confirmation or receipt',
   'Partner portfolio', 'Operations console', 'Other — add an area',
 ];
 const FILE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
@@ -13,14 +11,15 @@ const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 export function request(ctx) {
   const identity = ctx.identity;
   const claims = identity?.claims ?? {};
-  const persona = claims['custom:persona'];
+  const accountPersona = claims['custom:clientPersona'] ?? claims['custom:persona'];
   const company = claims['custom:company'];
   if (!identity?.sub || !identity.username || !claims.email || !claims.name || !company ||
-      ['Company', 'Partner', 'Operator'].indexOf(persona) < 0) {
+      ['Company', 'Partner', 'Operator'].indexOf(accountPersona) < 0) {
     util.error('Your account profile is incomplete. Contact an administrator.', 'InvalidProfile');
   }
 
   const args = ctx.args;
+  const persona = accountPersona;
   const description = args.description.trim();
   if (!description || description.length > 3000) {
     util.error('Please describe the bug or improvement (up to 3000 characters).', 'InvalidInput');
@@ -37,9 +36,9 @@ export function request(ctx) {
   }
 
   const hasAttachment = !!(args.attachmentKey || args.attachmentName || args.attachmentType || args.attachmentSize != null);
-  if (hasAttachment && (!args.attachmentKey?.startsWith('feedback-media/') || !args.attachmentName ||
+  if (hasAttachment && (ctx.stash?.verifiedAttachmentKey !== args.attachmentKey || !args.attachmentKey?.startsWith('feedback-media/') || !args.attachmentName ||
       FILE_TYPES.indexOf(args.attachmentType?.split(';')[0]) < 0 || args.attachmentSize == null ||
-      args.attachmentSize < 0 || args.attachmentSize > MAX_ATTACHMENT_BYTES)) {
+      args.attachmentSize <= 0 || args.attachmentSize > MAX_ATTACHMENT_BYTES)) {
     util.error('Attachment unavailable.', 'InvalidInput');
   }
 

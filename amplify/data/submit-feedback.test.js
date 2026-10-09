@@ -13,7 +13,7 @@ function context(overrides = {}) {
   return {
     identity: {
       sub: 'user-1', username: 'client@company.com',
-      claims: { email: 'client@company.com', name: 'Client', 'custom:persona': 'Company', 'custom:company': 'Company' },
+      claims: { email: 'client@company.com', name: 'Client', 'custom:clientPersona': 'Company', 'custom:persona': 'Company', 'custom:company': 'Company' },
     },
     args: { description: '  Report title\nMore detail  ', productArea: 'Data room', priority: 'BUG', severity: 'MEDIUM' },
     ...overrides,
@@ -77,12 +77,36 @@ it('requires a complete signed-in Cognito profile', () => {
 it('requires consistent attachment metadata within the size limit', () => {
   const ctx = context();
   Object.assign(ctx.args, { attachmentKey: 'feedback-media/identity-1/file', attachmentName: 'capture.png', attachmentType: 'image/png', attachmentSize: 5 });
+  ctx.stash = { verifiedAttachmentKey: ctx.args.attachmentKey };
   expect(request(ctx).item).toMatchObject({ attachmentSize: 5, attachmentName: 'capture.png' });
   ctx.args.attachmentSize = 50 * 1024 * 1024 + 1;
   expect(() => request(ctx)).toThrow('Attachment unavailable.');
 });
 
+it('rejects an attachment unless the server verified this exact key', () => {
+  const ctx = context();
+  Object.assign(ctx.args, { attachmentKey: 'feedback-media/another-client/file', attachmentName: 'capture.png', attachmentType: 'image/png', attachmentSize: 5 });
+  expect(() => request(ctx)).toThrow('Attachment unavailable.');
+  ctx.stash = { verifiedAttachmentKey: 'feedback-media/identity-1/file' };
+  expect(() => request(ctx)).toThrow('Attachment unavailable.');
+  expect(helpers.put).not.toHaveBeenCalled();
+});
+
 it('passes a successful DynamoDB result through and surfaces write errors', () => {
   expect(response({ result: { id: 'generated-id' } })).toEqual({ id: 'generated-id' });
   expect(() => response({ error: { message: 'Write failed', type: 'DynamoDBError' } })).toThrow('Write failed');
+});
+
+it('uses account persona and ignores caller attempts to change classification', () => {
+  const ctx = context();
+  ctx.args.persona = 'Partner';
+  expect(request(ctx).item).toMatchObject({ persona: 'Company', reporterEmail: 'client@company.com', owner: 'user-1::client@company.com', status: 'NEW' });
+});
+it.each(['Payment — payout status or delay', 'Payment — amount or calculation', 'Payment — failed or missing payout', 'Payment — confirmation or receipt'])('rejects removed payment area %s', productArea => {
+  const ctx = context(); ctx.args.productArea = productArea;
+  expect(() => request(ctx)).toThrow('choose a product area');
+});
+it('accepts payment account setup', () => {
+  const ctx = context(); ctx.args.productArea = 'Payment — payout account setup';
+  expect(request(ctx).item.productArea).toBe('Payment — payout account setup');
 });
