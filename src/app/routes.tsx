@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { RequireAdmin } from './RequireAdmin';
 import { RequireSignedIn } from './RequireSignedIn';
+import { AccountSetupPage } from './AccountSetupPage';
 import { SignInPage } from './SignInPage';
 import { NewFeedbackPage } from '../features/client/NewFeedbackPage';
 import { MyReportsPage } from '../features/client/MyReportsPage';
@@ -16,6 +17,7 @@ function Landing() {
 }
 export function AppRoutes() {
   return <Routes>
+    <Route path="/account/setup" element={<AccountSetupPage />} />
     <Route path="/sign-in" element={<SignInPage />} />
     <Route element={<RequireSignedIn />}><Route element={<AppShell />}>
       <Route path="/feedback/new" element={<NewFeedbackPage />} />

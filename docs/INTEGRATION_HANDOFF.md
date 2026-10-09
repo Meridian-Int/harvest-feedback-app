@@ -29,3 +29,21 @@ The app code and environment variable names are in place. Complete this checklis
 5. Run a fresh `npm ci`, the test suite, typecheck, and production build before opening the PR from `codex/harvest-integration` to `dev`.
 
 Account setup, deployment, and real-user checks remain pending until access is granted. The local unit tests and visual review do not replace those checks.
+
+## Testing the shared sandbox locally
+
+Pull `codex/harvest-integration`, copy the sandbox owner's generated `amplify_outputs.json` into the repository root through a private channel, then run `npm ci` and `npm run dev`. The outputs file is ignored and contains the frontend service configuration; do not share AWS access keys, passwords, `.env.local`, or CLI login caches. AWS IAM credentials are needed to deploy or change the sandbox, not to sign in and test the running app.
+
+An invited admin must be in the Cognito `admins` group. On the first sign-in, verify the inbox using the eight-digit email code and create a password. Later, choose “Sign in with password”. Client account setup also asks for Company or Partner once; feedback uses that saved account choice.
+
+The account choice is a new mutable `custom:clientPersona` attribute. A creation-only custom resource adds it without modifying the original Cognito schema or replacing existing users. Legacy `custom:persona` remains the fallback for existing accounts.
+
+Server-side attachment verification now resolves the caller's Cognito identity from their ID token, checks the exact storage-owner prefix, and checks the uploaded object's size and content type before creating feedback. Unit tests cover forged ownership and metadata. Real cross-user upload, status/assignee and report-read checks still need authenticated client/admin sessions before release.
+
+The sandbox is for testing, not production hosting. Do not describe the app as live until hosting and all acceptance checks pass. New user requests supersede the original visual and auth spec: all text uses the system sans font, payment exposes only payout account setup, and password sign-in is supported after initial verification.
+
+### Current verification limits
+
+Email OTP and password creation have been observed for the first sandbox client. The latest Company/Partner setup is locally tested but blocked by a Cognito schema update failure in the existing sandbox; do not treat it as live-ready. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
+
+Local checks passed: clean `npm ci`, 208 tests with coverage, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.

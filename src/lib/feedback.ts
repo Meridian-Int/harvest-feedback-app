@@ -97,13 +97,15 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
       attachmentSize: properties.size,
     };
   }
+  const token = (await fetchAuthSession()).tokens?.idToken?.toString();
+  if (!token) throw new Error('Sign in to Harvest');
   const created = resultOrThrow(await client.mutations.submitFeedback({
     description, productArea: input.productArea,
     ...(input.productArea === 'Other — add an area' ? { customArea } : {}),
     priority: input.priority, severity: input.severity,
     ...(input.sentryIssueId ? { sentryIssueId: input.sentryIssueId } : {}),
     ...attachment,
-  }));
+  }, { authToken: token }));
   if (!created) throw new Error('Could not create the report.');
   return toFeedback(created);
 }

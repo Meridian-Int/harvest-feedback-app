@@ -51,7 +51,7 @@ beforeEach(() => {
     rows[index] = { ...rows[index], ...patch, updatedAt: new Date().toISOString() };
     return { data: rows[index] };
   });
-  session.fetchAuthSession.mockResolvedValue({ identityId: 'identity-1' });
+  session.fetchAuthSession.mockResolvedValue({ identityId: 'identity-1', tokens: { idToken: { toString: () => 'verified-id-token' } } });
   storage.getProperties.mockResolvedValue({ size: 5 });
   storage.getUrl.mockResolvedValue({ url: new URL('https://example.com/file') });
   storage.uploadData.mockImplementation(({ path }: { path: (input: { identityId: string }) => string }) => ({ result: Promise.resolve({ path: path({ identityId: 'identity-1' }) }) }));
@@ -85,7 +85,7 @@ it('requires a signed-in user for every operation', async () => {
 it('creates a trimmed report using trusted identity and no caller supplied status', async () => {
   const created = await createFeedback({ ...input, status: 'CLOSED', reporterEmail: 'spoof@example.com' } as CreateFeedbackInput);
   expect(created).toMatchObject({ title: 'New report', reporterEmail: client.email, status: 'NEW' });
-  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ description: 'New report\nMore detail', productArea: 'Data room' }));
+  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ description: 'New report\nMore detail', productArea: 'Data room' }), { authToken: 'verified-id-token' });
   expect(submitFeedback.mock.calls[0][0]).not.toHaveProperty('status');
   expect(submitFeedback.mock.calls[0][0]).not.toHaveProperty('reporterEmail');
 });
@@ -180,7 +180,7 @@ it('rejects unsupported and oversize attachments', async () => {
 it('verifies an attachment belongs to the same storage identity before creating a report', async () => {
   await expect(createFeedback({ ...input, attachmentKey: 'feedback-media/other/file', attachmentName: 'x.png', attachmentType: 'image/png' })).rejects.toThrow('Attachment unavailable');
   await createFeedback({ ...input, attachmentKey: 'feedback-media/identity-1/file', attachmentName: 'x.png', attachmentType: 'image/png' });
-  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ attachmentSize: 5 }));
+  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ attachmentSize: 5 }), { authToken: 'verified-id-token' });
 });
 
 it('surfaces data and storage errors without claiming success', async () => {

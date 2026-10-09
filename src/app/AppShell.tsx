@@ -21,7 +21,7 @@ export function AppShell() {
   }, [reportsPage]);
   return <div className={`layout ${reportsPage ? 'layout-reports' : ''} ${admin ? 'admin-workspace' : ''}`}>
     <aside className="rail">
-      <div className="brand"><span className="brandmark">H</span>HARVEST</div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
+      <div className="brand">HARVEST</div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
       <div className="nav-label eyebrow">Feedback workspace</div>
       <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
       <div className="rail-bottom"><div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div></div>
