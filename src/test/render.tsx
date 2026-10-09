@@ -10,7 +10,7 @@ import type { Theme } from '../lib/theme';
 
 export function renderWithProviders(ui: ReactElement, options: { route?: string; theme?: Theme; user?: AuthUser | null } = {}) {
   return {
-    ...render(<MemoryRouter initialEntries={[options.route ?? '/']}><ThemeProvider initialTheme={options.theme}><AuthProvider initialUser={options.user}><IconSymbols />{ui}</AuthProvider></ThemeProvider></MemoryRouter>),
+    ...render(<MemoryRouter initialEntries={[options.route ?? '/']}><ThemeProvider initialTheme={options.theme}><AuthProvider initialUser={options.user ?? null}><IconSymbols />{ui}</AuthProvider></ThemeProvider></MemoryRouter>),
     user: userEvent.setup(),
   };
 }

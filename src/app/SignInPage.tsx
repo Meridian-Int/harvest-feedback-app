@@ -32,15 +32,14 @@ export function SignInPage() {
       <p className="auth-subtitle">{step === 'email' ? 'A place to share feedback and follow its progress.' : `Continue as ${email.trim()}`}</p>
       <form onSubmit={submit} noValidate>
         {step === 'email' ? <Field label="Work email" htmlFor="auth-email"><Input ref={emailInput} id="auth-email" type="email" autoComplete="email" placeholder="you@company.com" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'auth-error' : undefined} /></Field> : <>
-          <Field label="Verification code" htmlFor="auth-code"><Input ref={codeInput} autoFocus id="auth-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" required value={code} onChange={event => setCode(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'auth-demo-code auth-error' : 'auth-demo-code'} /></Field>
-          <p className="helper" id="auth-demo-code">Use demo code <strong>123456</strong>. No email is sent.</p>
+          <Field label="Verification code" htmlFor="auth-code"><Input ref={codeInput} autoFocus id="auth-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" required value={code} onChange={event => setCode(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'auth-error' : undefined} /></Field>
+          <p className="helper">Enter the 6-digit code sent to your work email.</p>
         </>}
         <Button type="submit" variant="primary" className="auth-continue w-full" disabled={busy}>{step === 'email' ? 'Continue with email' : 'Open workspace'}</Button>
         {step === 'code' && <TextButton id="auth-back" disabled={busy} onClick={() => { setStep('email'); setError(null); setCode(''); window.setTimeout(() => emailInput.current?.focus(), 0); }}>Use a different email</TextButton>}
       </form>
       {error && <p className="error" id="auth-error" role="alert">{error}</p>}
       <p className="helper auth-invitation">Use the work email associated with your invitation.</p>
-      <p className="auth-note">Development only · sign-in is simulated.<br />Your feedback stays in this browser.</p>
     </div>
     <div className="auth-bottom">HARVEST · By Meridian Intelligence</div>
   </section>;

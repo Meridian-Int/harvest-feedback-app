@@ -1,26 +1,22 @@
+import {
+  confirmSignIn as confirmCognitoSignIn,
+  fetchAuthSession,
+  fetchUserAttributes,
+  getCurrentUser as getCognitoUser,
+  signIn as cognitoSignIn,
+  signOut as cognitoSignOut,
+} from 'aws-amplify/auth';
+import { isAmplifyConfigured, requireAmplify } from './amplify';
 import type { AuthUser } from './types';
 
-/** DEVELOPMENT ONLY: simulated OTP, no email delivery. Replace this adapter with Cognito. */
-export const MOCK_AUTH = true;
-const SESSION_KEY = 'harvest-mock-session';
-const CHALLENGE_KEY = 'harvest-mock-challenge';
+let currentUser: AuthUser | null = null;
 
 export function isValidEmail(email: string): boolean {
   return email.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-function userForEmail(email: string): AuthUser {
-  const admin = email === 'admin@example.com';
-  const persona = email === 'partner@example.com' ? 'Partner' : email === 'operator@example.com' || admin ? 'Operator' : 'Company';
-  const name = email.split('@')[0].replace(/[._+-]+/g, ' ').trim().replace(/\b[a-z]/g, c => c.toUpperCase());
-  return { id: email, email, name: admin ? 'Admin' : name, persona,
-    company: persona === 'Partner' ? 'Meridian Partner' : persona === 'Operator' ? 'Meridian Operations' : email === 'company@example.com' ? 'Northstar Company' : 'Client workspace',
-    groups: admin ? ['admins'] : [] };
-}
-
 export function getCurrentUser(): AuthUser | null {
-  const email = sessionStorage.getItem(SESSION_KEY);
-  return email && isValidEmail(email) ? userForEmail(email) : null;
+  return currentUser;
 }
 
 export function isAdmin(user: AuthUser | null): boolean {
@@ -28,27 +24,73 @@ export function isAdmin(user: AuthUser | null): boolean {
 }
 
 export function requireUser(): AuthUser {
-  const user = getCurrentUser();
-  if (!user) throw new Error('Sign in to Harvest');
-  return user;
+  if (!currentUser) throw new Error('Sign in to Harvest');
+  return currentUser;
+}
+
+async function loadUser(): Promise<AuthUser> {
+  const [identity, attributes, session] = await Promise.all([
+    getCognitoUser(), fetchUserAttributes(), fetchAuthSession(),
+  ]);
+  const persona = attributes['custom:persona'];
+  if (persona !== 'Company' && persona !== 'Partner' && persona !== 'Operator') {
+    throw new Error('Your account is missing a valid persona. Contact an administrator.');
+  }
+  if (!attributes.email || !attributes.name || !attributes['custom:company']) {
+    throw new Error('Your account profile is incomplete. Contact an administrator.');
+  }
+  const rawGroups = session.tokens?.idToken?.payload['cognito:groups'];
+  currentUser = {
+    id: identity.userId,
+    email: attributes.email,
+    name: attributes.name,
+    persona,
+    company: attributes['custom:company'],
+    groups: Array.isArray(rawGroups) ? rawGroups.filter((value): value is string => typeof value === 'string') : [],
+  };
+  return currentUser;
+}
+
+export async function restoreSession(): Promise<AuthUser | null> {
+  currentUser = null;
+  if (!isAmplifyConfigured()) return null;
+  try {
+    return await loadUser();
+  } catch (error) {
+    // Missing or expired Cognito sessions are normal on the sign-in page.
+    if (['UserUnAuthenticatedException', 'NotAuthorizedException'].includes((error as { name?: string }).name ?? '')) return null;
+    throw error;
+  }
 }
 
 export async function signIn(email: string): Promise<void> {
   if (!isValidEmail(email)) throw new Error('Enter a valid work email.');
-  sessionStorage.setItem(CHALLENGE_KEY, email.trim().toLowerCase());
+  requireAmplify();
+  const result = await cognitoSignIn({
+    username: email.trim().toLowerCase(),
+    options: { authFlowType: 'USER_AUTH', preferredChallenge: 'EMAIL_OTP' },
+  });
+  if (result.nextStep.signInStep !== 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
+    throw new Error('Email verification is unavailable for this account.');
+  }
 }
 
 export async function confirmSignIn(code: string): Promise<AuthUser> {
   if (!/^[0-9]{6}$/.test(code)) throw new Error('Enter a 6-digit verification code.');
-  if (code !== '123456') throw new Error('Use 123456 to try this local demo.');
-  const email = sessionStorage.getItem(CHALLENGE_KEY);
-  if (!email) throw new Error('Enter a valid work email.');
-  sessionStorage.setItem(SESSION_KEY, email);
-  sessionStorage.removeItem(CHALLENGE_KEY);
-  return userForEmail(email);
+  requireAmplify();
+  try {
+    const result = await confirmCognitoSignIn({ challengeResponse: code });
+    if (result.nextStep.signInStep !== 'DONE') throw new Error('Email verification is incomplete.');
+    return await loadUser();
+  } catch (error) {
+    if (['CodeMismatchException', 'NotAuthorizedException'].includes((error as { name?: string }).name ?? '')) {
+      throw new Error('That code is not right. Check the latest email and try again.');
+    }
+    throw error;
+  }
 }
 
 export async function signOut(): Promise<void> {
-  sessionStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(CHALLENGE_KEY);
+  if (isAmplifyConfigured()) await cognitoSignOut();
+  currentUser = null;
 }
