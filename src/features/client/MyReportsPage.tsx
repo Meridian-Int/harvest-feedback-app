@@ -1,7 +1,21 @@
-import { Link } from 'react-router-dom';
-import { EmptyState, Panel } from '../../components/ui';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../app/AuthProvider';
+import { MyReportsView } from './MyReportsView';
+import { clientApi, clientControls } from './foundation';
 
-/** Phase 0 placeholder. No report-list implementation yet. */
 export function MyReportsPage() {
-  return <section className="report-page" id="view-mine"><div className="pagehead"><div><h1>My reports</h1><p>Follow your feedback from the first report to the fix.</p></div><Link to="/feedback/new" className="btn btn-primary">New feedback</Link></div><Panel heading="Your reports"><EmptyState>My reports will be added in the client phase.</EmptyState></Panel></section>;
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [search] = useSearchParams();
+  const state = location.state as { clientReportOverlay?: boolean; message?: string } | null;
+  if (!user) return null;
+  function close() {
+    if (state?.clientReportOverlay) { navigate(-1); return; }
+    const next = new URLSearchParams(search); next.delete('report');
+    navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
+  }
+  return <MyReportsView key={user.id} api={clientApi} controls={clientControls} reportId={search.get('report')}
+    onOpenReport={id => navigate(`/feedback/mine?report=${encodeURIComponent(id)}`, { state: { clientReportOverlay: true } })}
+    onCloseReport={close} onNewFeedback={() => navigate('/feedback/new')} initialMessage={state?.message} />;
 }
