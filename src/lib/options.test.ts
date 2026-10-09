@@ -44,7 +44,7 @@ it('keeps the exact shared option order and labels', () => {
         "New",
         "Assigned",
         "In progress",
-        "Closed",
+        "Done",
       ],
     }
   `);

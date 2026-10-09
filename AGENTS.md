@@ -131,7 +131,7 @@ Not in v1, matching the prototype: comments, activity timeline, persona or repor
   6. Other — add an area
 - **`PRIORITIES`:** Blocker, Bug, Improvement. Placeholder "Choose a priority".
 - **`SEVERITIES`:** Critical, Medium, Low. Placeholder "Choose severity". Blocker is **not** a severity.
-- **`STATUSES`:** New, Assigned, In progress, Closed.
+- **`STATUSES`:** New, Assigned, In progress, Done (stored as `CLOSED`).
 - **`PERSONAS`:** Company, Partner. Existing Operator accounts and reports remain readable, but Operator is not a new filter choice.
 - **`ASSIGNEES`:** the admin list. Prototype values: Unassigned, Manasa, Vaish. Replace with the real admins.
 - **`SENTRY_PROJECTS`:** harvest-ui, harvest-api, feedback-app.
@@ -154,7 +154,7 @@ Key rules from the spec (§3, §5, §6 there):
   - Bug `#b58a59`, Improvement `#8095ab`
   - Blocker, Medium and Low: `--dim`
   - Critical: `--red` dot and text
-- **Progress track:** New → Assigned → In progress → Closed. Completed steps are a green fill with a check; the current step has a neutral ring.
+- **Progress track:** New → Assigned → In progress → Done. Completed steps are a green fill with a check; the current step has a neutral ring.
 - **Shell:**
   - Rail 224px with the HARVEST / BY MERIDIAN INTELLIGENCE brand and role navigation, plus a 52px top bar with breadcrumb, Sign out and the theme toggle.
   - Content max 1400px.

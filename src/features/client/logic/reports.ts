@@ -1,6 +1,6 @@
 import type { Feedback } from '../contract';
 
-export const STATUS_LABELS = { NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In progress', CLOSED: 'Closed' } as const;
+export const STATUS_LABELS = { NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In progress', CLOSED: 'Done' } as const;
 export const displayId = (id: string) => `FB-${id.slice(-4).toUpperCase()}`;
 export function updatePending(report: Feedback): boolean {
   return report.status !== 'CLOSED' && !!report.updateRequestedAt && Date.parse(report.updateRequestedAt) > (report.adminActivityAt ? Date.parse(report.adminActivityAt) : 0);

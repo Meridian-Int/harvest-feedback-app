@@ -1,8 +1,9 @@
 import { expect, it } from 'vitest';
 import { makeReport } from '../testing/support';
-import { displayId, reportPage, updatePending } from './reports';
+import { displayId, reportPage, STATUS_LABELS, updatePending } from './reports';
 
 it('uses final four uppercase characters', () => { expect(displayId('report-abcd')).toBe('FB-ABCD'); });
+it('shows the final status as Done', () => { expect(STATUS_LABELS.CLOSED).toBe('Done'); });
 it('sorts by actual time within open/closed groups, filters and paginates six', () => {
   const reports = Array.from({ length: 8 }, (_, index) => makeReport({ id: String(index), createdAt: `2026-10-0${index + 1}T00:00:00Z`, status: index === 7 ? 'CLOSED' : 'NEW' }));
   expect(reportPage(reports, '', 1).rows.map(r => r.id)).toEqual(['6', '5', '4', '3', '2', '1']);

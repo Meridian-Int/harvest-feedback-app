@@ -19,7 +19,7 @@ function ReportRow({ report, onOpen }: { report: Feedback; onOpen: () => void })
   return <button type="button" className="admin-report" onClick={onOpen} aria-label={`View description: ${report.title}`} aria-description={`Status: ${STATUS_LABELS[report.status]}`}>
     <span className="admin-row-main">
       <span className="admin-heading-line"><span className="admin-report-title">{report.title}</span><span className="admin-report-date">{formatDate(report.createdAt)}</span></span>
-      <small>{report.productArea} · {report.company}{report.status === 'CLOSED' ? ' · Closed' : ''}{isUpdatePending(report) ? ' · Update requested' : ''}</small>
+      <small>{report.productArea} · {report.company}{report.status === 'CLOSED' ? ' · Done' : ''}{isUpdatePending(report) ? ' · Update requested' : ''}</small>
       <span className="admin-progress" aria-hidden="true">{STATUS_ORDER.map((step, index) => {
         const completed = index < currentStep || report.status === 'CLOSED';
         return <span key={step} className={`admin-progress-step ${completed ? 'completed' : index === currentStep ? 'current' : 'future'}`}>

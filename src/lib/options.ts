@@ -6,7 +6,7 @@ export const PRODUCT_AREAS = [
 ] as const;
 export const PRIORITIES = ['Blocker', 'Bug', 'Improvement'] as const;
 export const SEVERITIES = ['Critical', 'Medium', 'Low'] as const;
-export const STATUSES = ['New', 'Assigned', 'In progress', 'Closed'] as const;
+export const STATUSES = ['New', 'Assigned', 'In progress', 'Done'] as const;
 export const PERSONAS = ['Company', 'Partner'] as const;
 // The only administrator in the development auth adapter. Replace when Cognito is wired.
 export const ASSIGNEES = [
@@ -21,7 +21,7 @@ export const SEVERITY_LABELS: Record<Severity, typeof SEVERITIES[number]> = {
   CRITICAL: 'Critical', MEDIUM: 'Medium', LOW: 'Low',
 };
 export const STATUS_LABELS: Record<Status, typeof STATUSES[number]> = {
-  NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In progress', CLOSED: 'Closed',
+  NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In progress', CLOSED: 'Done',
 };
 export const STATUS_ORDER: readonly Status[] = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'];
 export const REPORT_PAGE_SIZE = 6;
