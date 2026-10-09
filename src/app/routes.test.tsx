@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+vi.mock('../lib/feedback', () => ({ listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
 import { screen } from '@testing-library/react';
 import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';

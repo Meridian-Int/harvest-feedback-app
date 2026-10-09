@@ -1,6 +1,6 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
-import { getProperties, getUrl, uploadData } from 'aws-amplify/storage';
+import { getProperties, getUrl, remove, uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
 import { requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
@@ -185,4 +185,27 @@ export async function getAttachmentUrl(key: string): Promise<string> {
   } catch {
     throw new Error('Attachment unavailable.');
   }
+}
+
+/** Only remove unclaimed uploads; a failed response may still have created the report. */
+export async function removeAttachment(key: string): Promise<void> {
+  requireAmplify();
+  requireUser();
+  const identityId = (await fetchAuthSession()).identityId;
+  if (!identityId || !key.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
+  if ((await listMyFeedback()).some(report => report.attachmentKey === key)) throw new Error('Attachment is already attached to a report.');
+  await remove({ path: key });
+}
+
+/** AppSync enforces ownership; the additional filter also scopes admin client views. */
+export function subscribeMyFeedback(next: (reports: Feedback[]) => void, error: () => void): () => void {
+  requireAmplify();
+  const user = requireUser();
+  const subscription = client.models.Feedback.observeQuery().subscribe({
+    next: ({ items, isSynced }) => {
+      if (isSynced) next(sortFeedback(items.map(toFeedback).filter(report => ownedBy(report, user))));
+    },
+    error,
+  });
+  return () => subscription.unsubscribe();
 }

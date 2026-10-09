@@ -1,11 +1,11 @@
 import { beforeEach, vi } from 'vitest';
-import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, requestUpdate, uploadAttachment } from './feedback';
+import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, requestUpdate, uploadAttachment, removeAttachment, subscribeMyFeedback } from './feedback';
 import { isUpdatePending } from './status';
 import type { AuthUser, CreateFeedbackInput, Feedback } from './types';
 
 const state = vi.hoisted(() => ({ user: null as AuthUser | null }));
-const data = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn(), get: vi.fn(), update: vi.fn() }));
-const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), uploadData: vi.fn() }));
+const data = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn(), get: vi.fn(), update: vi.fn(), observeQuery: vi.fn() }));
+const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), uploadData: vi.fn(), remove: vi.fn() }));
 const session = vi.hoisted(() => ({ fetchAuthSession: vi.fn() }));
 
 vi.mock('./amplify', () => ({ requireAmplify: vi.fn() }));
@@ -182,4 +182,31 @@ it('lets the reporter request another update immediately after an admin reply', 
   const requestedAgain = await requestUpdate('report-1');
   expect(isUpdatePending(requestedAgain)).toBe(true);
   expect(data.update).toHaveBeenCalledTimes(3);
+});
+
+it('removes only an unclaimed upload owned by the current storage identity', async () => {
+  await expect(removeAttachment('feedback-media/other/file')).rejects.toThrow('unavailable');
+  rows[0].attachmentKey = 'feedback-media/identity-1/claimed';
+  await expect(removeAttachment(rows[0].attachmentKey)).rejects.toThrow('already attached');
+  expect(storage.remove).not.toHaveBeenCalled();
+  await removeAttachment('feedback-media/identity-1/orphan');
+  expect(storage.remove).toHaveBeenCalledWith({ path: 'feedback-media/identity-1/orphan' });
+  data.list.mockResolvedValueOnce({ data: [], errors: [{ message: 'Unavailable' }] });
+  await expect(removeAttachment('feedback-media/identity-1/uncertain')).rejects.toThrow('Unavailable');
+  expect(storage.remove).toHaveBeenCalledTimes(1);
+});
+
+it('subscribes to synced own reports and releases the subscription', () => {
+  const unsubscribe = vi.fn(), next = vi.fn(), error = vi.fn();
+  const subscribe = vi.fn();
+  data.observeQuery.mockReturnValue({ subscribe });
+  subscribe.mockReturnValue({ unsubscribe });
+  const stop = subscribeMyFeedback(next, error);
+  const observer = subscribe.mock.calls[0][0];
+  observer.next({ items: [baseReport], isSynced: false });
+  expect(next).not.toHaveBeenCalled();
+  observer.next({ items: [baseReport, { ...baseReport, owner: 'another' }], isSynced: true });
+  expect(next).toHaveBeenCalledWith([baseReport]);
+  observer.error(); expect(error).toHaveBeenCalledOnce();
+  stop(); expect(unsubscribe).toHaveBeenCalledOnce();
 });
