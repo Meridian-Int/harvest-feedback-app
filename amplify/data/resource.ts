@@ -1,4 +1,5 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
+import { sentryIssues } from '../functions/sentry-issues/resource';
 
 // Field rules replace model rules. Every immutable value is therefore protected
 // explicitly so an owner can request an update without editing report content.
@@ -6,6 +7,22 @@ const schema = a.schema({
   Priority: a.enum(['BLOCKER', 'BUG', 'IMPROVEMENT']),
   Severity: a.enum(['CRITICAL', 'MEDIUM', 'LOW']),
   Status: a.enum(['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED']),
+  SentryIssue: a.customType({
+    id: a.string().required(),
+    title: a.string().required(),
+    culprit: a.string().required(),
+    project: a.string().required(),
+    level: a.string().required(),
+    count: a.integer().required(),
+    userCount: a.integer().required(),
+    lastSeen: a.string().required(),
+    permalink: a.string().required(),
+    trend: a.integer().array().required(),
+  }),
+  SentryIssuesResult: a.customType({
+    configured: a.boolean().required(),
+    issues: a.ref('SentryIssue').array().required(),
+  }),
   Feedback: a.model({
     title: a.string().required().authorization((allow) => [
       allow.owner().to(['create', 'read']),
@@ -109,6 +126,10 @@ const schema = a.schema({
     .returns(a.ref('Feedback'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.custom({ dataSource: a.ref('Feedback'), entry: './submit-feedback.js' })),
+  sentryIssues: a.query()
+    .returns(a.ref('SentryIssuesResult'))
+    .authorization((allow) => [allow.group('admins')])
+    .handler(a.handler.function(sentryIssues)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
