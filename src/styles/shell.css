@@ -1,0 +1,53 @@
+.layout { min-height: 100dvh; display: grid; grid-template-columns: 224px minmax(0,1fr); }
+.rail { position: sticky; top: 0; height: 100dvh; padding: 30px 18px 20px; display: flex; flex-direction: column; background: var(--rail); border-right: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 12px; font: 400 16px var(--font-serif); letter-spacing: 2px; }
+.brandmark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accentink); font-size: 22px; letter-spacing: 0; }
+.brand-sub { margin: 9px 0 34px 54px; font-size: 11px; letter-spacing: .6px; color: var(--dim); }
+.nav-label { padding: 0 12px; margin: 24px 0 10px; }
+.workspace-nav { display: grid; gap: 4px; }
+.workspace-nav a { display: flex; align-items: center; gap: 11px; padding: 11px 12px; min-height: 44px; border-radius: 10px; color: var(--muted); text-decoration: none; }
+.workspace-nav a:hover { background: var(--raised); color: var(--text); }
+.workspace-nav a.active { background: var(--soft); color: var(--accent); }
+.workspace-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.rail-bottom { margin-top: auto; }
+.user { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid var(--line); }
+.user > div { min-width: 0; }
+.avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bluesoft); color: var(--blue); font-size: 11px; flex-shrink: 0; }
+.user-role { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.workspace-main { min-width: 0; }
+.top { height: 52px; display: flex; align-items: center; padding: 0 36px; gap: 18px; background: var(--rail); border-bottom: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.breadcrumb { color: var(--dim); }
+.breadcrumb span { margin: 0 8px; }
+.breadcrumb strong { color: var(--text); }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+main { width: 100%; max-width: 1400px; margin: auto; padding: 18px 24px 24px; }
+html[data-page="reports"], html[data-page="reports"] body { height: 100%; overflow: hidden; }
+.layout-reports { height: 100dvh; min-height: 0; }
+.layout-reports .workspace-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.layout-reports .top { flex-shrink: 0; }
+.layout-reports main { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; margin: 0 auto; }
+.report-page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.report-page .pagehead { flex-shrink: 0; }
+.report-page > .panel { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.report-page .panel-head { flex-shrink: 0; }
+.report-page .empty { overflow-y: auto; }
+.report-collection { flex: 1 1 0; height: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.admin-workspace .panel { background: radial-gradient(ellipse at 100% 0%, var(--admin-haze), transparent 75%), var(--surface); }
+@media (max-width: 1150px) { .layout { grid-template-columns: 190px minmax(0,1fr); } .rail { padding-left: 10px; padding-right: 10px; } .top { padding: 0 24px; } }
+@media (max-width: 1100px) { .pagehead { gap: 14px; } }
+@media (max-width: 900px) { .breadcrumb { font-size: 12px; } }
+@media (max-width: 700px) {
+  .layout { display: flex; flex-direction: column; }
+  .rail { position: static; height: auto; padding: 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { padding: 0; }
+  .brand-sub, .nav-label, .rail-bottom { display: none; }
+  .workspace-nav { display: flex; gap: 6px; margin-top: 10px; }
+  .workspace-nav a { min-height: 40px; padding: 8px 10px; }
+  .top { padding: 0 16px; gap: 8px; }
+  .top-actions { gap: 8px; }
+  .breadcrumb span { margin: 0 4px; }
+  main { padding: 16px; }
+  .layout-reports .rail { flex-shrink: 0; padding: 9px 14px; }
+  .layout-reports .workspace-main { flex: 1; }
+  .layout-reports .workspace-nav { margin-top: 6px; }
+}

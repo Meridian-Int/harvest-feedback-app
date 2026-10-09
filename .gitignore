@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env.local
+.env.*.local
+.amplify/
+amplify_outputs.json
+*.tsbuildinfo
+.codebase-memory/

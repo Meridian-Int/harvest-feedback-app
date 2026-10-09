@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: vars.AMPLIFY_APP_ID != ''
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
