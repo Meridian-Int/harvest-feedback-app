@@ -27,6 +27,9 @@
 #view-admin .admin-reports[data-view="grid"] .admin-report-badges { grid-column: 1; grid-row: 2; }
 #view-admin .admin-reports[data-view="grid"] .admin-report-arrow { grid-column: 2; grid-row: 2; }
 .admin-detail-id { color: var(--dim); font-size: 12px; }
+.dialog[open]:has(.admin-detail-content) { display: flex; flex-direction: column; overflow: hidden; }
+.dialog[open]:has(.admin-detail-content) .dialog-head, .dialog[open]:has(.admin-detail-content) .dialog-footer { flex: 0 0 auto; }
+.dialog[open]:has(.admin-detail-content) .dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .admin-detail-content h2 { font-size: 18px; line-height: 1.4; margin: 2px 0 10px; }
 .admin-detail-badges { display: flex; gap: 6px; }
 .admin-detail-label { display: block; color: var(--dim); font-size: 11px; margin-bottom: 7px; }

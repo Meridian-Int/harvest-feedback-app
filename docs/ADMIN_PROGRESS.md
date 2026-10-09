@@ -8,8 +8,8 @@ Updated: 9 October 2026
 | 1. Secure backend | Code complete; live check pending | Added Amplify auth, Feedback data, storage, and backend wiring. A server resolver now creates reports with a required status enum set to `NEW` and reporter details copied from Cognito. Direct model creation cannot fill the required protected fields. Backend typecheck passes. | When an AWS sandbox is available, verify the schema deploys and test owner/admin permissions through the API, including rejected direct creates and owner status/assignee edits. |
 | 2. Shared API | Code complete; live check pending | Replaced demo email codes, local report storage, and IndexedDB media with Cognito, Amplify Data, and Storage. Report creation now calls the server mutation. Kept the page-facing function signatures and added adapter tests. | Generate `amplify_outputs.json` from a sandbox and verify sign-in, uploads, report creation, and permissions with real accounts. |
 | 3. Admin integrations | Code complete; live setup pending | Added the admin-only Sentry query, Sentry browser monitoring, GA4 page views, and the Looker embed setting. The UI has clear setup states when Sentry or Looker is not configured. | Configure the Sentry, GA4, and Looker values per branch and verify real data in an AWS environment. |
-| 4. Feedback review | Code complete; live and visual checks pending | Built the review queue with live updates, all requested filters, metrics, list/grid, paging, attachment preview, and status/owner editing. Added admin and shared API tests. | Verify live subscriptions, attachment download, and the layout against the prototype in an AWS sandbox. |
-| 5. Product insights | Code complete; live and visual checks pending | Built the Errors list, project filter, metrics, Sentry-linked report action, and Traffic iframe. Added adapter, logic, page, and telemetry tests. | Check real Sentry issues and the Looker embed, then compare layout with the prototype at required screen sizes. |
+| 4. Feedback review | Local visual check done; live check pending | Built the queue and dialog. Checked dark and light layouts at 1440, 1024, 768, and 390 px with sample data; fixed the clipped dialog Save controls. | Verify live subscriptions, attachment download, and API permissions in an AWS sandbox. |
+| 5. Product insights | Local visual check done; live check pending | Built Errors and Traffic. Checked dark and light layouts at 1440, 1024, 768, and 390 px with sample issues and the Looker setup state. | Check real Sentry issues and the Looker embed after account settings are available. |
 | 6. Acceptance and PR | Not started | Existing tests and build pass. | Run coverage, API authorization checks, visual checks, and prepare reviewable PRs to `dev`. |
 
 ## Checks so far
@@ -18,6 +18,7 @@ Updated: 9 October 2026
 - `npm run build`: passed.
 - `npm run typecheck`: passed.
 - `npx tsc --noEmit -p amplify/tsconfig.json`: passed.
+- Local screenshot check: admin review, grid, detail dialog, Errors, and Traffic setup state at desktop/tablet/mobile widths. No horizontal page overflow at 1440, 1024, 768, or 390 px. The Save controls are visible after the dialog fix.
 - Overall coverage: lines 96.38%, functions 92.71%, branches 85.71%.
 - Production dependency audit: 0 vulnerabilities.
 - The feature branch is on GitHub; it has not been merged into `dev`.
