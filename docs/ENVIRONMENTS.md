@@ -4,25 +4,25 @@
 
 | Environment | Branch | Site | Who uses it | Goes live when |
 |---|---|---|---|---|
-| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` | Sahil and Manasa | A pull request is merged into `dev` |
+| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` | Sahil and Manasa | A commit is pushed to `dev`, when deployment is configured |
 | **test** | `test` | `https://test.<appId>.amplifyapp.com` | Vaish and testers | `dev` is merged into `test` |
 | **production** | `main` | `https://main.<appId>.amplifyapp.com` (custom domain later) | Real users | `test` is merged into `main` **and Vaish approves** |
 
 - Each environment is a complete, separate copy: its own website, Cognito users, database and S3 bucket. Nothing is shared.
 - Each developer also has a private **sandbox** (`npx ampx sandbox`), a personal backend for working on a laptop.
-- **Deploys go through GitHub Actions** (`.github/workflows/deploy.yml`). Merging into a branch tells Amplify to build it, waits for the result, and records it in GitHub. The repo's **Deployments** box then shows `dev`, `test` and `production` with green ticks, like HARVEST's.
+- **Deploys go through GitHub Actions** (`.github/workflows/deploy.yml`). A push to a deployed branch tells Amplify to build it, waits for the result, and records it in GitHub. The repo's **Deployments** box then shows `dev`, `test` and `production` with green ticks, like HARVEST's.
 - **Production waits for Vaish:** the job pauses until she clicks *Approve* in GitHub.
-- **Every pull request runs Checks** (`.github/workflows/checks.yml`): typecheck, unit tests with coverage, and build. It can't merge until they pass.
+- **Every pull request runs Checks** (`.github/workflows/checks.yml`): typecheck, unit tests with coverage, and build. A direct push to `dev` does not get this PR check, so run the same checks locally first.
 
 ## Flow of a change
 
 ```
-admin/<thing> or client/<thing>
-   └─ PR ─▶ dev ─▶ PR ─▶ test ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
+Sahil feature branch ─▶ dev ─▶ PR ─▶ test ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
+Manasa ───────────────▶ dev
 ```
 
-1. Branch off `dev`: `admin/...` for Sahil, `client/...` for Manasa.
-2. Work against your sandbox. Push your branch. Open a PR into `dev`. Checks run; the other person looks and merges. Dev deploys.
+1. Sahil branches off `dev` for HARVEST auth work. Manasa pulls and works on `dev` for the other integrations. Coordinate before editing shared files.
+2. Work against your sandbox and run the local checks before publishing. Manasa may push directly to `dev`; Sahil integrates his feature branch after bringing in the latest `dev`. A normal `dev` push deploys when Amplify is configured.
 3. When dev is good, open a PR `dev → test`. Test deploys. Vaish checks the test site.
 4. When test is approved, open a PR `test → main`. Vaish approves the deployment. Production deploys.
 
@@ -56,10 +56,11 @@ Never push straight to `test` or `main`. Branch protection blocks it anyway.
   - `production`: tick **Required reviewers**, add **Vaish**. Under *Deployment branches*, choose **Selected branches** and allow only `main`.
   - `test`: deployment branches → only `test`.
   - `dev`: deployment branches → only `dev`.
-- [ ] **[you]** Settings → **Branches** (or Rules → Rulesets) → protect `main`, `test` and `dev`:
+- [ ] **[you]** Settings → **Branches** (or Rules → Rulesets) → protect `main` and `test`:
   - Require a pull request before merging.
   - Require the status check **"Typecheck, test and build"**. It appears in the list after the first PR has run Checks; add it then.
   - Block force pushes and deletions.
+- [ ] **[you]** Configure `dev` to allow the agreed direct pushes from Manasa while blocking force pushes and deletion.
 
 ## C. Phase 0 code (your Codex, `docs/ADMIN_TASK.md`)
 

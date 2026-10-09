@@ -2,9 +2,9 @@
 
 The app code and environment variable names are in place. Complete this checklist when account access is available. Do not put tokens, passwords, or `.env.local` in Git. Partner invitations have been removed. HARVEST users and existing login credentials are the intended auth source; that integration has not been implemented yet.
 
-## One working branch
+## Shared development baseline
 
-`codex/harvest-integration` contains the admin and client implementations. Sahil and Manasa should pull this branch before making further changes, coordinate pushes to it, and use it as the source of the pull request into `dev`. Do not push directly to `dev`, `test`, or `main`. The former admin and client branches are historical references, not parallel development targets.
+`dev` contains the current admin and client implementations. Manasa pulls `dev` and may push her completed work directly to it. Sahil continues auth integration on a feature branch based on `dev` and brings that work back to `dev` after checking for Manasa's updates. Do not push directly to `test` or `main`. A normal push to `dev` starts the Amplify deploy workflow when `AMPLIFY_APP_ID` is configured; coordinate before pushing if deployment is paused.
 
 | Service | Obtain from account owner | Configure | Verify |
 |---|---|---|---|
@@ -27,13 +27,13 @@ The app code and environment variable names are in place. Complete this checklis
 2. Configure the backend values and Sentry secret in the intended Amplify environment, then deploy the backend. Keep generated `amplify_outputs.json` out of Git. For the complete app, use the generated outputs; the optional Cognito-only environment variables connect sign-in alone and do not configure Data or Storage.
 3. Until HARVEST login is integrated, create temporary test client and admin users through the approved AWS process, with the required persona/company attributes and `admins` group membership.
 4. Run the live acceptance checks in `AGENTS.md` §12, including API checks that a client cannot read another client's report or change admin-only fields. Also verify that a client cannot submit a report pointing to another client's uploaded attachment. The server now resolves the caller's Cognito identity and checks the object's owner path and metadata, but this still needs a live cross-user check.
-5. Run a fresh `npm ci`, the test suite, typecheck, and production build before opening the PR from `codex/harvest-integration` to `dev`.
+5. Run a fresh `npm ci`, the test suite, typecheck, and production build before publishing further changes to `dev`.
 
 Account provisioning, deployment, and real-user checks remain pending until access is granted. The local unit tests and visual review do not replace those checks.
 
 ## Testing the shared sandbox locally
 
-Pull `codex/harvest-integration`, copy the sandbox owner's generated `amplify_outputs.json` into the repository root through a private channel, then run `npm ci` and `npm run dev`. The outputs file is ignored and contains the frontend service configuration; do not share AWS access keys, passwords, `.env.local`, or CLI login caches. AWS IAM credentials are needed to deploy or change the sandbox, not to sign in and test the running app.
+Pull `dev`, copy the sandbox owner's generated `amplify_outputs.json` into the repository root through a private channel, then run `npm ci` and `npm run dev`. The outputs file is ignored and contains the frontend service configuration; do not share AWS access keys, passwords, `.env.local`, or CLI login caches. AWS IAM credentials are needed to deploy or change the sandbox, not to sign in and test the running app.
 
 For the current Cognito sandbox, an admin must be in the `admins` group. On first sign-in, verify the inbox using the eight-digit email code. Users may create a password for later sign-ins or continue using email codes. The app sends admins to admin review and other users to client feedback based on their Cognito group. The account creator assigns Company or Partner in `custom:persona` for new client accounts; users do not select a role or persona in the app. Existing Operator accounts remain supported for sign-in. The HARVEST login integration must replace this separate credential flow before release.
 
@@ -53,7 +53,7 @@ After invitation removal, 220 tests and the coverage thresholds passed. The fron
 
 A new report arriving while an admin is signed in shows an in-app toast. The report submit pipeline also tries to send a short SES email to every enabled Cognito `admins` group member. It does not include the description or reporter email. Mail failures are logged; the saved report still succeeds, so a mail outage cannot cause duplicate submissions from a retry. Check Lambda logs and inboxes during the live test.
 
-Before testing, Manasa should pull the latest `codex/harvest-integration` and set `ADMIN_NOTIFICATION_FROM_EMAIL` to a verified SES sender before deploying this backend in the agreed sandbox. Set `APP_BASE_URL` to the sandbox app URL for direct links in email. If SES is still in its sandbox, recipient admin addresses also need verification. These are backend build environment values, not `VITE_` browser values. Keep any outputs file ignored.
+Before testing, Manasa should pull the latest `dev` and set `ADMIN_NOTIFICATION_FROM_EMAIL` to a verified SES sender before deploying this backend in the agreed sandbox. Set `APP_BASE_URL` to the sandbox app URL for direct links in email. If SES is still in its sandbox, recipient admin addresses also need verification. These are backend build environment values, not `VITE_` browser values. Keep any outputs file ignored.
 
 Run this sequence with approved test accounts: client signs in → submits a report → admin sees the live toast → admin receives SES email → admin opens the report and changes status/owner → client sees the update. Test upload, screen recording, and cross-user API authorization separately. SES delivery has not been verified against the live sandbox yet. No AWS deployment was run from this checkout.
 
