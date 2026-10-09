@@ -17,12 +17,11 @@
 ## Flow of a change
 
 ```
-Sahil feature branch ─▶ dev ─▶ PR ─▶ test ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
-Manasa ───────────────▶ dev
+Sahil and Manasa ─▶ dev ─▶ PR ─▶ test ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
 ```
 
-1. Sahil branches off `dev` for HARVEST auth work. Manasa pulls and works on `dev` for the other integrations. Coordinate before editing shared files.
-2. Work against your sandbox and run the local checks before publishing. Manasa may push directly to `dev`; Sahil integrates his feature branch after bringing in the latest `dev`. A normal `dev` push deploys when Amplify is configured.
+1. Sahil and Manasa both pull and work directly on `dev`. Coordinate before editing shared files.
+2. Work against your sandbox, pull the latest `dev`, and run the local checks before pushing. A normal `dev` push deploys when Amplify is configured.
 3. When dev is good, open a PR `dev → test`. Test deploys. Vaish checks the test site.
 4. When test is approved, open a PR `test → main`. Vaish approves the deployment. Production deploys.
 
@@ -60,7 +59,7 @@ Never push straight to `test` or `main`. Branch protection blocks it anyway.
   - Require a pull request before merging.
   - Require the status check **"Typecheck, test and build"**. It appears in the list after the first PR has run Checks; add it then.
   - Block force pushes and deletions.
-- [ ] **[you]** Configure `dev` to allow the agreed direct pushes from Manasa while blocking force pushes and deletion.
+- [ ] **[you]** Configure `dev` to allow the agreed direct pushes from Sahil and Manasa while blocking force pushes and deletion.
 
 ## C. Phase 0 code (your Codex, `docs/ADMIN_TASK.md`)
 

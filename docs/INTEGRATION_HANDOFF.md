@@ -4,7 +4,7 @@ The app code and environment variable names are in place. Complete this checklis
 
 ## Shared development baseline
 
-`dev` contains the current admin and client implementations. Manasa pulls `dev` and may push her completed work directly to it. Sahil continues auth integration on a feature branch based on `dev` and brings that work back to `dev` after checking for Manasa's updates. Do not push directly to `test` or `main`. A normal push to `dev` starts the Amplify deploy workflow when `AMPLIFY_APP_ID` is configured; coordinate before pushing if deployment is paused.
+`dev` contains the current admin and client implementations. Sahil and Manasa both pull and work directly on `dev`. Pull the latest `dev` before each new task and before pushing, run the local checks, and coordinate edits to shared files. Do not push directly to `test` or `main`. A normal push to `dev` starts the Amplify deploy workflow when `AMPLIFY_APP_ID` is configured; coordinate before pushing while deployment is paused.
 
 | Service | Obtain from account owner | Configure | Verify |
 |---|---|---|---|
