@@ -12,6 +12,7 @@ The app code and environment variable names are in place. Complete this checklis
 | Sentry | Frontend DSN, organization slug, project slugs, and an API token allowed to read issues | `VITE_SENTRY_DSN` in the frontend environment; `SENTRY_ORG` and `SENTRY_PROJECTS` in the Amplify backend environment; `SENTRY_AUTH_TOKEN` as an Amplify secret | A real unresolved issue appears in Product insights, and Make a report links it to feedback |
 | Google Analytics 4 | HARVEST web data stream Measurement ID | `VITE_GA_MEASUREMENT_ID` in the frontend environment | Page views appear for route changes without email addresses or feedback text |
 | Looker Studio | Embed URL for a GA4-backed report and permission to view it | `VITE_LOOKER_EMBED_URL` in the frontend environment | Traffic tab loads the report for an admin |
+| Admin report email | Existing SES verified sender (or verify one) and enabled admin users in the Cognito `admins` group | Set `ADMIN_NOTIFICATION_FROM_EMAIL` before backend deployment; set `APP_BASE_URL` to the deployed app URL for direct report links | A partner's report reaches every admin inbox; in SES sandbox, verify recipient addresses too |
 
 ## Before requesting credentials
 
@@ -25,7 +26,7 @@ The app code and environment variable names are in place. Complete this checklis
 1. Copy `.env.example` to ignored `.env.local` for local frontend values. Enter only the values needed for the environment being tested.
 2. Configure the backend values and Sentry secret in the intended Amplify environment, then deploy the backend. Keep generated `amplify_outputs.json` out of Git. For the complete app, use the generated outputs; the optional Cognito-only environment variables connect sign-in alone and do not configure Data or Storage.
 3. Create test client and admin users through the approved AWS process, with the required persona/company attributes and `admins` group membership.
-4. Run the live acceptance checks in `AGENTS.md` §12, including API checks that a client cannot read another client's report or change admin-only fields. Also verify that a client cannot submit a report pointing to another client's uploaded attachment. The current AppSync resolver checks the `feedback-media/` prefix but cannot prove Storage ownership from its user-pool identity; resolve this before release.
+4. Run the live acceptance checks in `AGENTS.md` §12, including API checks that a client cannot read another client's report or change admin-only fields. Also verify that a client cannot submit a report pointing to another client's uploaded attachment. The server now resolves the caller's Cognito identity and checks the object's owner path and metadata, but this still needs a live cross-user check.
 5. Run a fresh `npm ci`, the test suite, typecheck, and production build before opening the PR from `codex/harvest-integration` to `dev`.
 
 Account provisioning, deployment, and real-user checks remain pending until access is granted. The local unit tests and visual review do not replace those checks.
@@ -46,7 +47,17 @@ The sandbox is for testing, not production hosting. Do not describe the app as l
 
 Email OTP and password creation have been observed for the first sandbox client. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
 
-Local checks passed: clean `npm ci`, 208 tests with coverage, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
+Local checks passed after the invite and notification changes: clean `npm ci`, 219 tests with coverage, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
+
+### Partner invitation and admin notification demo
+
+The admin-only **Invite partner** screen now calls a Cognito `AdminCreateUser` mutation. It assigns `Partner`, the company and the person's name from the admin form. Cognito sends the invitation through the user pool's configured email delivery; the app does not ask the partner to choose a role. The partner signs in with email OTP, then may set an optional password.
+
+Admin navigation shows the count of reports in `NEW` status. A new report arriving while an admin is signed in shows an in-app toast. The report submit pipeline also tries to send a short SES email to every enabled Cognito `admins` group member. It does not include the description or reporter email. Mail failures are logged; the saved report still succeeds, so a mail outage cannot cause duplicate submissions from a retry. Check Lambda logs and inboxes during the live test.
+
+Before testing, Manasa should pull the latest `codex/harvest-integration`, confirm the existing Cognito user pool invitation email configuration, and set `ADMIN_NOTIFICATION_FROM_EMAIL` to a verified SES sender before deploying this backend in the agreed sandbox. Set `APP_BASE_URL` to the sandbox app URL for direct links in email. If SES is still in its sandbox, recipient admin addresses also need verification. These are backend build environment values, not `VITE_` browser values. Keep any outputs file ignored.
+
+Run this sequence with test addresses: admin opens Invite partner → partner receives the Cognito invitation → partner signs in by email code → partner submits a report → admin sees the Review queue count and live toast → admin receives SES email → admin opens the report and changes status/owner → partner sees the update. Test upload, screen recording, and cross-user API authorization separately. Neither the invitation nor SES delivery has been verified against the live sandbox yet. No AWS deployment was run from this checkout.
 
 ### Account type assignment
 

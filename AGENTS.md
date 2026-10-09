@@ -60,6 +60,7 @@ Region: `us-east-2` unless Vaish says otherwise.
 | `/feedback/mine` | `#view-mine`, My reports (list/grid) | Clients |
 | `/admin/reviews` | `#view-admin`, Feedback review (list/grid) | Admins |
 | `/admin/insights?tab=errors\|traffic` | `#view-admin-insights`, Product insights | Admins |
+| `/admin/invite` | Invite a partner by work email | Admins |
 
 - The report detail is a dialog (`#detail`), opened over the list. Its open state lives in the URL, e.g. `?report=<id>`.
 - After sign-in: members of the Cognito `admins` group go to `/admin/reviews`; other signed-in users go to `/feedback/new`. The user never chooses an admin or client role.
@@ -69,7 +70,7 @@ Region: `us-east-2` unless Vaish says otherwise.
 First sign-in uses a work email and the 8-digit code Cognito sends. After verification, users may create a password for later sign-ins; email-code sign-in remains available.
 
 - In `amplify/auth/resource.ts`, use Amplify Gen 2 email OTP (`loginWith: { email: { otpLogin: true } }`) with Cognito Essentials and support password sign-in after a verified user creates one.
-- Self sign-up off: users are created by an admin. Add admins to the `admins` group.
+- Self sign-up off: admins invite partners from `/admin/invite`; existing admins and other account types are provisioned by an administrator. Add admins to the `admins` group.
 - Custom user attributes, set when the admin creates the user:
   - `custom:persona`: `Company`, `Partner` or `Operator`
   - `custom:company`: the company name
@@ -117,7 +118,7 @@ Storage, `amplify/storage/resource.ts`:
 - The owning identity can read, write and delete. The `admins` group can read.
 - **One file per report.** PNG, JPG, WebP, MP4, WebM or MOV, max **50 MiB**, checked in the browser before upload (same as the prototype).
 
-Not in v1, matching the prototype: comments, activity timeline, email notifications, persona or reporter selectors on the form, title field, expected/steps fields. The form's "Email updates included · demo only" line is **removed**.
+Not in v1, matching the prototype: comments, activity timeline, persona or reporter selectors on the form, title field, expected/steps fields. The form's "Email updates included · demo only" line is **removed**. The later demo decision adds admin email alerts for new reports; it does not promise client update emails.
 
 ## 7. Options (`src/lib/options.ts`; both sides import it, exact text from the prototype)
 
@@ -209,6 +210,8 @@ Build each one to the geometry in spec §3.
   - Toolbar: search (title, description, reporter, company, ID), Status, Severity, Owner, Reset.
   - List/grid toggle, pagination at 6 per page.
   - Admin detail dialog with the attachment preview (image or video, plus download) and the empty or unavailable states.
+  - A new report updates the Review queue count and shows an in-app alert to signed-in admins.
+  - **Invite partner:** an admin enters a partner's email, name and company; Cognito sends the invitation and assigns Partner access from those attributes.
 - **Required by the brief, missing from the prototype.** Add these in the same style:
   1. **Product area** and **Persona** dropdowns in the toolbar, next to Severity.
   2. A **status and owner control** in the admin detail dialog footer: Status `Select`, Owner `Select`, Save. Saving sets `adminActivityAt` and toasts.
@@ -242,10 +245,12 @@ Build each one to the geometry in spec §3.
 Server-side, per branch in the Amplify console:
 - Secret `SENTRY_AUTH_TOKEN`
 - `SENTRY_ORG`, `SENTRY_PROJECTS`
+- `ADMIN_NOTIFICATION_FROM_EMAIL` (verified SES sender), `APP_BASE_URL` (deployed app URL for email links)
 
 ## 12. Done means
 
 - [ ] Email-code sign-in works; admins and clients land on their own side; a client can't open `/admin/*`
+- [ ] An admin sends a partner invitation in the app; the partner receives it, signs in, submits a report, and admins see an in-app alert and receive email
 - [ ] A client submits with an upload and with a screen recording, then sees the report in My reports with the correct track
 - [ ] A client can't read others' reports or change `status`/`assignee`, checked through the API
 - [ ] Request update shows as pending, and clears after an admin saves a change

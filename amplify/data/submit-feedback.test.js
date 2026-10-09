@@ -93,7 +93,9 @@ it('rejects an attachment unless the server verified this exact key', () => {
 });
 
 it('passes a successful DynamoDB result through and surfaces write errors', () => {
-  expect(response({ result: { id: 'generated-id' } })).toEqual({ id: 'generated-id' });
+  const ctx = { result: { id: 'generated-id' }, stash: {} };
+  expect(response(ctx)).toEqual({ id: 'generated-id' });
+  expect(ctx.stash.submittedFeedback).toEqual({ id: 'generated-id' });
   expect(() => response({ error: { message: 'Write failed', type: 'DynamoDBError' } })).toThrow('Write failed');
 });
 

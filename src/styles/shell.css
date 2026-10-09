@@ -9,6 +9,7 @@
 .workspace-nav a:hover { background: var(--raised); color: var(--text); }
 .workspace-nav a.active { background: var(--soft); color: var(--accent); }
 .workspace-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.nav-count { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--soft); color: var(--accent); text-align: center; font: 11px Arial, sans-serif; }
 .rail-bottom { margin-top: auto; }
 .user { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-top: 1px solid var(--line); }
 .user > div { min-width: 0; }

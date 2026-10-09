@@ -4,8 +4,32 @@ import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { sentryIssues } from './functions/sentry-issues/resource';
 import { verifyAttachment } from './functions/verify-attachment/resource';
+import { invitePartner } from './functions/invite-partner/resource';
+import { notifyAdmin } from './functions/notify-admin/resource';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
-const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment });
+const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, invitePartner, notifyAdmin });
+
+backend.invitePartner.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+backend.invitePartner.resources.lambda.addToRolePolicy(new PolicyStatement({
+  actions: ['cognito-idp:AdminCreateUser'],
+  resources: [backend.auth.resources.userPool.userPoolArn],
+}));
+
+const notifier = backend.notifyAdmin;
+notifier.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+backend.data.resources.graphqlApi.addLambdaDataSource('NotifyAdmin', notifier.resources.lambda);
+notifier.resources.lambda.addToRolePolicy(new PolicyStatement({
+  actions: ['cognito-idp:ListUsersInGroup'],
+  resources: [backend.auth.resources.userPool.userPoolArn],
+}));
+if (process.env.ADMIN_NOTIFICATION_FROM_EMAIL) {
+  notifier.resources.lambda.addToRolePolicy(new PolicyStatement({
+    actions: ['ses:SendEmail'],
+    resources: ['*'],
+    conditions: { StringEquals: { 'ses:FromAddress': process.env.ADMIN_NOTIFICATION_FROM_EMAIL } },
+  }));
+}
 
 const validator = backend.verifyAttachment;
 validator.addEnvironment('IDENTITY_POOL_ID', backend.auth.resources.identityPoolId);
