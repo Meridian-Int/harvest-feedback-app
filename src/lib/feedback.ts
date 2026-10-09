@@ -4,7 +4,6 @@ import { getProperties, getUrl, remove, uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
 import { requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
-import { titleFromDescription } from './format';
 import { sortFeedback } from './list';
 import { ASSIGNEES, MAX_ATTACHMENT_BYTES, PRODUCT_AREAS, PRIORITY_LABELS, SEVERITY_LABELS, STATUS_ORDER } from './options';
 import { isUpdatePending } from './status';
@@ -28,8 +27,9 @@ function resultOrThrow<T>(result: { data: T; errors?: readonly { message: string
 }
 
 type FeedbackRecord = NonNullable<Awaited<ReturnType<typeof client.models.Feedback.get>>['data']>;
+type SubmittedFeedbackRecord = NonNullable<Awaited<ReturnType<typeof client.mutations.submitFeedback>>['data']>;
 
-function toFeedback(row: FeedbackRecord): Feedback {
+function toFeedback(row: FeedbackRecord | SubmittedFeedbackRecord): Feedback {
   return {
     id: row.id,
     title: row.title,
@@ -58,7 +58,7 @@ function toFeedback(row: FeedbackRecord): Feedback {
 }
 
 function ownedBy(report: Feedback, user: AuthUser): boolean {
-  return report.owner === user.id || report.owner.startsWith(`${user.id}::`);
+  return report.owner === user.id || report.owner.startsWith(`${user.id}::`) || report.reporterEmail === user.email;
 }
 
 async function listFeedback(): Promise<Feedback[]> {
@@ -97,11 +97,10 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
       attachmentSize: properties.size,
     };
   }
-  const created = resultOrThrow(await client.models.Feedback.create({
-    title: titleFromDescription(description), description, productArea: input.productArea,
+  const created = resultOrThrow(await client.mutations.submitFeedback({
+    description, productArea: input.productArea,
     ...(input.productArea === 'Other — add an area' ? { customArea } : {}),
     priority: input.priority, severity: input.severity,
-    reporterName: user.name, reporterEmail: user.email, persona: user.persona, company: user.company,
     ...(input.sentryIssueId ? { sentryIssueId: input.sentryIssueId } : {}),
     ...attachment,
   }));
@@ -119,6 +118,28 @@ export async function listAllFeedback(): Promise<Feedback[]> {
   requireAmplify();
   requireAdmin(requireUser());
   return listFeedback();
+}
+
+/** Model updates stream through observeQuery; secure custom creates signal a refetch. */
+export function observeAllFeedback(onChange: (reports: Feedback[]) => void, onError: (error: Error) => void): () => void {
+  requireAmplify();
+  requireAdmin(requireUser());
+  const fail = (cause: unknown) => onError(cause instanceof Error ? cause : new Error('Could not load reports.'));
+  const model = client.models.Feedback.observeQuery().subscribe({
+    next: ({ items, isSynced }) => { if (isSynced) onChange(sortFeedback(items.map(toFeedback))); },
+    error: fail,
+  });
+  let created;
+  try {
+    created = client.subscriptions.feedbackSubmitted().subscribe({
+      next: () => { void listAllFeedback().then(onChange).catch(fail); },
+      error: fail,
+    });
+  } catch (cause) {
+    model.unsubscribe();
+    throw cause;
+  }
+  return () => { model.unsubscribe(); created.unsubscribe(); };
 }
 
 export async function getFeedback(id: string): Promise<Feedback | null> {

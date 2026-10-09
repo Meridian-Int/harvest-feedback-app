@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-vi.mock('../lib/feedback', () => ({ listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
+vi.mock('../lib/feedback', () => ({ listAllFeedback: vi.fn().mockResolvedValue([]), observeAllFeedback: vi.fn(() => () => {}), listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
+vi.mock('../lib/insights', () => ({ getSentryIssues: vi.fn().mockResolvedValue({ configured: false, issues: [] }), getLookerEmbedUrl: vi.fn().mockReturnValue(null) }));
 import { screen } from '@testing-library/react';
 import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';

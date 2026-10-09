@@ -1,10 +1,12 @@
 import { beforeEach, vi } from 'vitest';
-import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, requestUpdate, uploadAttachment, removeAttachment, subscribeMyFeedback } from './feedback';
+import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, observeAllFeedback, removeAttachment, subscribeMyFeedback, requestUpdate, uploadAttachment } from './feedback';
 import { isUpdatePending } from './status';
 import type { AuthUser, CreateFeedbackInput, Feedback } from './types';
 
 const state = vi.hoisted(() => ({ user: null as AuthUser | null }));
-const data = vi.hoisted(() => ({ create: vi.fn(), list: vi.fn(), get: vi.fn(), update: vi.fn(), observeQuery: vi.fn() }));
+const data = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), observeQuery: vi.fn() }));
+const submitFeedback = vi.hoisted(() => vi.fn());
+const live = vi.hoisted(() => ({ modelSubscribe: vi.fn(), createdSubscribe: vi.fn(), modelUnsubscribe: vi.fn(), createdUnsubscribe: vi.fn() }));
 const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), uploadData: vi.fn(), remove: vi.fn() }));
 const session = vi.hoisted(() => ({ fetchAuthSession: vi.fn() }));
 
@@ -13,7 +15,7 @@ vi.mock('./auth', () => ({
   requireUser: () => { if (!state.user) throw new Error('Sign in to Harvest'); return state.user; },
   isAdmin: (user: AuthUser | null) => Boolean(user?.groups.includes('admins')),
 }));
-vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { Feedback: data } }) }));
+vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { Feedback: data }, mutations: { submitFeedback }, subscriptions: { feedbackSubmitted: () => ({ subscribe: live.createdSubscribe }) } }) }));
 vi.mock('aws-amplify/auth', () => session);
 vi.mock('aws-amplify/storage', () => storage);
 
@@ -34,8 +36,12 @@ beforeEach(() => {
   rows = [{ ...baseReport }];
   data.list.mockImplementation(async () => ({ data: rows, nextToken: null }));
   data.get.mockImplementation(async ({ id }: { id: string }) => ({ data: rows.find(row => row.id === id) ?? null }));
-  data.create.mockImplementation(async (record: Partial<Feedback>) => {
-    const row: Feedback = { ...baseReport, ...record, id: 'created-1', status: 'NEW' };
+  data.observeQuery.mockReturnValue({ subscribe: live.modelSubscribe });
+  live.modelSubscribe.mockReturnValue({ unsubscribe: live.modelUnsubscribe });
+  live.createdSubscribe.mockReturnValue({ unsubscribe: live.createdUnsubscribe });
+  submitFeedback.mockImplementation(async (record: Partial<Feedback>) => {
+    const row: Feedback = { ...baseReport, ...record, id: 'created-1', title: record.description?.split('\n')[0] ?? '',
+      reporterName: state.user!.name, reporterEmail: state.user!.email, status: 'NEW' };
     rows.push(row);
     return { data: row };
   });
@@ -51,6 +57,24 @@ beforeEach(() => {
   storage.uploadData.mockImplementation(({ path }: { path: (input: { identityId: string }) => string }) => ({ result: Promise.resolve({ path: path({ identityId: 'identity-1' }) }) }));
 });
 
+it('streams model changes and refetches after secure custom report creation', async () => {
+  state.user = admin;
+  const onChange = vi.fn();
+  const onError = vi.fn();
+  const stop = observeAllFeedback(onChange, onError);
+  live.modelSubscribe.mock.calls[0][0].next({ items: rows, isSynced: false });
+  expect(onChange).not.toHaveBeenCalled();
+  live.modelSubscribe.mock.calls[0][0].next({ items: rows, isSynced: true });
+  expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ id: 'report-1' })]);
+  rows.push({ ...baseReport, id: 'report-2' });
+  live.createdSubscribe.mock.calls[0][0].next({});
+  await vi.waitFor(() => expect(onChange).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ id: 'report-2' })])));
+  expect(onError).not.toHaveBeenCalled();
+  stop();
+  expect(live.modelUnsubscribe).toHaveBeenCalledOnce();
+  expect(live.createdUnsubscribe).toHaveBeenCalledOnce();
+});
+
 it('requires a signed-in user for every operation', async () => {
   state.user = null;
   for (const operation of [() => createFeedback(input), listMyFeedback, listAllFeedback, () => getFeedback('x'), () => requestUpdate('x'), () => adminUpdate('x', { status: 'NEW' }), () => uploadAttachment(new File([], 'x.png')), () => getAttachmentUrl('x')]) {
@@ -61,8 +85,9 @@ it('requires a signed-in user for every operation', async () => {
 it('creates a trimmed report using trusted identity and no caller supplied status', async () => {
   const created = await createFeedback({ ...input, status: 'CLOSED', reporterEmail: 'spoof@example.com' } as CreateFeedbackInput);
   expect(created).toMatchObject({ title: 'New report', reporterEmail: client.email, status: 'NEW' });
-  expect(data.create).toHaveBeenCalledWith(expect.objectContaining({ title: 'New report', description: 'New report\nMore detail', reporterName: client.name, reporterEmail: client.email }));
-  expect(data.create.mock.calls[0][0]).not.toHaveProperty('status');
+  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ description: 'New report\nMore detail', productArea: 'Data room' }));
+  expect(submitFeedback.mock.calls[0][0]).not.toHaveProperty('status');
+  expect(submitFeedback.mock.calls[0][0]).not.toHaveProperty('reporterEmail');
 });
 
 it.each([
@@ -72,7 +97,7 @@ it.each([
   [{ priority: 'BOGUS' }, 'priority'], [{ severity: 'BLOCKER' }, 'severity'],
 ])('rejects invalid report input %o', async (overrides, message) => {
   await expect(createFeedback({ ...input, ...overrides } as CreateFeedbackInput)).rejects.toThrow(message);
-  expect(data.create).not.toHaveBeenCalled();
+  expect(submitFeedback).not.toHaveBeenCalled();
 });
 
 it('allows a custom area and reserves Sentry links for admins', async () => {
@@ -83,7 +108,7 @@ it('allows a custom area and reserves Sentry links for admins', async () => {
 });
 
 it('follows every data page and scopes My reports to the current owner', async () => {
-  const other = { ...baseReport, id: 'report-2', owner: 'other-1::other@company.com' };
+  const other = { ...baseReport, id: 'report-2', owner: 'other-1::other@company.com', reporterEmail: 'other@company.com' };
   data.list.mockResolvedValueOnce({ data: [baseReport], nextToken: 'page-2' }).mockResolvedValueOnce({ data: [other], nextToken: null });
   expect((await listMyFeedback()).map(row => row.id)).toEqual(['report-1']);
   expect(data.list).toHaveBeenNthCalledWith(2, { limit: 100, nextToken: 'page-2' });
@@ -110,8 +135,10 @@ it('keeps update requests pending until an admin saves', async () => {
 
 it('rejects requests for other owners and closed reports', async () => {
   rows[0].owner = 'other-1::other@company.com';
+  rows[0].reporterEmail = 'other@company.com';
   await expect(requestUpdate('report-1')).rejects.toThrow('cannot be requested');
   rows[0].owner = baseReport.owner;
+  rows[0].reporterEmail = baseReport.reporterEmail;
   rows[0].status = 'CLOSED';
   await expect(requestUpdate('report-1')).rejects.toThrow('cannot be requested');
 });
@@ -153,11 +180,11 @@ it('rejects unsupported and oversize attachments', async () => {
 it('verifies an attachment belongs to the same storage identity before creating a report', async () => {
   await expect(createFeedback({ ...input, attachmentKey: 'feedback-media/other/file', attachmentName: 'x.png', attachmentType: 'image/png' })).rejects.toThrow('Attachment unavailable');
   await createFeedback({ ...input, attachmentKey: 'feedback-media/identity-1/file', attachmentName: 'x.png', attachmentType: 'image/png' });
-  expect(data.create).toHaveBeenCalledWith(expect.objectContaining({ attachmentSize: 5 }));
+  expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ attachmentSize: 5 }));
 });
 
 it('surfaces data and storage errors without claiming success', async () => {
-  data.create.mockResolvedValueOnce({ data: null, errors: [{ message: 'Write failed' }] });
+  submitFeedback.mockResolvedValueOnce({ data: null, errors: [{ message: 'Write failed' }] });
   await expect(createFeedback(input)).rejects.toThrow('Write failed');
   storage.getUrl.mockRejectedValueOnce(new Error('missing'));
   await expect(getAttachmentUrl('missing')).rejects.toThrow('Attachment unavailable');
@@ -166,7 +193,7 @@ it('surfaces data and storage errors without claiming success', async () => {
 it('rejects an attachment already claimed by one of the reporter’s reports', async () => {
   rows[0].attachmentKey = 'feedback-media/identity-1/file';
   await expect(createFeedback({ ...input, attachmentKey: rows[0].attachmentKey, attachmentName: 'x.png', attachmentType: 'image/png' })).rejects.toThrow('Attachment unavailable');
-  expect(data.create).not.toHaveBeenCalled();
+  expect(submitFeedback).not.toHaveBeenCalled();
 });
 
 it('passes list errors to the page instead of showing an empty result', async () => {
@@ -205,7 +232,7 @@ it('subscribes to synced own reports and releases the subscription', () => {
   const observer = subscribe.mock.calls[0][0];
   observer.next({ items: [baseReport], isSynced: false });
   expect(next).not.toHaveBeenCalled();
-  observer.next({ items: [baseReport, { ...baseReport, owner: 'another' }], isSynced: true });
+  observer.next({ items: [baseReport, { ...baseReport, owner: 'another', reporterEmail: 'other@example.com' }], isSynced: true });
   expect(next).toHaveBeenCalledWith([baseReport]);
   observer.error(); expect(error).toHaveBeenCalledOnce();
   stop(); expect(unsubscribe).toHaveBeenCalledOnce();
