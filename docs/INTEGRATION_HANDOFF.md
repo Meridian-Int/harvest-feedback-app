@@ -47,7 +47,7 @@ The sandbox is for testing, not production hosting. Do not describe the app as l
 
 Email OTP and password creation have been observed for the first sandbox client. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
 
-Local checks passed after the invite and notification changes: clean `npm ci`, 219 tests with coverage, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
+Local checks passed after the invite and notification changes: clean `npm ci`, 221 tests, coverage thresholds, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
 
 ### Partner invitation and admin notification demo
 

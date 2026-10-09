@@ -42,7 +42,7 @@ html[data-page="reports"], html[data-page="reports"] body { height: 100%; overfl
   .rail { position: static; height: auto; padding: 14px; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { padding: 0; }
   .brand-sub, .nav-label, .rail-bottom { display: none; }
-  .workspace-nav { display: flex; gap: 6px; margin-top: 10px; }
+  .workspace-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .workspace-nav a { min-height: 40px; padding: 8px 10px; }
   .top { padding: 0 16px; gap: 8px; }
   .top-actions { gap: 8px; }

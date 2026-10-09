@@ -18,7 +18,7 @@ export async function handler(report: ReportNotice): Promise<{ sent: boolean }> 
     let nextToken: string | undefined;
     do {
       const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: poolId, GroupName: 'admins', NextToken: nextToken }));
-      users.push(...page.Users ?? []);
+      users.push(...(page.Users ?? []));
       nextToken = page.NextToken;
     } while (nextToken);
     const recipients = adminEmails(users);
