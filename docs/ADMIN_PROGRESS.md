@@ -7,18 +7,18 @@ Updated: 9 October 2026
 | 0. Starting point | Done | Read the project guidance and published `codex/admin-feedback` to GitHub with Sahil as the commit author. | Keep the shared contracts stable while Manasa builds the client side. |
 | 1. Secure backend | Code complete; live check pending | Added Amplify auth, Feedback data, storage, and backend wiring. A server resolver now creates reports with a required status enum set to `NEW` and reporter details copied from Cognito. Direct model creation cannot fill the required protected fields. Backend typecheck passes. | When an AWS sandbox is available, verify the schema deploys and test owner/admin permissions through the API, including rejected direct creates and owner status/assignee edits. |
 | 2. Shared API | Code complete; live check pending | Replaced demo email codes, local report storage, and IndexedDB media with Cognito, Amplify Data, and Storage. Report creation now calls the server mutation. Kept the page-facing function signatures and added adapter tests. | Generate `amplify_outputs.json` from a sandbox and verify sign-in, uploads, report creation, and permissions with real accounts. |
-| 3. Admin integrations | In progress | Added the admin-only `sentryIssues` query and Sentry function, with setup state when unconfigured and tests for the issue mapping. | Configure `SENTRY_ORG`, `SENTRY_PROJECTS`, and the `SENTRY_AUTH_TOKEN` secret per branch; verify with live Sentry. GA4 and Looker wiring can follow when frontend work resumes. |
+| 3. Admin integrations | Code complete; live setup pending | Added the admin-only Sentry query, Sentry browser monitoring, GA4 page views, and the Looker embed setting. The UI has clear setup states when Sentry or Looker is not configured. | Configure the Sentry, GA4, and Looker values per branch and verify real data in an AWS environment. |
 | 4. Feedback review | Code complete; live and visual checks pending | Built the review queue with live updates, all requested filters, metrics, list/grid, paging, attachment preview, and status/owner editing. Added admin and shared API tests. | Verify live subscriptions, attachment download, and the layout against the prototype in an AWS sandbox. |
-| 5. Product insights | Not started | Existing page is a placeholder. | Build Errors and Traffic against the integrations. |
+| 5. Product insights | Code complete; live and visual checks pending | Built the Errors list, project filter, metrics, Sentry-linked report action, and Traffic iframe. Added adapter, logic, page, and telemetry tests. | Check real Sentry issues and the Looker embed, then compare layout with the prototype at required screen sizes. |
 | 6. Acceptance and PR | Not started | Existing tests and build pass. | Run coverage, API authorization checks, visual checks, and prepare reviewable PRs to `dev`. |
 
 ## Checks so far
 
-- `npm run test:coverage`: 101 passed across 14 test files (up from 68 at the start); coverage thresholds passed.
+- `npm run test:coverage`: 114 passed across 18 test files (up from 68 at the start); coverage thresholds passed.
 - `npm run build`: passed.
 - `npm run typecheck`: passed.
 - `npx tsc --noEmit -p amplify/tsconfig.json`: passed.
-- Overall coverage: lines 95.98%, functions 91.57%, branches 86.25%.
+- Overall coverage: lines 96.38%, functions 92.71%, branches 85.71%.
 - Production dependency audit: 0 vulnerabilities.
 - The feature branch is on GitHub; it has not been merged into `dev`.
 - No AWS deployment or direct API authorization check has run yet.

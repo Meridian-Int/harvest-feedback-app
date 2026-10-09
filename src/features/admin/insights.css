@@ -1,0 +1,24 @@
+#view-admin-insights .signal-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+#view-admin-insights .signal-metric { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(130deg, var(--admin-haze), transparent), var(--surface); }
+#view-admin-insights .signal-metric > span, #view-admin-insights .signal-metric small { font-size: 11px; color: var(--dim); }
+#view-admin-insights .signal-metric strong { font: 25px/1.15 Arial, sans-serif; font-variant-numeric: tabular-nums; }
+#view-admin-insights .project-filter { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); }
+#view-admin-insights .project-filter select { min-height: 32px; width: 145px; padding: 5px 8px; font-size: 12px; }
+#view-admin-insights .insight-issues-panel { overflow: hidden; }
+#view-admin-insights .insight-error-row { display: grid; grid-template-columns: 3px minmax(0, 1fr) 80px 76px 116px; gap: 14px; padding: 16px; align-items: center; border-bottom: 1px solid var(--line); }
+#view-admin-insights .insight-error-row:last-child { border-bottom: 0; }
+#view-admin-insights .insight-error-level { align-self: stretch; background: var(--bug); border-radius: 3px; }
+#view-admin-insights .insight-error-level.is-error { background: var(--red); }
+#view-admin-insights .insight-error-description { min-width: 0; }
+#view-admin-insights .insight-error-description h3 { font: 12px/1.5 -apple-system, BlinkMacSystemFont, Arial, sans-serif; overflow-wrap: anywhere; margin-bottom: 6px; }
+#view-admin-insights .insight-error-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--dim); font-size: 10px; overflow-wrap: anywhere; }
+#view-admin-insights .insight-error-meta .tag { font-size: 9px; padding: 1px 5px; }
+#view-admin-insights .insight-error-count { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+#view-admin-insights .insight-error-count small { display: block; color: var(--dim); font-size: 10px; margin-top: 3px; }
+#view-admin-insights .insight-error-row .btn { font-size: 11px; min-height: 32px; padding: 6px 8px; }
+#view-admin-insights .insight-error-spark { height: 32px; display: flex; gap: 2px; align-items: flex-end; }
+#view-admin-insights .insight-error-spark i { flex: 1; background: var(--dim); opacity: .6; border-radius: 2px; }
+#view-admin-insights .insight-traffic-panel { overflow: hidden; }
+#view-admin-insights .insight-traffic-panel iframe { display: block; width: 100%; min-height: 650px; border: 0; background: var(--surface); }
+@media (max-width: 900px) { #view-admin-insights .insight-error-row { grid-template-columns: 3px minmax(0, 1fr) 72px; } #view-admin-insights .insight-error-spark { display: none; } #view-admin-insights .insight-error-row > .btn { grid-column: 2; justify-self: start; } }
+@media (max-width: 600px) { #view-admin-insights .signal-summary { gap: 7px; } #view-admin-insights .signal-metric { padding: 12px 10px; } #view-admin-insights .signal-metric strong { font-size: 21px; } #view-admin-insights .signal-metric small { font-size: 10px; } #view-admin-insights .project-filter { font-size: 0; } #view-admin-insights .insight-traffic-panel iframe { min-height: 520px; } }

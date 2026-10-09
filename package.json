@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@sentry/react": "^11.6.0",
     "aws-amplify": "^6.22.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
