@@ -1,0 +1,72 @@
+# Deploys dev, test and main (production) through AWS Amplify Hosting and records each
+# deployment in GitHub, so the repo's "Deployments" box shows dev / test / production.
+#
+# How it works: a push to dev/test/main starts this job in the matching GitHub environment.
+# Production waits for its required reviewer (Vaish) before running. The job asks Amplify to
+# build that branch, waits for the result, and passes or fails with it.
+#
+# Needs (see docs/ENVIRONMENTS.md): repository variables AMPLIFY_APP_ID, AWS_REGION,
+# AWS_DEPLOY_ROLE_ARN; GitHub environments dev, test, production; auto-build OFF in Amplify.
+
+name: Deploy
+
+on:
+  push:
+    branches: [dev, test, main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # lets the job sign in to AWS without stored keys (OIDC)
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || github.ref_name }}
+      url: https://${{ github.ref_name }}.${{ vars.AMPLIFY_APP_ID }}.amplifyapp.com
+    env:
+      APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+      BRANCH: ${{ github.ref_name }}
+    steps:
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Start the Amplify build
+        id: start
+        run: |
+          JOB_ID=$(aws amplify start-job \
+            --app-id "$APP_ID" \
+            --branch-name "$BRANCH" \
+            --job-type RELEASE \
+            --commit-id "$GITHUB_SHA" \
+            --commit-message "Deploy from GitHub Actions" \
+            --query 'jobSummary.jobId' --output text)
+          echo "Amplify job $JOB_ID started for $BRANCH"
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the build to finish
+        env:
+          JOB_ID: ${{ steps.start.outputs.job_id }}
+        run: |
+          for i in $(seq 1 160); do
+            STATUS=$(aws amplify get-job --app-id "$APP_ID" --branch-name "$BRANCH" \
+              --job-id "$JOB_ID" --query 'job.summary.status' --output text)
+            echo "[$i] $STATUS"
+            case "$STATUS" in
+              SUCCEED) echo "Deployed $BRANCH"; exit 0 ;;
+              FAILED|CANCELLED) echo "::error::Amplify job $JOB_ID ended $STATUS. Open the Amplify console for logs."; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::Timed out waiting for Amplify job $JOB_ID"
+          exit 1

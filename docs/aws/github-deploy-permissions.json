@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StartAndWatchAmplifyBuildsForThisAppOnly",
+      "Effect": "Allow",
+      "Action": [
+        "amplify:StartJob",
+        "amplify:GetJob",
+        "amplify:ListJobs",
+        "amplify:GetBranch"
+      ],
+      "Resource": [
+        "arn:aws:amplify:<AWS_REGION>:<AWS_ACCOUNT_ID>:apps/<AMPLIFY_APP_ID>/branches/*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "files": [
+    {
+      "path": "source/Harvest Color Palette.html",
+      "bytes": 6469,
+      "sha256": "dabb668c4ad46871c3af9febf63bceb4842d5b67670685f81529e7654a096f7e"
+    },
+    {
+      "path": "source/Harvest Color Palette.json",
+      "bytes": 1208,
+      "sha256": "79215df100cba9b52b1f91a4b3578a4ba251611905483090d346a8c816ad5717"
+    },
+    {
+      "path": "source/Harvest Feedback.html",
+      "bytes": 153873,
+      "sha256": "ef2618276521f359d4163fffbb777130b2d795f5d304c79e57ac8596619e17f1"
+    }
+  ],
+  "screenshots": {
+    "status": "omitted",
+    "reason": "Playwright Chromium exited during launch before any page opened."
+  }
+}

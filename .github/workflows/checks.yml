@@ -1,0 +1,52 @@
+# Runs on every pull request into dev, test or main: typecheck, unit tests with coverage, build.
+# Branch protection requires this to pass before merging.
+# Skips cleanly until Phase 0 has added package.json.
+
+name: Checks
+
+on:
+  pull_request:
+    branches: [dev, test, main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is the app scaffolded yet?
+        id: app
+        run: |
+          if [ -f package.json ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "No package.json yet, skipping."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.app.outputs.ready == 'true'
+        run: npm ci
+
+      # amplify_outputs.json is generated per sandbox and git-ignored; CI only needs it to exist.
+      - name: Placeholder Amplify outputs
+        if: steps.app.outputs.ready == 'true'
+        run: '[ -f amplify_outputs.json ] || echo "{}" > amplify_outputs.json'
+
+      - name: Typecheck
+        if: steps.app.outputs.ready == 'true'
+        run: npx tsc --noEmit
+
+      - name: Unit tests and coverage
+        if: steps.app.outputs.ready == 'true'
+        run: npm run test:coverage --if-present
+
+      - name: Build
+        if: steps.app.outputs.ready == 'true'
+        run: npm run build

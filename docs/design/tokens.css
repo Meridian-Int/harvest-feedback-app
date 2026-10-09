@@ -1,0 +1,137 @@
+/* HARVEST Feedback: design tokens.
+   Source: docs/design/handoff/DESIGN_SPEC.md Appendix A and §5 (exact values from Manasa's prototype).
+   Copy to src/styles/tokens.css and import it once in src/main.tsx.
+   Dark is the default theme. RGBA values must keep their opacity (glass). */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #131211;
+  --rail: rgba(22,21,20,.8);
+  --surface: rgba(36,34,32,.72);
+  --raised: rgba(63,59,55,.48);
+  --input: rgba(17,16,15,.64);
+  --text: #eeeae5;
+  --muted: #b0aaa3;
+  --dim: #938c84;
+  --line: rgba(218,204,188,.14);
+  --accent: #e0e0e3;
+  --accentink: #111113;
+  --soft: #252528;
+  --red: #ff7f8a;
+  --redsoft: #381b24;
+  --orange: #edbe81;
+  --orangesoft: #372e22;
+  --blue: #b8b8c0;
+  --bluesoft: #29292f;
+  --shadow: 0 24px 80px #0005;
+  --bug: #efb473;
+  --bug-soft: #38291b;
+  --improvement: #91baff;
+  --improvement-soft: #202e46;
+  --normal: #edc66f;
+  --normal-soft: #352e1d;
+  --low: #aabbd0;
+  --low-soft: #252d38;
+  --admin-haze: rgba(198,111,45,.028);
+  --progress-green: #7eb58c;
+  --panel-shadow: 0 8px 28px rgba(0,0,0,.12), inset 0 1px 0 rgba(245,203,158,.055);
+  --body-bg:
+    radial-gradient(ellipse 65% 50% at 88% 0%, rgba(198,111,45,.045), transparent 72%),
+    radial-gradient(ellipse 48% 65% at 4% 90%, rgba(177,99,42,.022), transparent 75%),
+    var(--bg);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e7e2d8;
+  --rail: #e1dbcf;
+  --surface: #eee9df;
+  --raised: #e0d9cc;
+  --input: #e9e3d7;
+  --text: #302e28;
+  --muted: #555147;
+  --dim: #6b6559;
+  --line: #cdc5b7;
+  --accent: #36332c;
+  --accentink: #f1ece2;
+  --soft: #ddd5c7;
+  --red: #b7434c;
+  --redsoft: #f9e6e6;
+  --orange: #946020;
+  --orangesoft: #fff1da;
+  --blue: #5e5e69;
+  --bluesoft: #ededf0;
+  --shadow: 0 24px 80px #24344522;
+  --bug: #925617;
+  --bug-soft: #f9ead7;
+  --improvement: #3e6599;
+  --improvement-soft: #e6edf8;
+  --normal: #86600e;
+  --normal-soft: #fff3cf;
+  --low: #4e657e;
+  --low-soft: #eaf0f7;
+  --admin-haze: rgba(196,123,59,.035);
+  --progress-green: #287747;
+  --panel-shadow: 0 8px 30px rgba(118,88,57,.045), inset 0 1px 0 rgba(255,255,255,.85);
+  --body-bg:
+    radial-gradient(ellipse 65% 50% at 92% 0%, rgba(204,130,63,.065), transparent 72%),
+    radial-gradient(ellipse 50% 55% at 0% 100%, rgba(204,130,63,.03), transparent 75%),
+    var(--bg);
+}
+
+/* Pill dots (spec §3). These literals are intentionally different from --bug / --improvement. */
+:root {
+  --dot-bug: #b58a59;
+  --dot-improvement: #8095ab;
+  --dot-neutral: var(--dim);   /* Blocker, Medium, Low */
+  --dot-critical: var(--red);  /* Critical: dot and text */
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-figures: Arial, sans-serif;
+}
+
+html, body { font-family: var(--font-sans); font-size: 13px; line-height: 1.55; color: var(--text); }
+/* Dark: fixed haze. Light: the spec's final rule resets attachment to scroll. */
+[data-theme="dark"] body, :root:not([data-theme="light"]) body { background: var(--body-bg); background-attachment: fixed; }
+[data-theme="light"] body { background: var(--body-bg); }
+
+h1, h2, h3 { font-family: var(--font-serif); font-weight: 400; }
+
+/* Glass panel (spec §3 Panel, §5 Glass) */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--panel-shadow);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+dialog::backdrop { background: #03090eb5; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+
+:where(button, input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Tailwind v4: tokens as utilities (bg-surface, text-muted, border-line, ...) */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-rail: var(--rail);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-input: var(--input);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-dim: var(--dim);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accentink: var(--accentink);
+  --color-soft: var(--soft);
+  --color-red: var(--red);
+  --color-progress-green: var(--progress-green);
+  --color-dot-bug: var(--dot-bug);
+  --color-dot-improvement: var(--dot-improvement);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
