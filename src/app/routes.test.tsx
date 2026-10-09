@@ -41,5 +41,5 @@ it('shows an admin a new report without refreshing the app', async () => {
   act(() => onChange?.([]));
   act(() => onChange?.([makeFeedback({ id: 'new-1234', company: 'Acme', status: 'NEW' })]));
   expect(screen.getByRole('status')).toHaveTextContent('New report from Acme');
-  expect(screen.getByText('1', { selector: '.nav-count' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Review queue' })).not.toHaveTextContent('1');
 });

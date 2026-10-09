@@ -11,7 +11,6 @@ export function AppShell() {
   const { pathname } = useLocation();
   const admin = isAdmin(user);
   const [error, setError] = useState<string | null>(null);
-  const [newCount, setNewCount] = useState(0);
   const [notification, setNotification] = useState<string | null>(null);
   const knownReports = useRef<Set<string> | null>(null);
   const reportsPage = pathname === '/feedback/mine' || pathname === '/admin/reviews';
@@ -23,7 +22,6 @@ export function AppShell() {
     if (!admin) return;
     try {
       return observeAllFeedback(rows => {
-        setNewCount(rows.filter(report => report.status === 'NEW').length);
         const ids = new Set(rows.map(report => report.id));
         if (knownReports.current) {
           const newest = rows.find(report => !knownReports.current?.has(report.id) && report.status === 'NEW');
@@ -43,7 +41,7 @@ export function AppShell() {
     <aside className="rail">
       <div className="brand">HARVEST</div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
       <div className="nav-label eyebrow">Feedback workspace</div>
-      <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}{link.to === '/admin/reviews' && newCount > 0 && <span className="nav-count" aria-hidden="true">{newCount}</span>}</NavLink>)}</nav>
+      <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
       <div className="rail-bottom"><div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div></div>
     </aside>
     <div className="workspace-main">
