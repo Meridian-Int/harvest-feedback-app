@@ -1,11 +1,12 @@
 import { beforeEach, vi } from 'vitest';
-import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, requestUpdate, uploadAttachment } from './feedback';
+import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, observeAllFeedback, requestUpdate, uploadAttachment } from './feedback';
 import { isUpdatePending } from './status';
 import type { AuthUser, CreateFeedbackInput, Feedback } from './types';
 
 const state = vi.hoisted(() => ({ user: null as AuthUser | null }));
-const data = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn() }));
+const data = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), observeQuery: vi.fn() }));
 const submitFeedback = vi.hoisted(() => vi.fn());
+const live = vi.hoisted(() => ({ modelSubscribe: vi.fn(), createdSubscribe: vi.fn(), modelUnsubscribe: vi.fn(), createdUnsubscribe: vi.fn() }));
 const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), uploadData: vi.fn() }));
 const session = vi.hoisted(() => ({ fetchAuthSession: vi.fn() }));
 
@@ -14,7 +15,7 @@ vi.mock('./auth', () => ({
   requireUser: () => { if (!state.user) throw new Error('Sign in to Harvest'); return state.user; },
   isAdmin: (user: AuthUser | null) => Boolean(user?.groups.includes('admins')),
 }));
-vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { Feedback: data }, mutations: { submitFeedback } }) }));
+vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { Feedback: data }, mutations: { submitFeedback }, subscriptions: { feedbackSubmitted: () => ({ subscribe: live.createdSubscribe }) } }) }));
 vi.mock('aws-amplify/auth', () => session);
 vi.mock('aws-amplify/storage', () => storage);
 
@@ -35,6 +36,9 @@ beforeEach(() => {
   rows = [{ ...baseReport }];
   data.list.mockImplementation(async () => ({ data: rows, nextToken: null }));
   data.get.mockImplementation(async ({ id }: { id: string }) => ({ data: rows.find(row => row.id === id) ?? null }));
+  data.observeQuery.mockReturnValue({ subscribe: live.modelSubscribe });
+  live.modelSubscribe.mockReturnValue({ unsubscribe: live.modelUnsubscribe });
+  live.createdSubscribe.mockReturnValue({ unsubscribe: live.createdUnsubscribe });
   submitFeedback.mockImplementation(async (record: Partial<Feedback>) => {
     const row: Feedback = { ...baseReport, ...record, id: 'created-1', title: record.description?.split('\n')[0] ?? '',
       reporterName: state.user!.name, reporterEmail: state.user!.email, status: 'NEW' };
@@ -51,6 +55,24 @@ beforeEach(() => {
   storage.getProperties.mockResolvedValue({ size: 5 });
   storage.getUrl.mockResolvedValue({ url: new URL('https://example.com/file') });
   storage.uploadData.mockImplementation(({ path }: { path: (input: { identityId: string }) => string }) => ({ result: Promise.resolve({ path: path({ identityId: 'identity-1' }) }) }));
+});
+
+it('streams model changes and refetches after secure custom report creation', async () => {
+  state.user = admin;
+  const onChange = vi.fn();
+  const onError = vi.fn();
+  const stop = observeAllFeedback(onChange, onError);
+  live.modelSubscribe.mock.calls[0][0].next({ items: rows, isSynced: false });
+  expect(onChange).not.toHaveBeenCalled();
+  live.modelSubscribe.mock.calls[0][0].next({ items: rows, isSynced: true });
+  expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ id: 'report-1' })]);
+  rows.push({ ...baseReport, id: 'report-2' });
+  live.createdSubscribe.mock.calls[0][0].next({});
+  await vi.waitFor(() => expect(onChange).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ id: 'report-2' })])));
+  expect(onError).not.toHaveBeenCalled();
+  stop();
+  expect(live.modelUnsubscribe).toHaveBeenCalledOnce();
+  expect(live.createdUnsubscribe).toHaveBeenCalledOnce();
 });
 
 it('requires a signed-in user for every operation', async () => {

@@ -120,6 +120,28 @@ export async function listAllFeedback(): Promise<Feedback[]> {
   return listFeedback();
 }
 
+/** Model updates stream through observeQuery; secure custom creates signal a refetch. */
+export function observeAllFeedback(onChange: (reports: Feedback[]) => void, onError: (error: Error) => void): () => void {
+  requireAmplify();
+  requireAdmin(requireUser());
+  const fail = (cause: unknown) => onError(cause instanceof Error ? cause : new Error('Could not load reports.'));
+  const model = client.models.Feedback.observeQuery().subscribe({
+    next: ({ items, isSynced }) => { if (isSynced) onChange(sortFeedback(items.map(toFeedback))); },
+    error: fail,
+  });
+  let created;
+  try {
+    created = client.subscriptions.feedbackSubmitted().subscribe({
+      next: () => { void listAllFeedback().then(onChange).catch(fail); },
+      error: fail,
+    });
+  } catch (cause) {
+    model.unsubscribe();
+    throw cause;
+  }
+  return () => { model.unsubscribe(); created.unsubscribe(); };
+}
+
 export async function getFeedback(id: string): Promise<Feedback | null> {
   requireAmplify();
   requireUser();
