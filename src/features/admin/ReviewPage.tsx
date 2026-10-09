@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Button, EmptyState, Input, MetricToggle, Pagination, Panel, Pill, SegmentedControl, Select, Tag, Toast } from '../../components/ui';
+import { Icon } from '../../components/icons';
 import { listAllFeedback, observeAllFeedback } from '../../lib/feedback';
 import { formatDate } from '../../lib/format';
 import { paginate } from '../../lib/list';
-import { ASSIGNEES, PERSONAS, PRODUCT_AREAS, SEVERITIES, STATUSES, STATUS_ORDER } from '../../lib/options';
-import { isUpdatePending } from '../../lib/status';
+import { ASSIGNEES, PERSONAS, PRODUCT_AREAS, SEVERITIES, STATUSES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { isUpdatePending, statusStep } from '../../lib/status';
 import type { Feedback } from '../../lib/types';
 import { changeReviewFilter, filterReviewReports, readReviewFilters, reviewMetrics } from './logic/review';
 import { ReviewDetail } from './ReviewDetail';
@@ -14,10 +15,18 @@ import './review.css';
 type Layout = 'list' | 'grid';
 
 function ReportRow({ report, onOpen }: { report: Feedback; onOpen: () => void }) {
-  return <button type="button" className="admin-report" onClick={onOpen} aria-label={`View description: ${report.title}`}>
+  const currentStep = statusStep(report.status);
+  return <button type="button" className="admin-report" onClick={onOpen} aria-label={`View description: ${report.title}`} aria-description={`Status: ${STATUS_LABELS[report.status]}`}>
     <span className="admin-row-main">
       <span className="admin-heading-line"><span className="admin-report-title">{report.title}</span><span className="admin-report-date">{formatDate(report.createdAt)}</span></span>
       <small>{report.productArea} · {report.company}{report.status === 'CLOSED' ? ' · Closed' : ''}{isUpdatePending(report) ? ' · Update requested' : ''}</small>
+      <span className="admin-progress" aria-hidden="true">{STATUS_ORDER.map((step, index) => {
+        const completed = index < currentStep || report.status === 'CLOSED';
+        return <span key={step} className={`admin-progress-step ${completed ? 'completed' : index === currentStep ? 'current' : 'future'}`}>
+          <span className="admin-progress-dot">{completed ? <Icon name="check" /> : index + 1}</span>
+          <span>{STATUS_LABELS[step]}</span>
+        </span>;
+      })}</span>
     </span>
     <span className="admin-report-badges"><Pill value={report.priority} /><Pill value={report.severity} /></span>
     <span className="admin-report-arrow" aria-hidden="true" />

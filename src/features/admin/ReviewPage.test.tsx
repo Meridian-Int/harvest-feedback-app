@@ -45,6 +45,18 @@ it('loads reports, counts all open items and filters by area and the metric butt
   expect(screen.getByRole('button', { name: 'View description: Payment failed' })).toBeInTheDocument();
 });
 
+it('shows the same four-step progress track in admin report rows', async () => {
+  api.listAllFeedback.mockResolvedValue([makeFeedback({ id: 'progress-report', title: 'Progress report', status: 'IN_PROGRESS' })]);
+  renderWithProviders(<ReviewPage />, { route: '/admin/reviews', user: makeAdminUser() });
+  const row = await screen.findByRole('button', { name: 'View description: Progress report' });
+  const steps = row.querySelectorAll('.admin-progress-step');
+  expect(steps).toHaveLength(4);
+  expect(steps[0]).toHaveClass('completed');
+  expect(steps[1]).toHaveClass('completed');
+  expect(steps[2]).toHaveClass('current');
+  expect(steps[3]).toHaveClass('future');
+});
+
 it('keeps six per page, resets page when filtering and remembers grid layout', async () => {
   api.listAllFeedback.mockResolvedValue(Array.from({ length: 7 }, (_, index) => makeFeedback({ id: `report-${index}`, title: `Report ${index}`, createdAt: `2026-10-0${index + 1}T00:00:00Z` })));
   const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?page=2', user: makeAdminUser() });

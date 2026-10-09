@@ -92,3 +92,6 @@
 .client-new .client-pagehead p,.client-pagehead p{font-size:12px;line-height:1.55;font-weight:400;margin-top:5px}
 .client-panel-head h2{font-size:16px;letter-spacing:-.25px}
 .client-recording-bar{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100vw - 36px);padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+
+/* Match the supplied My reports list and grid reference. */
+.client-mine .client-pagehead h1,.client-mine .client-panel-head h2{font-family:var(--font-sans);font-weight:550}
