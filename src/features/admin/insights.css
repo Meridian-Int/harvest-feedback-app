@@ -1,3 +1,5 @@
+#view-admin-insights .pagehead h1 { font-family: var(--font-sans); font-weight: 400; }
+#view-admin-insights .panel-head h2 { font-family: var(--font-sans); font-weight: 550; }
 #view-admin-insights .signal-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 #view-admin-insights .signal-metric { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(130deg, var(--admin-haze), transparent), var(--surface); }
 #view-admin-insights .signal-metric > span, #view-admin-insights .signal-metric small { font-size: 11px; color: var(--dim); }
