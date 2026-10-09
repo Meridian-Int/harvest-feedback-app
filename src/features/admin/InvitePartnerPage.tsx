@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Button, Field, Input, Panel, Tag } from '../../components/ui';
+import { Button, Field, Input, Panel } from '../../components/ui';
 import { invitePartner } from '../../lib/invitations';
 import './invite.css';
 
@@ -29,7 +29,7 @@ export function InvitePartnerPage() {
   }
 
   return <section className="invite-page">
-    <div className="pagehead"><div><h1>Invite a partner</h1><p>Give a partner access to submit and track feedback.</p></div><Tag>Admin</Tag></div>
+    <div className="pagehead"><div><h1>Invite a partner</h1><p>Give a partner access to submit and track feedback.</p></div></div>
     <Panel className="invite-panel" heading="Partner details">
       <form onSubmit={event => { void submit(event); }}>
         <Field label="Work email" htmlFor="invite-email" required><Input id="invite-email" type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></Field>

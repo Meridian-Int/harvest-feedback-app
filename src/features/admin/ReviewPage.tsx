@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, EmptyState, Input, MetricToggle, Pagination, Panel, Pill, SegmentedControl, Select, Tag, Toast } from '../../components/ui';
+import { Button, EmptyState, Input, MetricToggle, Pagination, Panel, Pill, SegmentedControl, Select, Toast } from '../../components/ui';
 import { Icon } from '../../components/icons';
 import { listAllFeedback, observeAllFeedback } from '../../lib/feedback';
 import { formatDate } from '../../lib/format';
@@ -79,7 +79,7 @@ export function ReviewPage() {
   function closeReport() { const next = new URLSearchParams(params); next.delete('report'); setParams(next); }
 
   return <section className="report-page" id="view-admin">
-    <div className="pagehead"><div><h1>Feedback review</h1><p>Review, assign and respond to client reports.</p></div><Tag>Admin</Tag></div>
+    <div className="pagehead"><div><h1>Feedback review</h1><p>Review, assign and respond to client reports.</p></div></div>
     <div className="admin-stats">
       {([
         ['OPEN', 'Open', metrics.open, 'Across every product area'],
