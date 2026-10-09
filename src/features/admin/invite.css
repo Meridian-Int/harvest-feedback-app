@@ -1,4 +1,4 @@
-.invite-page { max-width: 740px; }
+.invite-page { width: 100%; max-width: 740px; margin-inline: auto; }
 .invite-panel { padding-bottom: 24px; }
 .invite-panel form { display: grid; gap: 18px; padding: 4px 24px 0; }
 .invite-panel .btn { justify-self: start; }
