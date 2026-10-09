@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, EmptyState, Input, MetricToggle, Pagination, Panel, Pill, SegmentedControl, Select, Toast } from '../../components/ui';
+import { Button, EmptyState, Input, MetricToggle, Pagination, Panel, Pill, Select, Toast } from '../../components/ui';
 import { Icon } from '../../components/icons';
 import { listAllFeedback, observeAllFeedback } from '../../lib/feedback';
 import { formatDate } from '../../lib/format';
@@ -90,15 +90,18 @@ export function ReviewPage() {
     </div>
     <Panel className="admin-review-panel">
       <div className="admin-filters">
-        <Input type="search" aria-label="Search reports" placeholder="Search report, company or reporter" value={filters.query} onChange={event => updateFilter('q', event.target.value)} />
+        <Input type="search" aria-label="Search reports" placeholder="Search reports" value={filters.query} onChange={event => updateFilter('q', event.target.value)} />
         <Select aria-label="Filter status" value={filters.status} onChange={event => updateFilter('status', event.target.value)}><option value="">All statuses</option>{STATUS_ORDER.map((value, index) => <option key={value} value={value}>{STATUSES[index]}</option>)}</Select>
         <Select aria-label="Filter severity" value={filters.severity} onChange={event => updateFilter('severity', event.target.value)}><option value="">All severities</option>{(['CRITICAL', 'MEDIUM', 'LOW'] as const).map((value, index) => <option key={value} value={value}>{SEVERITIES[index]}</option>)}</Select>
         <Select aria-label="Filter product area" value={filters.productArea} onChange={event => updateFilter('area', event.target.value)}><option value="">All product areas</option>{PRODUCT_AREAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
         <Select aria-label="Filter persona" value={filters.persona} onChange={event => updateFilter('persona', event.target.value)}><option value="">All personas</option>{PERSONAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
         <Select aria-label="Filter owner" value={filters.owner} onChange={event => updateFilter('owner', event.target.value)}><option value="">All owners</option><option value="unassigned">Unassigned</option>{ASSIGNEES.filter(item => item.value).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
         <Button variant="quiet" onClick={() => setParams(new URLSearchParams(), { replace: true })}>Reset</Button>
+        <div className="seg seg-compact admin-layout-toggle" role="group" aria-label="Admin report layout">
+          <button type="button" aria-label="List" title="List view" aria-pressed={layout === 'list'} onClick={() => updateLayout('list')}><Icon name="list" /></button>
+          <button type="button" aria-label="Grid" title="Grid view" aria-pressed={layout === 'grid'} onClick={() => updateLayout('grid')}><Icon name="grid" /></button>
+        </div>
       </div>
-      <div className="admin-list-bar"><span className="admin-count">{visible.length} reports</span><SegmentedControl label="Admin report layout" options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} value={layout} onChange={updateLayout} compact /></div>
       <div className="report-collection admin-reports" data-view={layout}>
         {loading ? <EmptyState>Loading reports…</EmptyState> : error ? <EmptyState>{error}</EmptyState> : page.items.length ? page.items.map(report => <ReportRow key={report.id} report={report} onOpen={() => openReport(report.id)} />) : <EmptyState>No reports match these filters.</EmptyState>}
       </div>

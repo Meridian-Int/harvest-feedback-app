@@ -63,6 +63,10 @@ it('keeps six per page, resets page when filtering and remembers grid layout', a
   const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?page=2', user: makeAdminUser() });
   expect(await screen.findByRole('button', { name: 'View description: Report 0' })).toBeInTheDocument();
   expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+  const layoutToggle = screen.getByRole('group', { name: 'Admin report layout' });
+  expect(within(layoutToggle).getByRole('button', { name: 'List' }).querySelector('svg')).toBeInTheDocument();
+  expect(within(layoutToggle).getByRole('button', { name: 'Grid' }).querySelector('svg')).toBeInTheDocument();
+  expect(screen.queryByText('7 reports')).not.toBeInTheDocument();
   await user.type(screen.getByRole('searchbox', { name: 'Search reports' }), 'Report 6');
   expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'View description: Report 6' })).toBeInTheDocument();
