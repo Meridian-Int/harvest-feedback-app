@@ -16,7 +16,6 @@ it('keeps the exact shared option order and labels', () => {
       "PERSONAS": [
         "Company",
         "Partner",
-        "Operator",
       ],
       "PRIORITIES": [
         "Blocker",

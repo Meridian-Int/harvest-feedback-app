@@ -7,7 +7,7 @@ export const PRODUCT_AREAS = [
 export const PRIORITIES = ['Blocker', 'Bug', 'Improvement'] as const;
 export const SEVERITIES = ['Critical', 'Medium', 'Low'] as const;
 export const STATUSES = ['New', 'Assigned', 'In progress', 'Closed'] as const;
-export const PERSONAS = ['Company', 'Partner', 'Operator'] as const;
+export const PERSONAS = ['Company', 'Partner'] as const;
 // The only administrator in the development auth adapter. Replace when Cognito is wired.
 export const ASSIGNEES = [
   { value: '', label: 'Unassigned' },

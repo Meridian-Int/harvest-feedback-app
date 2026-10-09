@@ -1,5 +1,6 @@
 import { displayId } from '../../../lib/format';
 import { sortFeedback } from '../../../lib/list';
+import { PERSONAS } from '../../../lib/options';
 import type { Feedback, Persona, Priority, Severity, Status } from '../../../lib/types';
 
 export interface ReviewFilters {
@@ -53,7 +54,7 @@ export function readReviewFilters(params: URLSearchParams): ReviewFilters {
     status: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'].includes(status) ? status as ReviewFilters['status'] : '',
     severity: ['CRITICAL', 'MEDIUM', 'LOW'].includes(severity) ? severity as ReviewFilters['severity'] : '',
     productArea: params.get('area') ?? '',
-    persona: ['Company', 'Partner', 'Operator'].includes(persona) ? persona as ReviewFilters['persona'] : '',
+    persona: PERSONAS.some(value => value === persona) ? persona as ReviewFilters['persona'] : '',
     owner: params.get('owner') ?? '',
     priority: ['OPEN', 'BLOCKER', 'BUG', 'IMPROVEMENT'].includes(priority) ? priority as ReviewFilters['priority'] : '',
   };

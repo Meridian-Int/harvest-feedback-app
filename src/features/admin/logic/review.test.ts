@@ -32,6 +32,7 @@ it('uses metric selection as an open report priority filter and sorts closed rep
 it('reads valid URL filters, ignores invalid choices and resets page on a filter change', () => {
   const params = new URLSearchParams('q=payout&status=NEW&severity=bad&persona=Partner&priority=BUG&page=3&report=abc');
   expect(readReviewFilters(params)).toMatchObject({ query: 'payout', status: 'NEW', severity: '', persona: 'Partner', priority: 'BUG' });
+  expect(readReviewFilters(new URLSearchParams('persona=Operator')).persona).toBe('');
   const next = changeReviewFilter(params, 'area', 'Data room');
   expect(next.get('area')).toBe('Data room');
   expect(next.has('page')).toBe(false);

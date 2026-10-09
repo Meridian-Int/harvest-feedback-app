@@ -36,6 +36,7 @@ it('loads reports, counts all open items and filters by area and the metric butt
   const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews', user: makeAdminUser() });
   expect(await screen.findByRole('button', { name: 'View description: Upload stalled' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /^Open2Across every product area$/ })).toBeInTheDocument();
+  expect(within(screen.getByRole('combobox', { name: 'Filter persona' })).getAllByRole('option').map(option => option.textContent)).toEqual(['All personas', 'Company', 'Partner']);
   await user.selectOptions(screen.getByRole('combobox', { name: 'Filter product area' }), 'Data room');
   expect(screen.getByRole('button', { name: 'View description: Upload stalled' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'View description: Payment failed' })).not.toBeInTheDocument();

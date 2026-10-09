@@ -72,7 +72,7 @@ First sign-in uses a work email and the 8-digit code Cognito sends. After verifi
 - In `amplify/auth/resource.ts`, use Amplify Gen 2 email OTP (`loginWith: { email: { otpLogin: true } }`) with Cognito Essentials and support password sign-in after a verified user creates one.
 - Self sign-up off: admins invite partners from `/admin/invite`; existing admins and other account types are provisioned by an administrator. Add admins to the `admins` group.
 - Custom user attributes, set when the admin creates the user:
-  - `custom:persona`: `Company`, `Partner` or `Operator`
+  - `custom:persona`: `Company` or `Partner` for new client accounts. Existing `Operator` accounts remain readable so established admins can sign in.
   - `custom:company`: the company name
   - `name`
 - The admin assigns `custom:persona` when creating each user. Company, Partner and Operator users do not choose their persona or role in the app. Existing `custom:clientPersona` values, if present, can still be read; no new account-choice attribute is provisioned.
@@ -132,7 +132,7 @@ Not in v1, matching the prototype: comments, activity timeline, persona or repor
 - **`PRIORITIES`:** Blocker, Bug, Improvement. Placeholder "Choose a priority".
 - **`SEVERITIES`:** Critical, Medium, Low. Placeholder "Choose severity". Blocker is **not** a severity.
 - **`STATUSES`:** New, Assigned, In progress, Closed.
-- **`PERSONAS`:** Company, Partner, Operator.
+- **`PERSONAS`:** Company, Partner. Existing Operator accounts and reports remain readable, but Operator is not a new filter choice.
 - **`ASSIGNEES`:** the admin list. Prototype values: Unassigned, Manasa, Vaish. Replace with the real admins.
 - **`SENTRY_PROJECTS`:** harvest-ui, harvest-api, feedback-app.
 
