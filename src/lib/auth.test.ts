@@ -1,5 +1,5 @@
 import { beforeEach, vi } from 'vitest';
-import { confirmSignIn, createAccountPassword, getCurrentUser, hasAccountPassword, isAdmin, isValidEmail, requireUser, restoreSession, saveClientPersona, signIn, signInWithPassword, signOut, validateNewPassword } from './auth';
+import { confirmSignIn, createAccountPassword, getCurrentUser, hasAccountPassword, isAdmin, isValidEmail, requireUser, restoreSession, signIn, signInWithPassword, signOut, validateNewPassword } from './auth';
 
 const passwordSdk = vi.hoisted(() => ({ send: vi.fn(), getConfig: vi.fn() }));
 vi.mock('aws-amplify', () => ({ Amplify: { getConfig: passwordSdk.getConfig } }));
@@ -133,14 +133,4 @@ it('checks the server factors for an existing password instead of prompting for 
   await expect(hasAccountPassword()).resolves.toBe(false);
   passwordSdk.send.mockRejectedValueOnce(new Error('private service detail'));
   await expect(hasAccountPassword()).rejects.toThrow('Could not check');
-});
-
-it('saves only a validated client account type and refreshes trusted attributes', async () => {
-  await confirmSignIn('12345678');
-  await expect(saveClientPersona('admins')).rejects.toThrow('Choose Company or Partner');
-  cognito.fetchUserAttributes.mockResolvedValue({ email: 'client@example.com', name: 'Client', 'custom:persona': 'Company', 'custom:clientPersona': 'Partner', 'custom:company': 'Example' });
-  cognito.fetchAuthSession.mockResolvedValue({ tokens: { idToken: { payload: {} } } });
-  await expect(saveClientPersona('Partner')).resolves.toMatchObject({ persona: 'Partner', needsPersonaSetup: false, groups: [] });
-  expect(cognito.updateUserAttributes).toHaveBeenCalledWith({ userAttributes: { 'custom:clientPersona': 'Partner' } });
-  expect(cognito.fetchAuthSession).toHaveBeenCalledWith({ forceRefresh: true });
 });

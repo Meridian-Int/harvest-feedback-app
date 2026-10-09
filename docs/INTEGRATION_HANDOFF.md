@@ -47,3 +47,7 @@ The sandbox is for testing, not production hosting. Do not describe the app as l
 Email OTP and password creation have been observed for the first sandbox client. The latest Company/Partner setup is locally tested but blocked by a Cognito schema update failure in the existing sandbox; do not treat it as live-ready. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
 
 Local checks passed: clean `npm ci`, 208 tests with coverage, frontend build and Amplify TypeScript check. No production deployment or release approval is implied.
+
+### Account-type setup temporarily disabled
+
+At the owner's request, Company/Partner selection and its Cognito provisioning were removed until the schema issue is resolved. Existing account persona attributes remain in use. Password setup and subsequent password sign-in remain available. No AWS deployment was run for this removal.

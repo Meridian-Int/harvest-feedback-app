@@ -1,4 +1,3 @@
-import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from 'aws-cdk-lib/custom-resources';
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
@@ -16,27 +15,6 @@ backend.storage.resources.bucket.grantRead(validator.resources.lambda, 'feedback
 backend.data.resources.graphqlApi.addLambdaDataSource('VerifyAttachment', validator.resources.lambda);
 
 const { cfnUserPool, cfnUserPoolClient, cfnIdentityPool } = backend.auth.resources.cfnResources;
-
-// Add the mutable account choice separately: changing the original pool schema
-// would make CloudFormation attempt to recreate existing required attributes.
-if (Array.isArray(cfnUserPool.schema)) {
-  cfnUserPool.schema = cfnUserPool.schema.filter(attribute => !('name' in attribute) || attribute.name !== 'clientPersona');
-}
-const clientPersonaAttribute = new AwsCustomResource(backend.auth.resources.userPool.stack, 'AccountPersonaAttribute', {
-  installLatestAwsSdk: false,
-  onCreate: {
-    service: 'CognitoIdentityServiceProvider',
-    action: 'addCustomAttributes',
-    parameters: {
-      UserPoolId: backend.auth.resources.userPool.userPoolId,
-      CustomAttributes: [{ Name: 'clientPersona', AttributeDataType: 'String', Mutable: true, Required: false,
-        StringAttributeConstraints: { MinLength: '1', MaxLength: '32' } }],
-    },
-    physicalResourceId: PhysicalResourceId.of('client-persona-attribute'),
-  },
-  policy: AwsCustomResourcePolicy.fromSdkCalls({ resources: [backend.auth.resources.userPool.userPoolArn] }),
-});
-cfnUserPoolClient.node.addDependency(clientPersonaAttribute);
 
 // Cognito Essentials supports email OTP and optional password sign-in.
 cfnUserPool.userPoolTier = 'ESSENTIALS';

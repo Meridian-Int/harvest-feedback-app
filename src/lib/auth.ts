@@ -2,7 +2,6 @@ import {
   confirmSignIn as confirmCognitoSignIn,
   fetchAuthSession,
   fetchUserAttributes,
-  updateUserAttributes,
   getCurrentUser as getCognitoUser,
   signIn as cognitoSignIn,
   signOut as cognitoSignOut,
@@ -50,7 +49,7 @@ async function loadUser(): Promise<AuthUser> {
     name: attributes.name,
     persona,
     company: attributes['custom:company'],
-    needsPersonaSetup: !(Array.isArray(rawGroups) && rawGroups.includes('admins')) && clientPersona !== 'Company' && clientPersona !== 'Partner',
+    needsPersonaSetup: false,
     groups: Array.isArray(rawGroups) ? rawGroups.filter((value): value is string => typeof value === 'string') : [],
   };
   return currentUser;
@@ -163,12 +162,4 @@ export async function signInWithPassword(email: string, password: string): Promi
     }
     throw error;
   }
-}
-
-export async function saveClientPersona(persona: string): Promise<AuthUser> {
-  if (persona !== 'Company' && persona !== 'Partner') throw new Error('Choose Company or Partner.');
-  requireAmplify(); requireUser();
-  await updateUserAttributes({ userAttributes: { 'custom:clientPersona': persona } });
-  await fetchAuthSession({ forceRefresh: true });
-  return loadUser();
 }

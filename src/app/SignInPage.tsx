@@ -18,7 +18,7 @@ export function SignInPage() {
   const [busy, setBusy] = useState(false);
   const emailInput = useRef<HTMLInputElement>(null);
   const codeInput = useRef<HTMLInputElement>(null);
-  if (user) return <Navigate to={isAdmin(user) ? '/admin/reviews' : user.needsPersonaSetup ? '/account/setup' : '/feedback/new'} replace />;
+  if (user) return <Navigate to={isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -27,7 +27,7 @@ export function SignInPage() {
       if (step === 'email') { await signIn(email); setStep('code'); setCode(''); }
       else if (step === 'code') {
         const verified = await confirmSignIn(code); setCode('');
-        if (verified.needsPersonaSetup || await hasAccountPassword()) setUser(verified);
+        if (await hasAccountPassword()) setUser(verified);
         else { setVerifiedUser(verified); setStep('setup'); }
       } else if (step === 'setup') {
         setUser(await createAccountPassword(password, confirmation)); setPassword(''); setConfirmation('');
