@@ -1,10 +1,12 @@
+import { useRecordingWorkspace } from './recordingWorkspace';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientApi, ClientControls, Feedback, Status } from './contract';
 import { displayId, reportPage, STATUS_LABELS, updatePending } from './logic/reports';
 import { ProgressTrack, ReportDetailDialog, ReportPills } from './ReportDetailDialog';
 import './client.css';
 
-export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseReport, onNewFeedback, initialMessage = '' }: { api: ClientApi; controls: ClientControls; reportId: string | null; onOpenReport: (id: string) => void; onCloseReport: () => void; onNewFeedback: () => void; initialMessage?: string }) {
+export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseReport, onNewFeedback, initialMessage = '', draftScope }: { api: ClientApi; controls: ClientControls; reportId: string | null; onOpenReport: (id: string) => void; onCloseReport: () => void; onNewFeedback: () => void; initialMessage?: string; draftScope?: string }) {
+  useRecordingWorkspace(draftScope);
   const [reports, setReports] = useState<Feedback[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [status, setStatus] = useState('');

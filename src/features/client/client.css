@@ -85,3 +85,10 @@
   .layout:has(.harvest-client) .breadcrumb{display:none}
   .layout:has(.harvest-client) main{padding:12px}
 }
+
+/* Match the foundation’s serif heading and sans-serif supporting copy. */
+.harvest-client h1,.harvest-client h2,.harvest-client h3{font-family:var(--font-serif);font-weight:400}
+.client-new .client-pagehead h1,.client-pagehead h1{font-size:22px;letter-spacing:-1px}
+.client-new .client-pagehead p,.client-pagehead p{font-size:12px;line-height:1.55;font-weight:400;margin-top:5px}
+.client-panel-head h2{font-size:16px;letter-spacing:-.25px}
+.client-recording-bar{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100vw - 36px);padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);backdrop-filter:blur(18px);box-shadow:var(--shadow)}

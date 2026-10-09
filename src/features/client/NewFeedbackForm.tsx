@@ -6,18 +6,18 @@ import { ACCEPT, checkFile } from './logic/file';
 import { findDuplicates } from './logic/duplicates';
 import { displayId } from './logic/reports';
 import { submitFeedback } from './logic/submit';
-import { ScreenRecorderDialog } from './ScreenRecorderDialog';
+import { openWorkspaceRecorder, setWorkspaceAttachment, useRecordingWorkspace } from './recordingWorkspace';
 import './client.css';
 
 export function NewFeedbackForm({ api, choices, controls, draftScope, onSubmitted, onOpenReport }: ClientProps & { onSubmitted: (report: Feedback) => void; onOpenReport: (id: string) => void }) {
   const [draft, setDraft] = useState(() => { try { return readDraft(localStorage, draftScope, choices); } catch { return emptyDraft(); } });
   const [draftStatus, setDraftStatus] = useState(draft.description ? 'Saved draft restored' : 'Draft saves automatically');
-  const [file, setFile] = useState<File | null>(null);
+  const file = useRecordingWorkspace(draftScope);
+  const setFile = (next: File | null) => setWorkspaceAttachment(draftScope, next);
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
   const [saving, setSaving] = useState(false);
-  const [recording, setRecording] = useState(false);
   const [reports, setReports] = useState<Feedback[]>([]);
   const [duplicateError, setDuplicateError] = useState(false);
   const [message, setMessage] = useState('');
@@ -85,7 +85,7 @@ export function NewFeedbackForm({ api, choices, controls, draftScope, onSubmitte
               {file && <div className="client-attachment">{file.type.startsWith('image/') ? <img src={url} alt="Attachment preview" /> : file.type.startsWith('video/') ? <video src={url} controls aria-label="Attachment preview" /> : null}<span>{file.name}<small>{file.type || 'File'} · {(file.size / 1048576).toFixed(1)} MB</small></span><Button type="button" aria-label="Remove attachment" onClick={() => setFile(null)}>×</Button></div>}
             </div>
             {draftStatus === 'Saved draft restored' && !file && <span className="client-helper">Files are not saved with drafts. Attach your file again.</span>}
-            <div className="client-capture-controls"><Button type="button" onClick={() => setRecording(true)}>Record screen now</Button><span className="client-helper">Up to 3 minutes · screen only, no microphone</span></div>
+            <div className="client-capture-controls"><Button type="button" onClick={() => openWorkspaceRecorder(draftScope, controls)}>Record screen now</Button><span className="client-helper">Up to 3 minutes · screen only, no microphone</span></div>
           </div>
           {error && <p className="client-error" role="alert">{error}</p>}
           <footer className="client-form-footer"><Button type="submit" disabled={saving}>{saving ? 'Submitting…' : 'Submit feedback'}</Button></footer>
@@ -93,6 +93,5 @@ export function NewFeedbackForm({ api, choices, controls, draftScope, onSubmitte
       </form>
     </Panel>
     {message && <p className="client-toast" role="status">{message}</p>}
-    {recording && <ScreenRecorderDialog controls={controls} replacing={!!file} onAttach={selectFile} onClose={() => setRecording(false)} />}
   </section>;
 }

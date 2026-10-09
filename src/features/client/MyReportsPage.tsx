@@ -15,7 +15,7 @@ export function MyReportsPage() {
     const next = new URLSearchParams(search); next.delete('report');
     navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
   }
-  return <MyReportsView key={user.id} api={clientApi} controls={clientControls} reportId={search.get('report')}
+  return <MyReportsView draftScope={user.id} key={user.id} api={clientApi} controls={clientControls} reportId={search.get('report')}
     onOpenReport={id => navigate(`/feedback/mine?report=${encodeURIComponent(id)}`, { state: { clientReportOverlay: true } })}
     onCloseReport={close} onNewFeedback={() => navigate('/feedback/new')} initialMessage={state?.message} />;
 }

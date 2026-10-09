@@ -1,3 +1,4 @@
+import { resetRecordingWorkspace } from '../recordingWorkspace';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
@@ -11,4 +12,4 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:test');
   URL.revokeObjectURL = vi.fn();
 });
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
+afterEach(() => { resetRecordingWorkspace(); cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });

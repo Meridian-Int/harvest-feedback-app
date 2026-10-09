@@ -80,7 +80,8 @@ it('attaches without replacement and closes active recording without attaching',
   browser(); const first = mount(); await first.user.click(screen.getByRole('button', { name: 'Start recording' })); await first.user.click(screen.getByRole('button', { name: 'Stop recording' }));
   await first.user.click(screen.getByRole('button', { name: 'Attach recording' })); expect(first.onAttach).toHaveBeenCalledTimes(1); first.unmount();
   const { stop } = browser(); const next = mount(); await next.user.click(screen.getByRole('button', { name: 'Start recording' }));
-  await next.user.click(screen.getByRole('button', { name: 'Close Screen recording' })); expect(stop).toHaveBeenCalled(); expect(next.onAttach).not.toHaveBeenCalled(); expect(next.onClose).toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await next.user.click(screen.getByRole('button', { name: 'Discard recording' })); expect(stop).toHaveBeenCalled(); expect(next.onAttach).not.toHaveBeenCalled(); expect(next.onClose).toHaveBeenCalled();
 });
 it('stops and reports recorder errors; pagehide cleans up', async () => {
   const { Recorder, stop } = browser(); const { user, onAttach } = mount(); await user.click(screen.getByRole('button', { name: 'Start recording' }));
@@ -92,4 +93,19 @@ it('works when StrictMode replays effect cleanup', async () => {
   render(<StrictMode><ScreenRecorderDialog controls={controls} replacing={false} onAttach={onAttach} onClose={vi.fn()} /></StrictMode>);
   const user = userEvent.setup(); await user.click(screen.getByRole('button', { name: 'Start recording' }));
   await user.click(screen.getByRole('button', { name: 'Stop recording' })); await user.click(screen.getByRole('button', { name: 'Attach recording' })); expect(onAttach).toHaveBeenCalledTimes(1);
+});
+
+it('releases the modal while capturing and reopens preview after Stop', async () => {
+  const { Recorder, stop } = browser();
+  const { user, onClose, onAttach } = mount();
+  await user.click(screen.getByRole('button', { name: 'Start recording' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Screen recording controls')).toBeInTheDocument();
+  expect(Recorder.latest.state).toBe('recording');
+  expect(stop).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Attach recording' })).toBeInTheDocument();
+  expect(onAttach).not.toHaveBeenCalled();
 });

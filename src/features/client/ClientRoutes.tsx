@@ -18,6 +18,6 @@ export function ClientRoutes(props: ClientProps) {
   };
   return <Routes>
     <Route path="new" element={<NewFeedbackPage key={props.draftScope} {...props} onOpenReport={open} onSubmitted={() => navigate('/feedback/mine', { state: { message: 'Feedback submitted. You can track it in My reports.' } })} />} />
-    <Route path="mine" element={<MyReportsPage key={props.draftScope} api={props.api} controls={props.controls} reportId={search.get('report')} onOpenReport={open} onCloseReport={close} onNewFeedback={() => navigate('/feedback/new')} initialMessage={state?.message} />} />
+    <Route path="mine" element={<MyReportsPage draftScope={props.draftScope} key={props.draftScope} api={props.api} controls={props.controls} reportId={search.get('report')} onOpenReport={open} onCloseReport={close} onNewFeedback={() => navigate('/feedback/new')} initialMessage={state?.message} />} />
   </Routes>;
 }

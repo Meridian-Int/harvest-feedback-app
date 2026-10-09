@@ -78,6 +78,13 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
     onAttach(session.current.file); discard();
   }
   const { Button } = controls;
+  // Release the native modal while capturing so the shared screen stays interactive.
+  // The recorder component remains mounted until Stop/Discard or page exit.
+  if (phase === 'recording') return <aside className="client-recording-bar" aria-label="Screen recording controls">
+    <span role="status">{message}</span>
+    <Button onClick={stop}>Stop recording</Button>
+    <Button onClick={discard}>Discard recording</Button>
+  </aside>;
   return <ClientDialog title="Screen recording" onClose={discard}>
     <div className="client-detail-body">
       <p role={phase === 'error' ? 'alert' : 'status'}>{message}</p>
@@ -85,7 +92,6 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
       {confirmReplace && <p role="alert">Replace the current attachment with this recording?</p>}
       <div className="client-capture-controls">
         {phase === 'ready' && <Button onClick={start}>Start recording</Button>}
-        {phase === 'recording' && <Button onClick={stop}>Stop recording</Button>}
         {phase === 'preview' && <Button onClick={attach}>{confirmReplace ? 'Replace attachment' : 'Attach recording'}</Button>}
         <Button onClick={discard}>{phase === 'preview' ? 'Discard' : 'Cancel'}</Button>
       </div>
