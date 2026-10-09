@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientApi, ClientControls, Feedback, Status } from './contract';
 import { displayId, reportPage, STATUS_LABELS, updatePending } from './logic/reports';
 import { ProgressTrack, ReportDetailDialog, ReportPills } from './ReportDetailDialog';
+import { Toast } from '../../components/ui';
 import './client.css';
 
 export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseReport, onNewFeedback, initialMessage = '', draftScope }: { api: ClientApi; controls: ClientControls; reportId: string | null; onOpenReport: (id: string) => void; onCloseReport: () => void; onNewFeedback: () => void; initialMessage?: string; draftScope?: string }) {
@@ -59,7 +60,7 @@ export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseRe
       </div>
       <nav className="client-pagination" aria-label="My reports pages"><span role="status" className="client-helper">{page.range}</span><div><Button disabled={page.page === 1 || state !== 'ready'} onClick={() => setPage(page.page - 1)}>Previous</Button><span>Page {page.page} of {page.pages}</span><Button disabled={page.page === page.pages || state !== 'ready'} onClick={() => setPage(page.page + 1)}>Next</Button></div></nav>
     </Panel>
-    {message && <p role="status" className="client-toast">{message}</p>}
+    <Toast message={message} onDismiss={() => setMessage('')} />
     {reportId && <ReportDetailDialog id={reportId} api={api} controls={controls} onClose={onCloseReport} />}
   </section>;
 }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -23,9 +23,20 @@ it('requests once, refreshes pending, and clears after an admin subscription upd
   render(<MyReportsPage api={api} controls={controls} reportId={null} onOpenReport={vi.fn()} onCloseReport={vi.fn()} onNewFeedback={vi.fn()} />);
   const user = userEvent.setup(); await user.click(await screen.findByRole('button', { name: 'Request update' }));
   expect(await screen.findByRole('button', { name: 'Update requested' })).toBeDisabled(); expect(api.requestUpdate).toHaveBeenCalledTimes(1);
-  const { act } = await import('@testing-library/react');
   act(() => publish([{ ...report, updateRequestedAt: '2026-10-09T12:00:00Z', adminActivityAt: '2026-10-09T13:00:00Z' }]));
   expect(screen.getByRole('button', { name: 'Request update' })).toBeEnabled();
+});
+it('dismisses the request update confirmation after four seconds', () => {
+  vi.useFakeTimers();
+  try {
+    const api = makeApi();
+    render(<MyReportsPage api={api} controls={controls} reportId={null} onOpenReport={vi.fn()} onCloseReport={vi.fn()} onNewFeedback={vi.fn()} initialMessage="Update requested." />);
+    expect(screen.getByText('Update requested.', { selector: '.toast' })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(4000));
+    expect(screen.queryByText('Update requested.')).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 it('shows true empty and retry after load failure', async () => {
   const api = makeApi(); vi.mocked(api.listMyFeedback).mockRejectedValueOnce(Error('failed'));
