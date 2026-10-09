@@ -28,5 +28,5 @@ it('connects the authenticated form, shared options, API and success navigation'
 it('uses the foundation title and identity derivation rather than forwarding caller fields', async () => {
   await clientApi.createFeedback({ title: 'ignored', description: 'Actual title', customArea: '', productArea: 'Data room', priority: 'BUG', severity: 'LOW' });
   expect(mockFeedbackApi.createFeedback.mock.calls.at(-1)?.[0]).not.toHaveProperty('title');
-  expect(clientChoices.productAreas).toHaveLength(6);
+  expect(clientChoices.productAreas).toHaveLength(10);
 });

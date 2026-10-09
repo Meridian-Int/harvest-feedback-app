@@ -2,6 +2,10 @@
 
 The app code and environment variable names are in place. Complete this checklist when account access is available. Do not put tokens, passwords, or `.env.local` in Git.
 
+## One working branch
+
+`codex/harvest-integration` contains the admin and client implementations. Sahil and Manasa should pull this branch before making further changes, coordinate pushes to it, and use it as the source of the pull request into `dev`. Do not push directly to `dev`, `test`, or `main`. The former admin and client branches are historical references, not parallel development targets.
+
 | Service | Obtain from account owner | Configure | Verify |
 |---|---|---|---|
 | AWS Amplify | Access to the AWS account and the intended `us-east-2` environment | Deploy the backend for the agreed branch; generate local `amplify_outputs.json` for development | Email-code sign-in, admin/client roles, report access rules, and file uploads work with real users |
@@ -19,9 +23,9 @@ The app code and environment variable names are in place. Complete this checklis
 ## When access arrives
 
 1. Copy `.env.example` to ignored `.env.local` for local frontend values. Enter only the values needed for the environment being tested.
-2. Configure the backend values and Sentry secret in the intended Amplify environment, then deploy the backend. Keep generated `amplify_outputs.json` out of Git.
+2. Configure the backend values and Sentry secret in the intended Amplify environment, then deploy the backend. Keep generated `amplify_outputs.json` out of Git. For the complete app, use the generated outputs; the optional Cognito-only environment variables connect sign-in alone and do not configure Data or Storage.
 3. Create test client and admin users through the approved AWS process, with the required persona/company attributes and `admins` group membership.
-4. Run the live acceptance checks in `AGENTS.md` §12, including an API check that a client cannot read another client's report or change admin-only fields.
-5. Run the test suite, typecheck, and production build before opening the PR to `dev`.
+4. Run the live acceptance checks in `AGENTS.md` §12, including API checks that a client cannot read another client's report or change admin-only fields. Also verify that a client cannot submit a report pointing to another client's uploaded attachment. The current AppSync resolver checks the `feedback-media/` prefix but cannot prove Storage ownership from its user-pool identity; resolve this before release.
+5. Run a fresh `npm ci`, the test suite, typecheck, and production build before opening the PR from `codex/harvest-integration` to `dev`.
 
 Account setup, deployment, and real-user checks remain pending until access is granted. The local unit tests and visual review do not replace those checks.
