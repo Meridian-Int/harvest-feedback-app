@@ -27,7 +27,10 @@ export function SignInPage() {
       if (step === 'email') { await signIn(email); setStep('code'); setCode(''); }
       else if (step === 'code') {
         const verified = await confirmSignIn(code); setCode('');
-        if (await hasAccountPassword()) setUser(verified);
+        // Password setup is optional; a factor lookup failure must not discard a valid OTP session.
+        let passwordExists = true;
+        try { passwordExists = await hasAccountPassword(); } catch { /* Continue with the verified email session. */ }
+        if (passwordExists) setUser(verified);
         else { setVerifiedUser(verified); setStep('setup'); }
       } else if (step === 'setup') {
         setUser(await createAccountPassword(password, confirmation)); setPassword(''); setConfirmation('');
@@ -50,7 +53,7 @@ export function SignInPage() {
         {step === 'setup' && <><Field label="Confirm password" htmlFor="auth-confirmation"><Input id="auth-confirmation" type="password" autoComplete="new-password" maxLength={128} required value={confirmation} onChange={event => setConfirmation(event.target.value)} /></Field><p className="helper">At least 12 characters, including uppercase, lowercase, a number and a symbol.</p></>}
         <Button type="submit" variant="primary" className="auth-continue w-full" disabled={busy}>{step === 'email' ? 'Continue with email' : step === 'setup' ? 'Save password and continue' : step === 'password' ? 'Sign in' : 'Open workspace'}</Button>
         {step === 'email' && <TextButton disabled={busy} onClick={() => { setStep('password'); setError(null); }}>Sign in with password</TextButton>}
-        {step === 'setup' && !isAdmin(verifiedUser) && <TextButton disabled={busy} onClick={() => { setPassword(''); setConfirmation(''); setUser(verifiedUser); }}>Continue without creating a password</TextButton>}
+        {step === 'setup' && <TextButton disabled={busy} onClick={() => { setPassword(''); setConfirmation(''); setUser(verifiedUser); }}>Continue with email code only</TextButton>}
         {(step === 'code' || step === 'password') && <TextButton id="auth-back" disabled={busy} onClick={() => { setStep('email'); setError(null); setCode(''); setPassword(''); window.setTimeout(() => emailInput.current?.focus(), 0); }}>{step === 'password' ? 'Use an email code instead' : 'Use a different email'}</TextButton>}
       </form>
       {error && <p className="error" id="auth-error" role="alert">{error}</p>}

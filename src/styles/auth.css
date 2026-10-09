@@ -1,7 +1,7 @@
 .auth-screen { min-height: 100dvh; display: flex; flex-direction: column; padding: 16px 24px; gap: 12px; }
 .auth-top { display: flex; align-items: center; justify-content: space-between; min-height: 32px; font-size: 15px; letter-spacing: 2px; }
 .auth-card { width: 100%; max-width: 360px; margin: auto; padding: 22px; background: var(--panel-background); }
-.auth-brand { font: 400 30px/1.08 var(--font-sans); letter-spacing: -.8px; margin-bottom: 16px; }
+.auth-brand { font: 400 30px/1.08 var(--font-serif); letter-spacing: -.8px; margin-bottom: 16px; }
 .auth-divider { height: 1px; background: var(--line); margin-bottom: 18px; }
 .auth-card h1 { font-size: 21px; letter-spacing: -.5px; }
 .auth-subtitle { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 8px 0 16px; overflow-wrap: anywhere; }

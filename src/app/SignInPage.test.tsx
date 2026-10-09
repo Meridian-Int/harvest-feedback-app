@@ -61,7 +61,7 @@ it('requires eight digits, displays a wrong-code error, and supports switching e
 });
 it.each([['company@example.com', 'Share your feedback'], ['admin@example.com', 'Feedback review'], ['operator@example.com', 'Share your feedback']])('signs %s into the correct workspace', async (email, heading) => {
   auth.confirmSignIn.mockImplementationOnce(async () => ({ id: 'user-1', email, name: 'User', persona: 'Operator', company: 'Meridian', groups: email === 'admin@example.com' ? ['admins'] : [] }));
-  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null }); expect(screen.queryByText(/Development only/)).not.toBeInTheDocument(); await user.type(screen.getByLabelText('Work email'), email); await user.click(screen.getByRole('button', { name: 'Continue with email' })); await user.type(screen.getByLabelText('Verification code'), '12345678'); await user.click(screen.getByRole('button', { name: 'Open workspace' })); if (email === 'admin@example.com') { auth.createAccountPassword.mockResolvedValueOnce({ id: 'user-1', email, name: 'Admin', persona: 'Operator', company: 'Meridian', groups: ['admins'] }); await user.type(await screen.findByLabelText('Create password'), 'Test-password-2468!'); await user.type(screen.getByLabelText('Confirm password'), 'Test-password-2468!'); await user.click(screen.getByRole('button', { name: 'Save password and continue' })); } else await user.click(await screen.findByRole('button', { name: 'Continue without creating a password' })); expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null }); expect(screen.queryByText(/Development only/)).not.toBeInTheDocument(); await user.type(screen.getByLabelText('Work email'), email); await user.click(screen.getByRole('button', { name: 'Continue with email' })); await user.type(screen.getByLabelText('Verification code'), '12345678'); await user.click(screen.getByRole('button', { name: 'Open workspace' })); await user.click(await screen.findByRole('button', { name: 'Continue with email code only' })); expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
 });
 
 it('skips password creation after code login when Cognito says a password already exists', async () => {
@@ -73,4 +73,15 @@ it('skips password creation after code login when Cognito says a password alread
   await user.click(screen.getByRole('button', { name: 'Open workspace' }));
   expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
   expect(screen.queryByLabelText('Create password')).not.toBeInTheDocument();
+});
+
+it('keeps a verified email session when the optional password check is unavailable', async () => {
+  auth.hasAccountPassword.mockRejectedValueOnce(new Error('Factor lookup unavailable'));
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
+  await user.type(screen.getByLabelText('Work email'), 'company@example.com');
+  await user.click(screen.getByRole('button', { name: 'Continue with email' }));
+  await user.type(screen.getByLabelText('Verification code'), '12345678');
+  await user.click(screen.getByRole('button', { name: 'Open workspace' }));
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
+  expect(screen.queryByText('Factor lookup unavailable')).not.toBeInTheDocument();
 });

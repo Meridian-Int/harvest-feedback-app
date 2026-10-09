@@ -39,7 +39,7 @@ An internal Meridian Intelligence app to capture bugs and improvements in HARVES
 |---|---|
 | Front end | React 18, Vite, TypeScript (strict), Tailwind CSS v4, React Router |
 | Backend | AWS Amplify Gen 2, code-first, in `amplify/` |
-| Auth | Cognito, **passwordless email one-time code** (see §5), `admins` group, admin-created users only |
+| Auth | Cognito email one-time code first, optional password afterward (see §5), `admins` group, admin-created users only |
 | Data | Amplify Data (AppSync + DynamoDB) |
 | Files | Amplify Storage (S3) |
 | Hosting | Amplify Hosting, one environment per branch: `dev`, `test`, `main` (production). Builds are started by GitHub Actions (`.github/workflows/deploy.yml`); production needs Vaish's approval. |
@@ -55,24 +55,26 @@ Region: `us-east-2` unless Vaish says otherwise.
 | Route | Screen (prototype ID) | Who |
 |---|---|---|
 | `/sign-in` | `#auth-screen`: email, then code | Signed out |
+| `/account/setup` | Legacy link redirects to the signed-in user's workspace | Signed-in users |
 | `/feedback/new` | `#view-client`, New feedback | Clients |
 | `/feedback/mine` | `#view-mine`, My reports (list/grid) | Clients |
 | `/admin/reviews` | `#view-admin`, Feedback review (list/grid) | Admins |
 | `/admin/insights?tab=errors\|traffic` | `#view-admin-insights`, Product insights | Admins |
 
 - The report detail is a dialog (`#detail`), opened over the list. Its open state lives in the URL, e.g. `?report=<id>`.
-- After sign-in: members of `admins` go to `/admin/reviews`, everyone else to `/feedback/new`.
+- After sign-in: members of the Cognito `admins` group go to `/admin/reviews`; other signed-in users go to `/feedback/new`. The user never chooses an admin or client role.
 
 ## 5. Auth
 
-Matches the prototype: work email, then a 6-digit code sent by email. No passwords.
+First sign-in uses a work email and the 8-digit code Cognito sends. After verification, users may create a password for later sign-ins; email-code sign-in remains available.
 
-- In `amplify/auth/resource.ts`, use Amplify Gen 2 passwordless email OTP (`loginWith: { email: { otpLogin: true } }`). This needs the Cognito Essentials tier. **Check the current Amplify docs** for the exact option before writing it.
+- In `amplify/auth/resource.ts`, use Amplify Gen 2 email OTP (`loginWith: { email: { otpLogin: true } }`) with Cognito Essentials and support password sign-in after a verified user creates one.
 - Self sign-up off: users are created by an admin. Add admins to the `admins` group.
 - Custom user attributes, set when the admin creates the user:
   - `custom:persona`: `Company`, `Partner` or `Operator`
   - `custom:company`: the company name
   - `name`
+- The admin assigns `custom:persona` when creating each user. Company, Partner and Operator users do not choose their persona or role in the app. Existing `custom:clientPersona` values, if present, can still be read; no new account-choice attribute is provisioned.
 - The prototype's simulated code `123456` and its "Local prototype" notes are **not** shipped.
 
 Error copy from the prototype:
@@ -178,7 +180,7 @@ Build each one to the geometry in spec §3.
 ## 9. Screens
 
 ### Shared (Sahil, Phase 0)
-- **Sign-in:** spec "Sign-in and verification", wired to real Cognito email OTP (§5).
+- **Sign-in:** spec "Sign-in and verification", wired to real Cognito email OTP and optional password setup/sign-in (§5).
 - **Shell:** rail, top bar, theme toggle, sign out.
 
 ### Client (Manasa)
@@ -211,8 +213,8 @@ Build each one to the geometry in spec §3.
   1. **Product area** and **Persona** dropdowns in the toolbar, next to Severity.
   2. A **status and owner control** in the admin detail dialog footer: Status `Select`, Owner `Select`, Save. Saving sets `adminActivityAt` and toasts.
 - **Product insights:** title, Errors/Traffic segmented switch, the three metric cards.
-  - **Errors:** live Sentry issues from the `sentry-issues` function; the project filter; "Make a report" / "View report", which creates a report with `sentryIssueId`.
-  - **Traffic:** the brief says to embed Google Analytics through **Looker Studio**. Show the Looker iframe in the panel area, styled as a panel. Drop the prototype's sample charts and numbers. With no Looker URL configured, show a setup message.
+  - **Errors:** live Sentry issues from the `sentry-issues` function; the project filter; "Make a report" / "View report", which creates a report with `sentryIssueId`. When Sentry is unconfigured, show labelled presentation samples with report creation disabled.
+  - **Traffic:** embed Google Analytics through **Looker Studio** when configured. With no Looker URL, show labelled presentation sample metrics and charts. Samples never write to AWS.
 
 ## 10. Integrations
 
@@ -248,7 +250,7 @@ Server-side, per branch in the Amplify console:
 - [ ] A client can't read others' reports or change `status`/`assignee`, checked through the API
 - [ ] Request update shows as pending, and clears after an admin saves a change
 - [ ] An admin filters by product area, priority (metric toggles), persona, severity, status and owner; opens a report; views or downloads the attachment; changes status and owner
-- [ ] Errors lists real Sentry issues, or shows the setup message; Traffic shows the Looker report, or the setup message
+- [ ] Errors lists real Sentry issues, or clearly labelled presentation samples when unconfigured; Traffic shows the Looker report, or clearly labelled samples when unconfigured
 - [ ] Dark and light match the prototype at 1440, 1024, 768 and 390 px; keyboard focus and dialogs work; reduced motion is respected
 - [ ] `npm test` passes with coverage thresholds met; `npm run build` and `tsc --noEmit` pass; no secrets in the repo or the bundle
 

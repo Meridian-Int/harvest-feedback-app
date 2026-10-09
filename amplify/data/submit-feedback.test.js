@@ -102,9 +102,9 @@ it('uses account persona and ignores caller attempts to change classification', 
   ctx.args.persona = 'Partner';
   expect(request(ctx).item).toMatchObject({ persona: 'Company', reporterEmail: 'client@company.com', owner: 'user-1::client@company.com', status: 'NEW' });
 });
-it.each(['Payment — payout status or delay', 'Payment — amount or calculation', 'Payment — failed or missing payout', 'Payment — confirmation or receipt'])('rejects removed payment area %s', productArea => {
+it.each(['Payment — payout status or delay', 'Payment — amount or calculation', 'Payment — failed or missing payout', 'Payment — confirmation or receipt'])('accepts the agreed payment area %s', productArea => {
   const ctx = context(); ctx.args.productArea = productArea;
-  expect(() => request(ctx)).toThrow('choose a product area');
+  expect(request(ctx).item.productArea).toBe(productArea);
 });
 it('accepts payment account setup', () => {
   const ctx = context(); ctx.args.productArea = 'Payment — payout account setup';

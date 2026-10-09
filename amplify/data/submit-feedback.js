@@ -3,6 +3,8 @@ import * as ddb from '@aws-appsync/utils/dynamodb';
 
 const PRODUCT_AREAS = [
   'Onboarding', 'Data room', 'Payment — payout account setup',
+  'Payment — payout status or delay', 'Payment — amount or calculation',
+  'Payment — failed or missing payout', 'Payment — confirmation or receipt',
   'Partner portfolio', 'Operations console', 'Other — add an area',
 ];
 const FILE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
