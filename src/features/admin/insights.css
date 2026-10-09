@@ -20,5 +20,18 @@
 #view-admin-insights .insight-error-spark i { flex: 1; background: var(--dim); opacity: .6; border-radius: 2px; }
 #view-admin-insights .insight-traffic-panel { overflow: hidden; }
 #view-admin-insights .insight-traffic-panel iframe { display: block; width: 100%; min-height: 650px; border: 0; background: var(--surface); }
-@media (max-width: 900px) { #view-admin-insights .insight-error-row { grid-template-columns: 3px minmax(0, 1fr) 72px; } #view-admin-insights .insight-error-spark { display: none; } #view-admin-insights .insight-error-row > .btn { grid-column: 2; justify-self: start; } }
+#view-admin-insights .insight-traffic-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 14px; }
+#view-admin-insights .insight-traffic-chart { height: 164px; display: flex; gap: 14px; align-items: flex-end; justify-content: space-around; padding: 16px 20px; }
+#view-admin-insights .insight-traffic-chart > div { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 5px; font-size: 10px; color: var(--dim); }
+#view-admin-insights .insight-traffic-chart i { display: block; width: 70%; max-width: 44px; border-radius: 4px 4px 0 0; background: linear-gradient(0deg, var(--dim), var(--accent)); transform-origin: bottom; animation: insight-chart-grow .7s ease-out; }
+#view-admin-insights .insight-chart-caption { padding: 0 20px 16px; color: var(--dim); font-size: 11px; }
+#view-admin-insights .insight-top-pages { padding: 20px; }
+#view-admin-insights .insight-page-traffic { display: grid; grid-template-columns: 1fr auto; gap: 7px; font-size: 11px; margin-bottom: 16px; }
+#view-admin-insights .insight-page-traffic:last-child { margin-bottom: 0; }
+#view-admin-insights .insight-page-traffic > div { grid-column: 1 / -1; height: 5px; background: var(--raised); border-radius: 4px; }
+#view-admin-insights .insight-page-traffic i { display: block; height: 5px; border-radius: 4px; background: var(--dim); opacity: .65; }
+#view-admin-insights .insight-footnote { margin-top: 12px; color: var(--dim); font-size: 11px; }
+@keyframes insight-chart-grow { from { transform: scaleY(.04); opacity: .2; } to { transform: scaleY(1); opacity: .8; } }
+@media (max-width: 900px) { #view-admin-insights .insight-error-row { grid-template-columns: 3px minmax(0, 1fr) 72px; } #view-admin-insights .insight-error-spark { display: none; } #view-admin-insights .insight-error-row > .btn { grid-column: 2; justify-self: start; } #view-admin-insights .insight-traffic-layout { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { #view-admin-insights .signal-summary { gap: 7px; } #view-admin-insights .signal-metric { padding: 12px 10px; } #view-admin-insights .signal-metric strong { font-size: 21px; } #view-admin-insights .signal-metric small { font-size: 10px; } #view-admin-insights .project-filter { font-size: 0; } #view-admin-insights .insight-traffic-panel iframe { min-height: 520px; } }
+@media (prefers-reduced-motion: reduce) { #view-admin-insights .insight-traffic-chart i { animation: none; } }

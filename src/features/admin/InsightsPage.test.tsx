@@ -32,10 +32,20 @@ it('shows live issues and recalculates metrics for the chosen project', async ()
   expect(screen.getAllByText('1')).toHaveLength(2);
 });
 
-it('shows the setup message when Sentry is not configured', async () => {
+it('shows labelled prototype issues without writing to AWS when Sentry is not configured', async () => {
   api.getSentryIssues.mockResolvedValue({ configured: false, issues: [] });
-  renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=errors', user: makeAdminUser() });
-  expect(await screen.findByText('Connect Sentry to see application errors here.')).toBeInTheDocument();
+  const { user } = renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=errors', user: makeAdminUser() });
+  expect(await screen.findByText("Cannot read properties of undefined (reading 'amountMinor')")).toBeInTheDocument();
+  expect(screen.getByText('356')).toBeInTheDocument();
+  expect(screen.getByText(/sample data/)).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Make a report' })).toHaveLength(4);
+  expect(screen.getAllByRole('button', { name: 'Make a report' }).every(button => button.hasAttribute('disabled'))).toBe(true);
+  expect(api.listAllFeedback).not.toHaveBeenCalled();
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'harvest-api');
+  expect(screen.getByText('Lambda timed out after 29 seconds')).toBeInTheDocument();
+  expect(screen.queryByText("Cannot read properties of undefined (reading 'amountMinor')")).not.toBeInTheDocument();
+  expect(screen.getByText('97')).toBeInTheDocument();
+  expect(api.createFeedback).not.toHaveBeenCalled();
 });
 
 it('creates a report linked to a Sentry issue and opens it', async () => {
@@ -56,7 +66,7 @@ it('opens an already linked report without creating another', async () => {
   expect(api.createFeedback).not.toHaveBeenCalled();
 });
 
-it('shows a Looker iframe only when a valid embed URL is configured', async () => {
+it('keeps the live Looker iframe and shows prototype traffic when it is unconfigured', async () => {
   vi.stubEnv('VITE_LOOKER_EMBED_URL', 'https://lookerstudio.google.com/embed/reporting/123');
   const { unmount } = renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
   expect(screen.getByTitle('HARVEST traffic report')).toHaveAttribute('src', 'https://lookerstudio.google.com/embed/reporting/123');
@@ -64,5 +74,11 @@ it('shows a Looker iframe only when a valid embed URL is configured', async () =
   unmount();
   vi.stubEnv('VITE_LOOKER_EMBED_URL', '');
   renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
-  expect(screen.getByText('Connect a Looker Studio embed URL to see Google Analytics traffic here.')).toBeInTheDocument();
+  expect(screen.queryByTitle('HARVEST traffic report')).not.toBeInTheDocument();
+  expect(screen.getByText('287')).toBeInTheDocument();
+  expect(screen.getByText('364')).toBeInTheDocument();
+  expect(screen.getByText('Users over time')).toBeInTheDocument();
+  expect(screen.getByText('Top pages')).toBeInTheDocument();
+  expect(screen.getByText(/Sample values; no live accounts connected/)).toBeInTheDocument();
+  expect(api.getSentryIssues).not.toHaveBeenCalled();
 });
