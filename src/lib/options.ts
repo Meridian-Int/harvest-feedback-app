@@ -2,8 +2,6 @@ import type { Priority, Severity, Status } from './types';
 
 export const PRODUCT_AREAS = [
   'Onboarding', 'Data room', 'Payment — payout account setup',
-  'Payment — payout status or delay', 'Payment — amount or calculation',
-  'Payment — failed or missing payout', 'Payment — confirmation or receipt',
   'Partner portfolio', 'Operations console', 'Other — add an area',
 ] as const;
 export const PRIORITIES = ['Blocker', 'Bug', 'Improvement'] as const;

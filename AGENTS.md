@@ -126,13 +126,9 @@ Not in v1, matching the prototype: comments, activity timeline, persona or repor
   1. Onboarding
   2. Data room
   3. Payment — payout account setup
-  4. Payment — payout status or delay
-  5. Payment — amount or calculation
-  6. Payment — failed or missing payout
-  7. Payment — confirmation or receipt
-  8. Partner portfolio
-  9. Operations console
-  10. Other — add an area
+  4. Partner portfolio
+  5. Operations console
+  6. Other — add an area
 - **`PRIORITIES`:** Blocker, Bug, Improvement. Placeholder "Choose a priority".
 - **`SEVERITIES`:** Critical, Medium, Low. Placeholder "Choose severity". Blocker is **not** a severity.
 - **`STATUSES`:** New, Assigned, In progress, Closed.

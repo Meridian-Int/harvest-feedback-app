@@ -13,7 +13,7 @@ Put validation, the file check, the duplicate finder, the draft and the recorder
 
 ## Screen 1: New feedback (`/feedback/new`, spec "Client New feedback")
 
-1. **Product area** `Select` (10 options from `PRODUCT_AREAS`). Picking "Other — add an area" reveals **Name the area** (required, max 80).
+1. **Product area** `Select` (6 options from `PRODUCT_AREAS`). Picking "Other — add an area" reveals **Name the area** (required, max 80).
 2. **Priority** and **Severity** `Select`s side by side.
 3. **Duplicate notice:** the prototype's rules (spec §4) against the reporter's **own** reports. Up to 3 suggestions, each opening that report's dialog. Its helper text must not mention comments.
 4. **Description:** max 3000, with a counter. The first line becomes the title (first 110 characters).
