@@ -29,11 +29,11 @@ beforeEach(() => {
 });
 
 it('sets required status, title, owner and reporter details on the server', () => {
-  const ctx = context({ args: { ...context().args, title: 'spoofed', status: 'CLOSED', reporterEmail: 'spoof@example.com' } });
+  const ctx = context({ args: { ...context().args, title: 'spoofed', status: 'CLOSED', assignee: 'spoof@example.com', reporterEmail: 'spoof@example.com' } });
   const result = request(ctx);
   expect(result.key).toEqual({ id: 'generated-id' });
   expect(result.item).toMatchObject({
-    id: 'generated-id', title: 'Report title', description: 'Report title\nMore detail', status: 'NEW',
+    id: 'generated-id', title: 'Report title', description: 'Report title\nMore detail', status: 'NEW', assignee: 'admin@example.com',
     reporterName: 'Client', reporterEmail: 'client@company.com', persona: 'Company', company: 'Company',
     owner: 'user-1::client@company.com', createdAt: '2026-10-09T12:00:00.000Z', updatedAt: '2026-10-09T12:00:00.000Z',
   });

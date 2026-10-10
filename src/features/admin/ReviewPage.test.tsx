@@ -87,6 +87,17 @@ it('opens the report from its URL, saves status and owner, and shows a toast', a
   expect(await screen.findByRole('status')).toHaveTextContent('Report updated.');
 });
 
+it('preselects Admin for an untouched new ticket and keeps an explicit Unassigned save', async () => {
+  api.adminUpdate.mockResolvedValue({ ...reports[1], adminActivityAt: '2026-10-10T12:00:00Z' });
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-b002', user: makeAdminUser() });
+  const owner = within(await screen.findByRole('dialog')).getByRole('combobox', { name: 'Report owner' });
+  expect(owner).toHaveValue('admin@example.com');
+  await user.selectOptions(owner, '');
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
+  expect(api.adminUpdate).toHaveBeenCalledWith('report-b002', { status: 'NEW', assignee: '' });
+  await waitFor(() => expect(owner).toHaveValue(''));
+});
+
 it('previews an image, offers a download and shows unavailable media on failure', async () => {
   api.listAllFeedback.mockResolvedValue([{ ...reports[0], attachmentKey: 'feedback-media/identity/file.png', attachmentName: 'proof.png', attachmentType: 'image/png' }]);
   const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews', user: makeAdminUser() });

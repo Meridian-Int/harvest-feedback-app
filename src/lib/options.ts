@@ -9,9 +9,10 @@ export const SEVERITIES = ['Critical', 'Medium', 'Low'] as const;
 export const STATUSES = ['New', 'Assigned', 'In progress', 'Done'] as const;
 export const PERSONAS = ['Company', 'Partner'] as const;
 // The only administrator in the development auth adapter. Replace when Cognito is wired.
+export const DEFAULT_ASSIGNEE = 'admin@example.com';
 export const ASSIGNEES = [
   { value: '', label: 'Unassigned' },
-  { value: 'admin@example.com', label: 'Admin' },
+  { value: DEFAULT_ASSIGNEE, label: 'Admin' },
 ] as const;
 export const SENTRY_PROJECTS = ['harvest-ui', 'harvest-api', 'feedback-app'] as const;
 export const PRIORITY_LABELS: Record<Priority, typeof PRIORITIES[number]> = {

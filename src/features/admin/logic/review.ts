@@ -1,6 +1,6 @@
 import { displayId } from '../../../lib/format';
 import { sortFeedback } from '../../../lib/list';
-import { PERSONAS } from '../../../lib/options';
+import { DEFAULT_ASSIGNEE, PERSONAS } from '../../../lib/options';
 import type { Feedback, Persona, Priority, Severity, Status } from '../../../lib/types';
 
 export interface ReviewFilters {
@@ -16,6 +16,11 @@ export interface ReviewFilters {
 export const EMPTY_REVIEW_FILTERS: ReviewFilters = {
   query: '', status: '', severity: '', productArea: '', persona: '', owner: '', priority: '',
 };
+
+export function initialReviewAssignee(report: Feedback): string {
+  if (report.assignee) return report.assignee;
+  return report.status === 'NEW' && !report.adminActivityAt ? DEFAULT_ASSIGNEE : '';
+}
 
 export function reviewMetrics(reports: readonly Feedback[]) {
   const open = reports.filter(report => report.status !== 'CLOSED');

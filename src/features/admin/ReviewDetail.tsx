@@ -5,6 +5,7 @@ import { adminUpdate, getAttachmentUrl } from '../../lib/feedback';
 import { displayId, formatDateTime } from '../../lib/format';
 import { ASSIGNEES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
 import type { Feedback, Status } from '../../lib/types';
+import { initialReviewAssignee } from './logic/review';
 
 function AttachmentPreview({ report }: { report: Feedback }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -38,10 +39,10 @@ function AttachmentPreview({ report }: { report: Feedback }) {
 
 export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; onClose: () => void; onSaved: (report: Feedback) => void }) {
   const [status, setStatus] = useState<Status>(report.status);
-  const [assignee, setAssignee] = useState(report.assignee ?? '');
+  const [assignee, setAssignee] = useState(initialReviewAssignee(report));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { setStatus(report.status); setAssignee(report.assignee ?? ''); setError(null); }, [report.id, report.status, report.assignee]);
+  useEffect(() => { setStatus(report.status); setAssignee(initialReviewAssignee(report)); setError(null); }, [report.id, report.status, report.assignee, report.adminActivityAt]);
 
   async function save() {
     setSaving(true);

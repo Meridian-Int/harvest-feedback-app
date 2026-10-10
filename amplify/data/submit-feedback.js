@@ -7,6 +7,8 @@ const PRODUCT_AREAS = [
 ];
 const FILE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+// Keep in sync with DEFAULT_ASSIGNEE in src/lib/options.ts until HARVEST users are connected.
+const DEFAULT_ASSIGNEE = 'admin@example.com';
 
 export function request(ctx) {
   const identity = ctx.identity;
@@ -57,6 +59,7 @@ export function request(ctx) {
     company,
     owner: `${identity.sub}::${identity.username}`,
     status: 'NEW',
+    assignee: DEFAULT_ASSIGNEE,
     createdAt: now,
     updatedAt: now,
     ...(args.productArea === 'Other — add an area' ? { customArea } : {}),

@@ -1,12 +1,19 @@
 import { expect, it } from 'vitest';
 import { makeFeedback } from '../../../test/factories';
-import { changeReviewFilter, EMPTY_REVIEW_FILTERS, filterReviewReports, readReviewFilters, reviewMetrics } from './review';
+import { changeReviewFilter, EMPTY_REVIEW_FILTERS, filterReviewReports, initialReviewAssignee, readReviewFilters, reviewMetrics } from './review';
 
 const reports = [
   makeFeedback({ id: 'report-a001', title: 'Payout missing', description: 'No receipt arrived', productArea: 'Payment — failed or missing payout', priority: 'BLOCKER', severity: 'CRITICAL', reporterName: 'Asha', company: 'Acme', persona: 'Company', assignee: 'admin@example.com', createdAt: '2026-10-01T00:00:00Z' }),
   makeFeedback({ id: 'report-b002', title: 'Upload issue', description: 'Data room upload stalled', productArea: 'Data room', priority: 'BUG', severity: 'MEDIUM', reporterName: 'Ben', company: 'Beta', persona: 'Partner', createdAt: '2026-10-08T00:00:00Z' }),
   makeFeedback({ id: 'report-c003', title: 'Improve console', description: 'Faster search', productArea: 'Operations console', priority: 'IMPROVEMENT', severity: 'LOW', reporterName: 'Cara', company: 'Meridian', persona: 'Operator', status: 'CLOSED', createdAt: '2026-10-09T00:00:00Z' }),
 ];
+
+it('defaults untouched new reports to Admin without replacing a saved assignment choice', () => {
+  expect(initialReviewAssignee(makeFeedback())).toBe('admin@example.com');
+  expect(initialReviewAssignee(makeFeedback({ assignee: 'admin@example.com' }))).toBe('admin@example.com');
+  expect(initialReviewAssignee(makeFeedback({ adminActivityAt: '2026-10-09T12:00:00Z' }))).toBe('');
+  expect(initialReviewAssignee(makeFeedback({ status: 'ASSIGNED' }))).toBe('');
+});
 
 it('counts every open report before any search or filters', () => {
   expect(reviewMetrics(reports)).toEqual({ open: 2, blockers: 1, bugs: 1, improvements: 0 });

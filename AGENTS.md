@@ -99,7 +99,7 @@ Error copy from the prototype:
 | `attachmentKey` | string, optional | One file (upload or screen recording) |
 | `attachmentName`, `attachmentType`, `attachmentSize` | optional | For the preview, download and "unavailable" states |
 | `status` | enum `NEW`, `ASSIGNED`, `IN_PROGRESS`, `CLOSED`, default `NEW` | Admin-write only |
-| `assignee` | string, optional | Admin-write only. Don't name it `owner`; Amplify uses `owner`. |
+| `assignee` | string, optional | Admin-write only. New reports default to Admin; an admin may later choose Unassigned or another owner. Don't name it `owner`; Amplify uses `owner`. |
 | `updateRequestedAt` | datetime, optional | Set by the reporter's "Request update" |
 | `adminActivityAt` | datetime, optional | Set by any admin change; clears the pending request |
 | `sentryIssueId` | string, optional | Set when an admin makes a report from a Sentry issue |
@@ -136,7 +136,7 @@ Not in v1, matching the prototype: comments, activity timeline, persona or repor
 - **`SEVERITIES`:** Critical, Medium, Low. Placeholder "Choose severity". Blocker is **not** a severity.
 - **`STATUSES`:** New, Assigned, In progress, Done (stored as `CLOSED`).
 - **`PERSONAS`:** Company, Partner. Existing Operator accounts and reports remain readable, but Operator is not a new filter choice.
-- **`ASSIGNEES`:** the admin list. Prototype values: Unassigned, Manasa, Vaish. Replace with the real admins.
+- **`ASSIGNEES`:** the admin list. Prototype values: Unassigned, Manasa, Vaish. New reports default to Admin (`admin@example.com` in the development adapter); replace with the real admins when HARVEST users are connected.
 - **`SENTRY_PROJECTS`:** harvest-ui, harvest-api, feedback-app.
 
 ## 8. Design system

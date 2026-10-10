@@ -1,4 +1,4 @@
-import { ASSIGNEES, PERSONAS, PRIORITIES, PRODUCT_AREAS, SENTRY_PROJECTS, SEVERITIES, STATUSES } from './options';
+import { ASSIGNEES, DEFAULT_ASSIGNEE, PERSONAS, PRIORITIES, PRODUCT_AREAS, SENTRY_PROJECTS, SEVERITIES, STATUSES } from './options';
 
 it('keeps the exact shared option order and labels', () => {
   expect({ PRODUCT_AREAS, PRIORITIES, SEVERITIES, STATUSES, PERSONAS, SENTRY_PROJECTS, ASSIGNEES }).toMatchInlineSnapshot(`
@@ -49,4 +49,5 @@ it('keeps the exact shared option order and labels', () => {
     }
   `);
   expect(SEVERITIES).not.toContain('Blocker');
+  expect(ASSIGNEES.find(item => item.value === DEFAULT_ASSIGNEE)?.label).toBe('Admin');
 });

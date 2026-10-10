@@ -148,6 +148,7 @@ Test files sit next to the code: `format.ts` → `format.test.ts`, `NewFeedbackP
   - search matches title, description, reporter, company and ID, ignoring case
   - each dropdown filters: status, severity, product area, persona, owner
   - "Unassigned" means no assignee
+  - an untouched new report preselects Admin; a saved Unassigned choice stays Unassigned
   - Reset clears everything
   - a filter change goes back to page 1
 - **Metric counts:** count all open reports regardless of the current search; clicking one filters by priority.
