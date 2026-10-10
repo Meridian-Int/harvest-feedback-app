@@ -22,13 +22,19 @@ export function AppShell() {
   }, [reportsPage]);
   return <div className={`layout ${reportsPage ? 'layout-reports' : ''} ${admin ? 'admin-workspace' : ''}`}>
     <aside className="rail">
-      <div className="brand-row"><div className="brand">HARVEST</div>{user && <NotificationCenter key={user.id} user={user} />}</div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
+      <div className="brand">HARVEST</div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
       <div className="nav-label eyebrow">Feedback workspace</div>
       <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
-      <div className="rail-bottom"><div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div></div>
+      <div className="rail-bottom">
+        <div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div>
+        <div className="rail-actions">
+          <div className="rail-action-icons">{user && <NotificationCenter key={user.id} user={user} />}<ThemeToggle /></div>
+          <TextButton className="rail-sign-out" onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}>Sign out</TextButton>
+        </div>
+      </div>
     </aside>
     <div className="workspace-main">
-      <header className="top"><div className="breadcrumb">Workspace <span>/</span> <strong>{crumb}</strong></div><div className="top-actions"><TextButton onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}>Sign out</TextButton><ThemeToggle /></div></header>
+      <header className="top"><div className="breadcrumb">Workspace <span>/</span> <strong>{crumb}</strong></div></header>
       <main>{error && <p role="alert" className="error">{error}</p>}<Outlet /></main>
     </div>
   </div>;

@@ -3,7 +3,7 @@
 .notification-bell:hover, .notification-bell[aria-expanded="true"] { background: var(--raised); }
 .notification-bell .icon { width: 18px; height: 18px; }
 .notification-count { position: absolute; top: -8px; right: -8px; min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 4px; border-radius: 999px; border: 1px solid var(--rail); background: var(--red); color: var(--bg); font: 700 10px/1 var(--font-figures); font-variant-numeric: tabular-nums; }
-.notification-panel { position: fixed; top: 76px; left: 18px; z-index: 60; width: min(360px, calc(100vw - 32px)); max-height: min(520px, calc(100dvh - 92px)); display: flex; flex-direction: column; overflow: hidden; }
+.notification-panel { position: fixed; bottom: 134px; left: 18px; z-index: 60; width: min(360px, calc(100vw - 32px)); max-height: min(520px, calc(100dvh - 150px)); display: flex; flex-direction: column; overflow: hidden; }
 .notification-panel > header { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .notification-panel > header h2 { font-size: 17px; }
 .notification-panel > header span { color: var(--dim); font-size: 11px; }
@@ -27,6 +27,6 @@
 @media (max-width: 1150px) { .notification-panel { left: 10px; } .notification-toast { left: 206px; } }
 @media (max-width: 700px) {
   .notification-bell { width: 40px; height: 40px; }
-  .notification-panel { top: 58px; left: 14px; max-height: min(520px, calc(100dvh - 72px)); }
+  .notification-panel { bottom: 16px; left: 14px; max-height: min(520px, calc(100dvh - 220px)); }
   .notification-toast { top: 118px; left: 16px; }
 }
