@@ -84,6 +84,17 @@ backend.data.resources.graphqlApi.addLambdaDataSource('VerifyAttachment', valida
 
 const { cfnUserPool, cfnUserPoolClient, cfnIdentityPool } = backend.auth.resources.cfnResources;
 
+// The existing shared sandbox has a readable pool name. Cognito rejects an
+// otherwise unchanged schema when CloudFormation updates this pool, so omit
+// Schema from updates to this existing pool only. New pools retain the schema.
+if (
+  cfnUserPool.node.tryGetContext('amplify-backend-type') === 'sandbox' &&
+  cfnUserPool.node.tryGetContext('amplify-backend-name') === 'sahil-feedback'
+) {
+  cfnUserPool.userPoolName = 'harvest-feedback-dev-users';
+  cfnUserPool.addPropertyDeletionOverride('Schema');
+}
+
 // Cognito Essentials supports email OTP and optional password sign-in.
 cfnUserPool.userPoolTier = 'ESSENTIALS';
 cfnUserPool.adminCreateUserConfig = { allowAdminCreateUserOnly: true };
