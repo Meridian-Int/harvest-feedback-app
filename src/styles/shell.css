@@ -14,14 +14,13 @@
 .user > div { min-width: 0; }
 .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bluesoft); color: var(--blue); font-size: 11px; flex-shrink: 0; }
 .user-role { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-.rail-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px 0; }
-.rail-action-icons { display: flex; align-items: center; gap: 8px; }
-.rail-sign-out { white-space: nowrap; }
+.rail-sign-out { margin: 8px auto 0; }
 .workspace-main { min-width: 0; }
 .top { height: 52px; display: flex; align-items: center; padding: 0 36px; gap: 18px; background: var(--rail); border-bottom: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .breadcrumb { color: var(--dim); }
 .breadcrumb span { margin: 0 8px; }
 .breadcrumb strong { color: var(--text); }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 main { width: 100%; max-width: 1400px; margin: auto; padding: 18px 24px 24px; }
 html[data-page="reports"], html[data-page="reports"] body { height: 100%; overflow: hidden; }
 .layout-reports { height: 100dvh; min-height: 0; }
@@ -45,9 +44,9 @@ html[data-page="reports"], html[data-page="reports"] body { height: 100%; overfl
   .brand-sub, .nav-label { display: none; }
   .workspace-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .workspace-nav a { min-height: 40px; padding: 8px 10px; }
-  .rail-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
-  .user { flex: 1 1 130px; padding: 0; border-top: 0; }
-  .rail-actions { margin-left: auto; padding: 0; }
+  .rail-bottom { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .user { padding: 0; border-top: 0; }
+  .rail-sign-out { margin-top: 8px; }
   .top { padding: 0 16px; gap: 8px; }
   .breadcrumb span { margin: 0 4px; }
   main { padding: 16px; }

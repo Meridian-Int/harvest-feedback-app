@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '../components/icons';
-import { TextButton, ThemeToggle } from '../components/ui';
+import { IconButton, ThemeToggle } from '../components/ui';
 import { isAdmin } from '../lib/auth';
 import { useAuth } from './AuthProvider';
 import { NotificationCenter } from './NotificationCenter';
@@ -27,14 +27,11 @@ export function AppShell() {
       <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
       <div className="rail-bottom">
         <div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div>
-        <div className="rail-actions">
-          <div className="rail-action-icons">{user && <NotificationCenter key={user.id} user={user} />}<ThemeToggle /></div>
-          <TextButton className="rail-sign-out" onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}>Sign out</TextButton>
-        </div>
+        <IconButton label="Sign out" className="rail-sign-out" onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}><Icon name="logout" /></IconButton>
       </div>
     </aside>
     <div className="workspace-main">
-      <header className="top"><div className="breadcrumb">Workspace <span>/</span> <strong>{crumb}</strong></div></header>
+      <header className="top"><div className="breadcrumb">Workspace <span>/</span> <strong>{crumb}</strong></div><div className="top-actions">{user && <NotificationCenter key={user.id} user={user} />}<ThemeToggle /></div></header>
       <main>{error && <p role="alert" className="error">{error}</p>}<Outlet /></main>
     </div>
   </div>;

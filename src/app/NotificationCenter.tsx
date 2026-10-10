@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/icons';
@@ -35,6 +35,7 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
   const [readIds, setReadIds] = useState<Set<string> | null>(null);
   const [optimistic, setOptimistic] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
   const [toast, setToast] = useState<NotificationEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const events = useMemo(() => notificationEvents(reports ?? [], admin), [reports, admin]);
@@ -90,6 +91,27 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
     return () => { document.removeEventListener('pointerdown', onPointerDown); document.removeEventListener('keydown', onKeyDown); };
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    function positionPanel() {
+      const rect = bell.current?.getBoundingClientRect();
+      if (!rect) return;
+      const top = Math.round(rect.bottom + 10);
+      setPanelPosition({
+        top,
+        right: Math.max(16, Math.round(window.innerWidth - rect.right)),
+        maxHeight: Math.max(0, Math.min(520, window.innerHeight - top - 16)),
+      });
+    }
+    positionPanel();
+    window.addEventListener('resize', positionPanel);
+    window.addEventListener('scroll', positionPanel, true);
+    return () => {
+      window.removeEventListener('resize', positionPanel);
+      window.removeEventListener('scroll', positionPanel, true);
+    };
+  }, [open]);
+
   function openReport(event: NotificationEvent) {
     setOpen(false);
     navigate(admin ? `/admin/reviews?report=${encodeURIComponent(event.reportId)}` : `/feedback/mine?report=${encodeURIComponent(event.reportId)}`);
@@ -100,7 +122,7 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
       <Icon name="bell" />
       {readIds && unread.length > 0 && <span className="notification-count" aria-hidden="true">{unread.length > 99 ? '99+' : unread.length}</span>}
     </button>
-    {open && createPortal(<section ref={panel} id="notification-panel" className="notification-panel glass" role="dialog" aria-label="Notifications">
+    {open && createPortal(<section ref={panel} id="notification-panel" className="notification-panel glass" role="dialog" aria-label="Notifications" style={panelPosition ?? undefined}>
       <header><h2>Notifications</h2><span>{unread.length ? `${unread.length} unread` : 'All caught up'}</span></header>
       {error && <p className="notification-error" role="alert">{error}</p>}
       {reports === null || readIds === null ? <p className="notification-empty" role="status">Loading notifications…</p> : events.length === 0 ? <p className="notification-empty">No notifications yet.</p> : <div className="notification-list">
