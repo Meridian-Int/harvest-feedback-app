@@ -14,13 +14,15 @@
 .user > div { min-width: 0; }
 .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bluesoft); color: var(--blue); font-size: 11px; flex-shrink: 0; }
 .user-role { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-.rail-sign-out { margin: 8px auto 0; }
+.rail-bottom .rail-sign-out { display: flex; align-items: center; gap: 7px; width: auto; height: 34px; min-width: 0; min-height: 34px; margin: 8px auto 0; padding: 0 10px; font-size: 11px; white-space: nowrap; }
+.rail-sign-out .icon { width: 15px; height: 15px; }
 .workspace-main { min-width: 0; }
 .top { height: 52px; display: flex; align-items: center; padding: 0 36px; gap: 18px; background: var(--rail); border-bottom: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .breadcrumb { color: var(--dim); }
 .breadcrumb span { margin: 0 8px; }
 .breadcrumb strong { color: var(--text); }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.top-actions .icon-btn { width: 36px; height: 36px; }
 main { width: 100%; max-width: 1400px; margin: auto; padding: 18px 24px 24px; }
 html[data-page="reports"], html[data-page="reports"] body { height: 100%; overflow: hidden; }
 .layout-reports { height: 100dvh; min-height: 0; }

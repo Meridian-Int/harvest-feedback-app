@@ -159,7 +159,7 @@ Key rules from the spec (§3, §5, §6 there):
   - Critical: `--red` dot and text
 - **Progress track:** New → Assigned → In progress → Done. Completed steps are a green fill with a check; the current step has a neutral ring.
 - **Shell:**
-  - Rail 224px with the HARVEST / BY MERIDIAN INTELLIGENCE brand and role navigation. A centered icon button for Sign out sits below the profile in the rail footer. The 52px top bar holds the breadcrumb, notification bell and theme toggle. This placement is Sahil's approved change from the prototype.
+  - Rail 224px with the HARVEST / BY MERIDIAN INTELLIGENCE brand and role navigation. A centered compact icon-and-text Sign out button sits below the profile in the rail footer. The 52px top bar holds the breadcrumb, notification bell and theme toggle. This placement is Sahil's approved change from the prototype.
   - Content max 1400px.
   - On report pages only the list scrolls.
   - Breakpoints 1150 / 1100 / 900 / 800 / 700 px as in the spec.

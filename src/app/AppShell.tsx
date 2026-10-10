@@ -27,7 +27,7 @@ export function AppShell() {
       <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
       <div className="rail-bottom">
         <div className="user"><span className="avatar" aria-hidden="true">{user?.name.slice(0, 2).toUpperCase()}</span><div><div>{user?.name}</div><div className="user-role">{admin ? 'Admin' : user?.email}</div></div></div>
-        <IconButton label="Sign out" className="rail-sign-out" onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}><Icon name="logout" /></IconButton>
+        <IconButton label="Sign out" className="rail-sign-out" onClick={() => { void logOut().catch(e => setError((e as Error).message)); }}><Icon name="logout" /><span>Sign out</span></IconButton>
       </div>
     </aside>
     <div className="workspace-main">
