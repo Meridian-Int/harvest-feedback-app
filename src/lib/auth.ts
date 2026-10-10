@@ -34,23 +34,27 @@ async function loadUser(): Promise<AuthUser> {
   const [identity, attributes, session] = await Promise.all([
     getCognitoUser(), fetchUserAttributes(), fetchAuthSession(),
   ]);
+  const rawGroups = session.tokens?.idToken?.payload['cognito:groups'];
+  const groups = Array.isArray(rawGroups) ? rawGroups.filter((value): value is string => typeof value === 'string') : [];
+  const admin = groups.includes('admins');
   const clientPersona = attributes['custom:clientPersona'];
-  const persona = clientPersona ?? attributes['custom:persona'];
-  if (persona !== 'Company' && persona !== 'Partner' && persona !== 'Operator') {
+  const storedPersona = clientPersona ?? attributes['custom:persona'];
+  const persona = storedPersona === 'Company' || storedPersona === 'Partner' || storedPersona === 'Operator'
+    ? storedPersona : admin ? 'Operator' : null;
+  if (!persona) {
     throw new Error('Your account is missing a valid persona. Contact an administrator.');
   }
-  if (!attributes.email || !attributes.name || !attributes['custom:company']) {
+  if (!attributes.email || !attributes.name || (!admin && !attributes['custom:company'])) {
     throw new Error('Your account profile is incomplete. Contact an administrator.');
   }
-  const rawGroups = session.tokens?.idToken?.payload['cognito:groups'];
   currentUser = {
     id: identity.userId,
     email: attributes.email,
     name: attributes.name,
     persona,
-    company: attributes['custom:company'],
+    company: attributes['custom:company'] || 'Meridian Intelligence',
     needsPersonaSetup: false,
-    groups: Array.isArray(rawGroups) ? rawGroups.filter((value): value is string => typeof value === 'string') : [],
+    groups,
   };
   return currentUser;
 }

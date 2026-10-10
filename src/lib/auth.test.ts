@@ -95,9 +95,20 @@ it('shows a real wrong-code message and restores an existing session', async () 
   expect(await restoreSession()).toMatchObject({ id: 'user-1', groups: ['admins'], needsPersonaSetup: false });
 });
 
-it('rejects incomplete profiles and clears local identity on sign-out', async () => {
+it('lets an admin sign in without client persona or company attributes', async () => {
   cognito.fetchUserAttributes.mockResolvedValueOnce({ email: 'admin@example.com', name: 'Admin' });
+  await expect(confirmSignIn('12345678')).resolves.toMatchObject({
+    persona: 'Operator', company: 'Meridian Intelligence', groups: ['admins'],
+  });
+});
+
+it('rejects incomplete client profiles and clears local identity on sign-out', async () => {
+  cognito.fetchAuthSession.mockResolvedValueOnce({ tokens: { idToken: { payload: {} } } });
+  cognito.fetchUserAttributes.mockResolvedValueOnce({ email: 'client@example.com', name: 'Client' });
   await expect(confirmSignIn('12345678')).rejects.toThrow('valid persona');
+  cognito.fetchAuthSession.mockResolvedValueOnce({ tokens: { idToken: { payload: {} } } });
+  cognito.fetchUserAttributes.mockResolvedValueOnce({ email: 'client@example.com', name: 'Client', 'custom:persona': 'Partner' });
+  await expect(confirmSignIn('12345678')).rejects.toThrow('profile is incomplete');
   await confirmSignIn('12345678');
   await signOut();
   expect(getCurrentUser()).toBeNull();
