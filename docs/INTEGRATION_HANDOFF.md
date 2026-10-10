@@ -47,7 +47,11 @@ The sandbox is for testing, not production hosting. Do not describe the app as l
 
 Email OTP and password creation have been observed for the first sandbox client. Admin first-password setup and password sign-in, client upload/recording submissions, admin changes and cross-user API authorization still require live verification. Further AWS deployments were stopped at the owner's request to avoid additional charges. Existing sandbox resources can still incur usage charges until removed.
 
-After invitation removal, 220 tests and the coverage thresholds passed. The frontend build (including TypeScript) and Amplify TypeScript check also passed. No production deployment or release approval is implied.
+After the notification change, 229 tests and the coverage thresholds passed. The frontend build (including TypeScript) and Amplify TypeScript check also passed. No production deployment or release approval is implied.
+
+### Workspace notifications
+
+The rail bell shows unread notifications to admins for new reports and update requests, and to clients for admin changes to their own reports. Opening the panel marks its current entries read. A new event while the app is open shows a five-second toast. Event entries come from authorized `Feedback` data; per-user read receipts are stored in the new `NotificationRead` model. The latest request and latest admin change per report are available from the current `Feedback` fields. The backend schema change needs an agreed sandbox deployment, then a live test with two client accounts and one admin to verify read isolation and delivery. No AWS deployment was run for this change.
 
 ### Admin notification demo
 

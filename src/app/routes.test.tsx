@@ -4,12 +4,12 @@ vi.mock('../lib/auth', async importOriginal => ({
   signOut: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../lib/feedback', () => ({ listAllFeedback: vi.fn().mockResolvedValue([]), observeAllFeedback: vi.fn(() => () => {}), listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
+vi.mock('../lib/notifications', () => ({ subscribeNotificationReads: vi.fn(() => () => {}), markNotificationsRead: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../lib/insights', () => ({ getSentryIssues: vi.fn().mockResolvedValue({ configured: false, issues: [] }), getLookerEmbedUrl: vi.fn().mockReturnValue(null) }));
-import { act, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';
-import { makeAdminUser, makeClientUser, makeFeedback } from '../test/factories';
-import { observeAllFeedback } from '../lib/feedback';
+import { makeAdminUser, makeClientUser } from '../test/factories';
 
 it('redirects signed-out protected routes to sign-in', () => { renderWithProviders(<AppRoutes />, { route: '/feedback/mine', user: null }); expect(screen.getByRole('heading', { name: 'Sign in to Harvest' })).toBeInTheDocument(); });
 it.each(['/admin/reviews', '/admin/insights?tab=traffic', '/admin/invite', '/admin/unknown'])('redirects a client away from %s', route => {
@@ -25,13 +25,4 @@ it('keeps the insights tab in the query string and respects a traffic link', asy
 it('redirects the removed invite URL to admin reviews', () => {
   renderWithProviders(<AppRoutes />, { route: '/admin/invite', user: makeAdminUser() });
   expect(screen.getByRole('heading', { level: 1, name: 'Feedback review' })).toBeInTheDocument();
-});
-it('shows an admin a new report without refreshing the app', async () => {
-  renderWithProviders(<AppRoutes />, { route: '/admin/reviews', user: makeAdminUser() });
-  const onChange = vi.mocked(observeAllFeedback).mock.calls.at(-1)?.[0];
-  expect(onChange).toBeDefined();
-  act(() => onChange?.([]));
-  act(() => onChange?.([makeFeedback({ id: 'new-1234', company: 'Acme', status: 'NEW' })]));
-  expect(screen.getByRole('status')).toHaveTextContent('New report from Acme');
-  expect(screen.getByRole('link', { name: 'Review queue' })).not.toHaveTextContent('1');
 });

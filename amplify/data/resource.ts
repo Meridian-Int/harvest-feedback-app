@@ -23,6 +23,11 @@ const schema = a.schema({
     configured: a.boolean().required(),
     issues: a.ref('SentryIssue').array().required(),
   }),
+  // A receipt belongs to one signed-in viewer. Report events come from Feedback
+  // itself, so clients cannot write notifications for anyone else.
+  NotificationRead: a.model({
+    eventId: a.string().required(),
+  }).authorization((allow) => [allow.owner().to(['create', 'read'])]),
   Feedback: a.model({
     title: a.string().required().authorization((allow) => [
       allow.owner().to(['create', 'read']),

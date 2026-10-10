@@ -20,6 +20,7 @@ An internal Meridian Intelligence app to capture bugs and improvements in HARVES
 - **Match the prototype's look and behaviour exactly**, except where §9 says the brief needs something more. Don't reproduce its legacy CSS architecture; rebuild cleanly in React.
 - If this file and the spec disagree on visuals, the spec wins. On data, auth or integrations, this file wins.
 - Auth exception: the prototype's invitation guidance is superseded by the HARVEST account integration decision. The sign-in card says to use a work email; the app has no invitation flow.
+- Notification addition: the workspace rail has a bell and unread count. Admins are notified about new client reports and update requests; clients see admin changes to their reports. Opening the panel marks its current entries read. New events show a five-second toast with a progress bar.
 
 ## 2. Who owns what
 
@@ -103,6 +104,8 @@ Error copy from the prototype:
 | `adminActivityAt` | datetime, optional | Set by any admin change; clears the pending request |
 | `sentryIssueId` | string, optional | Set when an admin makes a report from a Sentry issue |
 | `owner`, `createdAt`, `updatedAt` | managed by Amplify | |
+
+`NotificationRead` stores an owner-authorized receipt for each event a signed-in user has opened in the bell panel. Notification entries are derived from the authorized `Feedback` fields, so a reporter never receives another reporter's events.
 
 Authorization:
 - Model level:

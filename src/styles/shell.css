@@ -1,5 +1,6 @@
 .layout { min-height: 100dvh; display: grid; grid-template-columns: 224px minmax(0,1fr); }
 .rail { position: sticky; top: 0; height: 100dvh; padding: 30px 18px 20px; display: flex; flex-direction: column; background: var(--rail); border-right: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.brand-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 12px; font: 500 16px/1.25 var(--font-sans); letter-spacing: 2px; }
 .brandmark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accentink); font-size: 22px; letter-spacing: 0; }
 .brand-sub { margin: 9px 0 34px 12px; font-size: 11px; letter-spacing: .6px; color: var(--dim); }

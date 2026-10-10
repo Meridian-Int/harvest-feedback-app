@@ -3,6 +3,7 @@ export function IconSymbols() {
   return <svg xmlns="http://www.w3.org/2000/svg" style={{display:"none"}} aria-hidden="true"><defs>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-message" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-5 3V6a2 2 0 0 1 2-2Z"/><path d="M8 9h8M8 13h5"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 9h18c0-1-3-2-3-9ZM10 21h4"/></symbol>
 <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
 <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M9 16v-5M14 16V7M19 16V4"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></symbol>
@@ -20,4 +21,4 @@ export function IconSymbols() {
 <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
   </defs></svg>;
 }
-export type IconName = 'plus' | 'message' | 'list' | 'chart' | 'sun' | 'moon' | 'upload' | 'search' | 'download' | 'close' | 'check' | 'info' | 'bug' | 'login' | 'refresh' | 'grid' | 'video';
+export type IconName = 'plus' | 'message' | 'bell' | 'list' | 'chart' | 'sun' | 'moon' | 'upload' | 'search' | 'download' | 'close' | 'check' | 'info' | 'bug' | 'login' | 'refresh' | 'grid' | 'video';
