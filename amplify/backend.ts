@@ -5,9 +5,60 @@ import { storage } from './storage/resource';
 import { sentryIssues } from './functions/sentry-issues/resource';
 import { verifyAttachment } from './functions/verify-attachment/resource';
 import { notifyAdmin } from './functions/notify-admin/resource';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
+import { CfnResource, Stack } from 'aws-cdk-lib';
 
 const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin });
+
+// Keep the shared sandbox's report table easy to identify in DynamoDB. Amplify
+// does not expose a table-name setter, so update its generated custom resource.
+// A new logical ID makes CloudFormation create the named table on this migration.
+const feedbackTable = backend.data.resources.cfnResources.amplifyDynamoDbTables.Feedback as unknown as {
+  resource: CfnResource;
+};
+if (
+  feedbackTable.resource.node.tryGetContext('amplify-backend-type') === 'sandbox' &&
+  feedbackTable.resource.node.tryGetContext('amplify-backend-name') === 'sahil-feedback'
+) {
+  const tableName = 'harvest-feedback-dev-reports';
+  const roleNames = ['AmplifyManagedTableOnEventRole', 'AmplifyManagedTableIsCompleteRole'];
+  const managerRoles = feedbackTable.resource.node.root.node.findAll().filter(
+    (construct): construct is Role => construct instanceof Role && roleNames.includes(construct.node.id),
+  );
+  if (managerRoles.length !== roleNames.length) {
+    throw new Error('Could not locate both Amplify table manager roles for the named Feedback table');
+  }
+  for (const role of managerRoles) {
+    role.addToPrincipalPolicy(new PolicyStatement({
+      actions: [
+        'dynamodb:CreateTable', 'dynamodb:UpdateTable', 'dynamodb:DeleteTable',
+        'dynamodb:DescribeTable', 'dynamodb:DescribeContinuousBackups',
+        'dynamodb:DescribeTimeToLive', 'dynamodb:UpdateContinuousBackups',
+        'dynamodb:UpdateTimeToLive', 'dynamodb:TagResource',
+        'dynamodb:UntagResource', 'dynamodb:ListTagsOfResource',
+      ],
+      resources: [Stack.of(role).formatArn({ service: 'dynamodb', resource: 'table', resourceName: tableName })],
+    }));
+  }
+  const apiRole = feedbackTable.resource.node.root.node.findAll().find(
+    (construct): construct is Role => construct instanceof Role && construct.node.id === 'FeedbackIAMRole',
+  );
+  if (!apiRole) {
+    throw new Error('Could not locate the Feedback AppSync role for the named table');
+  }
+  const tableArn = Stack.of(apiRole).formatArn({ service: 'dynamodb', resource: 'table', resourceName: tableName });
+  apiRole.addToPrincipalPolicy(new PolicyStatement({
+    actions: [
+      'dynamodb:BatchGetItem', 'dynamodb:BatchWriteItem', 'dynamodb:PutItem',
+      'dynamodb:DeleteItem', 'dynamodb:GetItem', 'dynamodb:Scan',
+      'dynamodb:Query', 'dynamodb:UpdateItem', 'dynamodb:ConditionCheckItem',
+      'dynamodb:DescribeTable', 'dynamodb:GetRecords', 'dynamodb:GetShardIterator',
+    ],
+    resources: [tableArn, `${tableArn}/*`],
+  }));
+  feedbackTable.resource.addPropertyOverride('tableName', tableName);
+  feedbackTable.resource.overrideLogicalId('FeedbackTableNamed');
+}
 
 const notifier = backend.notifyAdmin;
 notifier.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
