@@ -65,9 +65,7 @@ export async function restoreSession(): Promise<AuthUser | null> {
   currentUser = null;
   if (!isAmplifyConfigured()) return null;
   try {
-    const user = await loadUser();
-    user.needsPasswordSetup = !(await hasAccountPassword());
-    return user;
+    return await loadUser();
   } catch (error) {
     // Missing or expired Cognito sessions are normal on the sign-in page.
     if (['UserUnAuthenticatedException', 'NotAuthorizedException'].includes((error as { name?: string }).name ?? '')) return null;

@@ -9,6 +9,7 @@ const verified = { id: 'user-1', email: 'company@example.com', name: 'Company', 
 beforeEach(() => {
   for (const mock of Object.values(auth)) mock.mockReset();
   auth.createAccountPassword.mockResolvedValue(verified);
+  auth.signIn.mockResolvedValue(undefined);
   auth.beginAccountSignIn.mockResolvedValue('password');
   auth.finishAccountPasswordSignIn.mockResolvedValue(verified);
   auth.confirmSignIn.mockResolvedValue(verified);
@@ -46,13 +47,12 @@ it('keeps bad-password errors on the login page without requesting a code', asyn
   expect(auth.signIn).not.toHaveBeenCalled();
 });
 
-it('keeps a restored unfinished account on password setup rather than opening reports', async () => {
+it('lets a restored email-code session open reports without a password', async () => {
   renderWithProviders(<AppRoutes />, { route: '/feedback/new', user: { ...verified, persona: 'Company', needsPasswordSetup: true } });
-  expect(await screen.findByLabelText('Create password')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Share your feedback' })).not.toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
 });
 
-it('requires first-time verification and password setup before opening the workspace', async () => {
+it('offers password setup after first-time email verification', async () => {
   auth.beginAccountSignIn.mockResolvedValueOnce('code');
   const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
   await user.type(screen.getByLabelText('Work email'), 'company@example.com');
@@ -67,6 +67,41 @@ it('requires first-time verification and password setup before opening the works
   expect(auth.confirmSignIn).toHaveBeenCalledWith('12345678');
   expect(auth.createAccountPassword).toHaveBeenCalledWith('Test-password-2468!', 'Test-password-2468!');
   expect(auth.finishAccountPasswordSignIn).not.toHaveBeenCalled();
+});
+
+it('allows a verified user to continue with an email code without setting a password', async () => {
+  auth.beginAccountSignIn.mockResolvedValueOnce('code');
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
+  await user.type(screen.getByLabelText('Work email'), 'company@example.com');
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await user.type(await screen.findByLabelText('Verification code'), '12345678');
+  await user.click(screen.getByRole('button', { name: 'Verify email' }));
+  await user.click(await screen.findByRole('button', { name: 'Continue with email code only' }));
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
+  expect(auth.createAccountPassword).not.toHaveBeenCalled();
+});
+
+it('does not reject a verified email-code session when password-factor lookup fails', async () => {
+  auth.beginAccountSignIn.mockResolvedValueOnce('code');
+  auth.hasAccountPassword.mockRejectedValueOnce(new Error('factor lookup unavailable'));
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
+  await user.type(screen.getByLabelText('Work email'), 'company@example.com');
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await user.type(await screen.findByLabelText('Verification code'), '12345678');
+  await user.click(screen.getByRole('button', { name: 'Verify email' }));
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
+});
+
+it('lets a returning password user choose email-code sign-in', async () => {
+  auth.hasAccountPassword.mockResolvedValueOnce(true);
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
+  await user.type(screen.getByLabelText('Work email'), 'company@example.com');
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await user.click(await screen.findByRole('button', { name: 'Use an email code instead' }));
+  expect(auth.signIn).toHaveBeenCalledWith('company@example.com');
+  await user.type(await screen.findByLabelText('Verification code'), '12345678');
+  await user.click(screen.getByRole('button', { name: 'Verify email' }));
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
 });
 
 it('lets a provisioned user verify their inbox and set an unknown password', async () => {

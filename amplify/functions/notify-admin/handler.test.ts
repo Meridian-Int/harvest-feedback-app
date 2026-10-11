@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.stubEnv('USER_POOL_ID', 'pool-123');
   vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'feedback@example.com');
   vi.stubEnv('APP_BASE_URL', 'https://dev.example.com');
+  vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'false');
 });
 
 it('sends a new partner report to enabled admin inboxes', async () => {
@@ -36,6 +37,13 @@ it('sends a new partner report to enabled admin inboxes', async () => {
 
 it('does not call SES when no verified sender is configured', async () => {
   vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', '');
+  expect(await handler(report)).toEqual({ sent: false });
+  expect(mocks.list).not.toHaveBeenCalled();
+  expect(mocks.send).not.toHaveBeenCalled();
+});
+
+it('lets the stream worker handle admin emails when it is enabled', async () => {
+  vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'true');
   expect(await handler(report)).toEqual({ sent: false });
   expect(mocks.list).not.toHaveBeenCalled();
   expect(mocks.send).not.toHaveBeenCalled();

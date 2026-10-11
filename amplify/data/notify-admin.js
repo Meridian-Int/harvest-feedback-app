@@ -1,9 +1,14 @@
 export function request(ctx) {
-  // Submission emails now originate from committed table events. This legacy
-  // pipeline invokes a no-op so deployment does not duplicate admin emails.
+  const report = ctx.stash.submittedFeedback;
   return {
     operation: 'Invoke',
-    payload: { deliveryHandledByStream: true },
+    payload: {
+      id: report.id,
+      title: report.title,
+      company: report.company,
+      persona: report.persona,
+      sentryIssueId: report.sentryIssueId,
+    },
   };
 }
 

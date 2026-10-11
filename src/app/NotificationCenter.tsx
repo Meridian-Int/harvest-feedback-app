@@ -36,11 +36,10 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
   const [optimistic, setOptimistic] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
-  const [latestClientEvent, setLatestClientEvent] = useState<NotificationEvent | null>(null);
   const [toast, setToast] = useState<NotificationEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const events = useMemo(() => notificationEvents(reports ?? [], admin), [reports, admin]);
-  const visibleEvents = admin ? events : latestClientEvent ? [latestClientEvent] : [];
+  const visibleEvents = admin ? events : events.filter(event => event.kind === 'updated');
   const unread = visibleEvents.filter(event => !readIds?.has(event.id) && !optimistic.has(event.id));
 
   useEffect(() => {
@@ -63,7 +62,7 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
     const current = new Set(events.map(event => event.id));
     if (seen.current) {
       const arrived = events.find(event => !seen.current?.has(event.id) && !readIds.has(event.id));
-      if (arrived) { setToast(arrived); if (!admin) setLatestClientEvent(arrived); }
+      if (arrived) setToast(arrived);
     }
     seen.current = current;
   }, [events, readIds, reports, admin]);

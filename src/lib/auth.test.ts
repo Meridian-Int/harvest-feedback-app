@@ -148,9 +148,10 @@ it('checks the server factors for an existing password instead of prompting for 
   await expect(hasAccountPassword()).rejects.toThrow('Could not check');
 });
 
-it('restores an unfinished verified account into required password setup', async () => {
+it('restores an email-code session without requiring a password factor check', async () => {
   passwordSdk.send.mockResolvedValueOnce({ ConfiguredUserAuthFactors: ['EMAIL_OTP'] });
-  expect(await restoreSession()).toMatchObject({ needsPasswordSetup: true });
+  expect(await restoreSession()).toMatchObject({ id: 'user-1' });
+  expect(passwordSdk.send).not.toHaveBeenCalled();
 });
 
 it('chooses an existing password instead of sending another verification email', async () => {

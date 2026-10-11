@@ -71,7 +71,21 @@ it('notifies a client when an admin changes their report and opens the ticket', 
   expect(screen.getByTestId('current-route')).toHaveTextContent('/feedback/mine?report=report-1');
 });
 
-it('ignores historical reports and shows only the latest live client notice', async () => {
+it('keeps client update notices in the bell after the initial load', async () => {
+  const client = makeClientUser();
+  const report = makeFeedback({ id: 'previously-updated', status: 'IN_PROGRESS', adminActivityAt: '2026-10-10T11:00:00Z' });
+  const { user } = renderWithProviders(<NotificationCenter user={client} />, { user: client });
+  act(() => {
+    vi.mocked(subscribeMyFeedback).mock.calls[0][0]([report]);
+    vi.mocked(subscribeNotificationReads).mock.calls[0][0](new Set());
+  });
+  expect(screen.getByRole('button', { name: 'Notifications, 1 unread' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+  expect(screen.getByRole('dialog', { name: 'Notifications' })).toHaveTextContent('Your report was updated');
+  expect(markNotificationsRead).toHaveBeenCalledWith(['updated:previously-updated:2026-10-10T11:00:00Z']);
+});
+
+it('toasts a new submission and keeps client updates in the bell', async () => {
   const client = makeClientUser();
   const { user } = renderWithProviders(<NotificationCenter user={client} />, { user: client });
   const old = makeFeedback({ id: 'old' });
@@ -84,8 +98,8 @@ it('ignores historical reports and shows only the latest live client notice', as
   expect(panel).toHaveTextContent('No new notifications.');
   const report = makeFeedback({ id: 'new', createdAt: '2026-10-10T12:00:00Z' });
   act(() => vi.mocked(subscribeMyFeedback).mock.calls[0][0]([old, report]));
-  expect(within(panel).getAllByRole('button')).toHaveLength(1);
-  expect(panel).toHaveTextContent('You’ve submitted your report.');
+  expect(panel).toHaveTextContent('No new notifications.');
+  expect(screen.getByRole('status')).toHaveTextContent('You’ve submitted your report.');
   expect(parseFloat(panel.style.maxHeight)).toBeLessThanOrEqual(320);
   act(() => vi.mocked(subscribeMyFeedback).mock.calls[0][0]([old, { ...report, status: 'CLOSED', adminActivityAt: '2026-10-10T13:00:00Z' }]));
   expect(within(panel).getAllByRole('button')).toHaveLength(1);

@@ -8,5 +8,6 @@ export const notifyAdmin = defineFunction({
   environment: {
     ADMIN_NOTIFICATION_FROM_EMAIL: process.env.ADMIN_NOTIFICATION_FROM_EMAIL ?? '',
     APP_BASE_URL: process.env.APP_BASE_URL ?? '',
+    FEEDBACK_EMAIL_ENABLED: process.env.FEEDBACK_EMAIL_ENABLED ?? 'false',
   },
 });

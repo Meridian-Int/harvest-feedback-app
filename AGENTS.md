@@ -94,7 +94,7 @@ Error copy from the prototype:
 | `productArea` | string, required | One of `PRODUCT_AREAS` (§7) |
 | `customArea` | string, optional | Required when `productArea` is "Other"; max 80 characters |
 | `priority` | enum `BLOCKER`, `BUG`, `IMPROVEMENT`, required | |
-| `severity` | enum `CRITICAL`, `MEDIUM`, `LOW`, required | Separate from priority |
+| `severity` | enum `CRITICAL`, `MEDIUM`, `LOW`, required | Client submission derives it from priority: Blocker → Critical, Bug → Medium, Improvement → Low. Existing records retain their stored severity. |
 | `reporterName`, `reporterEmail`, `persona`, `company` | string, required | Copied from the signed-in user's attributes on create, never typed |
 | `attachmentKey` | string, optional | One file (upload or screen recording) |
 | `attachmentName`, `attachmentType`, `attachmentSize` | optional | For the preview, download and "unavailable" states |
@@ -133,7 +133,7 @@ Not in v1, matching the prototype: comments, activity timeline, persona or repor
   5. Operations console
   6. Other — add an area
 - **`PRIORITIES`:** Blocker, Bug, Improvement. Placeholder "Choose a priority".
-- **`SEVERITIES`:** Critical, Medium, Low. Placeholder "Choose severity". Blocker is **not** a severity.
+- **`SEVERITIES`:** Critical, Medium, Low. Used by admin filters and stored reports; clients no longer select severity separately.
 - **`STATUSES`:** New, Assigned, In progress, Done (stored as `CLOSED`).
 - **`PERSONAS`:** Company, Partner. Existing Operator accounts and reports remain readable, but Operator is not a new filter choice.
 - **`ASSIGNEES`:** the admin list. Prototype values: Unassigned, Manasa, Vaish. New reports default to Admin (`admin@example.com` in the development adapter); replace with the real admins when HARVEST users are connected.
@@ -186,7 +186,7 @@ Build each one to the geometry in spec §3.
 ### Client (Manasa)
 - **New feedback:** spec "Client New feedback", fields in order:
   1. Product area, plus "Name the area" when Other is picked
-  2. Priority and Severity side by side
+  2. Priority; derive Severity for the required backend field (Blocker → Critical, Bug → Medium, Improvement → Low)
   3. Duplicate notice (see below)
   4. Description with a counter
   5. Drop zone with preview
