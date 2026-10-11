@@ -7,6 +7,7 @@ import { verifyAttachment } from './functions/verify-attachment/resource';
 import { notifyAdmin } from './functions/notify-admin/resource';
 import { feedbackEmailDelivery } from './functions/feedback-email/resource';
 import { authEmail } from './functions/auth-email/resource';
+import { harvestViewer } from './functions/harvest-viewer/resource';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource, SqsDlq } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -14,7 +15,7 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { CfnResource, Stack } from 'aws-cdk-lib';
 
-const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin, feedbackEmailDelivery, ...(process.env.COGNITO_EMAIL_SOURCE_ARN ? { authEmail } : {}) });
+const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin, feedbackEmailDelivery, harvestViewer, ...(process.env.COGNITO_EMAIL_SOURCE_ARN ? { authEmail } : {}) });
 
 // Enable only after sender identities, DNS and production recipients are verified.
 // LATEST avoids emailing the existing demonstration reports when this is enabled.
@@ -108,6 +109,41 @@ backend.storage.resources.bucket.grantRead(validator.resources.lambda, 'feedback
 backend.data.resources.graphqlApi.addLambdaDataSource('VerifyAttachment', validator.resources.lambda);
 
 const { cfnUserPool, cfnUserPoolClient, cfnIdentityPool } = backend.auth.resources.cfnResources;
+
+// During the dev/test transition keep the existing Feedback pool available for
+// old report owners, and accept the active HARVEST staging pool as an additional
+// provider. Environment configuration is deliberately absent on production.
+const harvestPoolId = process.env.HARVEST_STAGING_USER_POOL_ID;
+const harvestClientId = process.env.HARVEST_STAGING_APP_CLIENT_ID;
+if (harvestPoolId || harvestClientId) {
+  const branch = (process.env.AWS_BRANCH ?? process.env.AMPLIFY_BRANCH ?? '').toLowerCase();
+  const backendName = String(cfnUserPool.node.tryGetContext('amplify-backend-name') ?? '').toLowerCase();
+  if (!harvestPoolId || !harvestClientId ||
+      !/^us-east-2_[A-Za-z0-9]+$/.test(harvestPoolId) ||
+      !/^[a-z0-9]+$/.test(harvestClientId) ||
+      ['main', 'production'].includes(branch) ||
+      ['main', 'production'].includes(backendName)) {
+    throw new Error('Invalid or production HARVEST staging auth configuration');
+  }
+  const graphqlApi = backend.data.resources.cfnResources.cfnGraphqlApi;
+  const existingAuth = graphqlApi.additionalAuthenticationProviders;
+  const existingIdentityProviders = cfnIdentityPool.cognitoIdentityProviders;
+  if (!Array.isArray(existingAuth) || !Array.isArray(existingIdentityProviders)) {
+    throw new Error('Cannot safely preserve the existing Feedback auth providers');
+  }
+  graphqlApi.additionalAuthenticationProviders = [...existingAuth, {
+    authenticationType: 'AMAZON_COGNITO_USER_POOLS',
+    userPoolConfig: {
+      userPoolId: harvestPoolId,
+      awsRegion: 'us-east-2',
+      appIdClientRegex: `^${harvestClientId}$`,
+    },
+  }];
+  cfnIdentityPool.cognitoIdentityProviders = [...existingIdentityProviders, {
+    clientId: harvestClientId,
+    providerName: `cognito-idp.us-east-2.amazonaws.com/${harvestPoolId}`,
+  }];
+}
 
 // The existing shared sandbox has a readable pool name. Cognito rejects an
 // otherwise unchanged schema when CloudFormation updates this pool, so omit

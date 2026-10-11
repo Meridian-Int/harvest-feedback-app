@@ -1,5 +1,6 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 import { sentryIssues } from '../functions/sentry-issues/resource';
+import { harvestViewer } from '../functions/harvest-viewer/resource';
 
 // Field rules replace model rules. Every immutable value is therefore protected
 // explicitly so an owner can request an update without editing report content.
@@ -143,6 +144,10 @@ const schema = a.schema({
     .returns(a.ref('SentryIssuesResult'))
     .authorization((allow) => [allow.group('admins')])
     .handler(a.handler.function(sentryIssues)),
+  harvestViewer: a.query()
+    .returns(a.json())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(harvestViewer)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
