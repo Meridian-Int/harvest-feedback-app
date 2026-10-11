@@ -4,6 +4,7 @@ import { Button, Field, Input, TextButton, ThemeToggle } from '../components/ui'
 import { beginAccountSignIn, requestAccountPasswordSetup, completeAccountPasswordSetup, confirmSignIn, createAccountPassword, finishAccountPasswordSignIn, hasAccountPassword, isAdmin, signIn } from '../lib/auth';
 import type { AuthUser } from '../lib/types';
 import { useAuth } from './AuthProvider';
+import { isHarvestPasswordMode } from '../lib/amplify';
 
 export function SignInPage() {
   const { user, setUser } = useAuth();
@@ -38,7 +39,7 @@ export function SignInPage() {
         setUser(await completeAccountPasswordSetup(email, code, password, confirmation)); setCode(''); setPassword(''); setConfirmation('');
       } else if (step === 'setup') {
         setUser(await createAccountPassword(password, confirmation)); setPassword(''); setConfirmation('');
-      } else { setUser(await finishAccountPasswordSignIn(password)); setPassword(''); }
+      } else { setUser(await finishAccountPasswordSignIn(password, email)); setPassword(''); }
     } catch (e) { setError((e as Error).message); (step === 'email' ? emailInput : step === 'code' ? codeInput : passwordInput).current?.focus(); }
     finally { setBusy(false); }
   }
@@ -62,7 +63,7 @@ export function SignInPage() {
           catch (cause) { setError((cause as Error).message); }
           finally { setBusy(false); }
         }}>Set or reset password</Button>}
-        {step === 'password' && <TextButton disabled={busy} onClick={async () => {
+        {step === 'password' && !isHarvestPasswordMode() && <TextButton disabled={busy} onClick={async () => {
           setBusy(true); setError(null);
           try { await signIn(email); setCode(''); setPassword(''); setStep('code'); }
           catch (cause) { setError((cause as Error).message); }

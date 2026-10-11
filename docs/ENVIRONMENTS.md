@@ -8,7 +8,7 @@
 | **test** | `test` | `https://test.<appId>.amplifyapp.com` | Vaish and testers | `dev` is merged into `test` |
 | **production** | `main` | `https://main.<appId>.amplifyapp.com` (custom domain later) | Real users | `test` is merged into `main` **and Vaish approves** |
 
-- Each environment is a complete, separate copy: its own website, Cognito users, database and S3 bucket. Nothing is shared.
+- Each Feedback environment has its own website, report database, and S3 bucket. During the HARVEST account integration, Feedback `dev` and `test` will share HARVEST's staging Cognito user pool while keeping their ticket data separate. Feedback production will later use HARVEST's production pool after approval. See [HARVEST account integration](HARVEST_AUTH_INTEGRATION.md).
 - Each developer also has a private **sandbox** (`npx ampx sandbox`), a personal backend for working on a laptop.
 - **Deploys go through GitHub Actions** (`.github/workflows/deploy.yml`). A push to a deployed branch tells Amplify to build it, waits for the result, and records it in GitHub. The repo's **Deployments** box then shows `dev`, `test` and `production` with green ticks, like HARVEST's.
 - **Production waits for Vaish:** the job pauses until she clicks *Approve* in GitHub.

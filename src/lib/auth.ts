@@ -8,7 +8,7 @@ import {
   signIn as cognitoSignIn,
   signOut as cognitoSignOut,
 } from 'aws-amplify/auth';
-import { isAmplifyConfigured, requireAmplify } from './amplify';
+import { isAmplifyConfigured, isHarvestPasswordMode, requireAmplify } from './amplify';
 import type { AuthUser } from './types';
 import { Amplify } from 'aws-amplify';
 import { ChangePasswordCommand, GetUserAuthFactorsCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
@@ -89,6 +89,8 @@ export async function signIn(email: string): Promise<void> {
 export async function beginAccountSignIn(email: string): Promise<'password' | 'code'> {
   if (!isValidEmail(email)) throw new Error('Enter a valid work email.');
   requireAmplify();
+  // HARVEST staging supports SRP password sign-in, not USER_AUTH or email OTP.
+  if (isHarvestPasswordMode()) return 'password';
   let result = await cognitoSignIn({ username: email.trim().toLowerCase(), options: { authFlowType: 'USER_AUTH' } });
   if (result.nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION') {
     const available = result.nextStep.availableChallenges ?? [];
@@ -102,9 +104,13 @@ export async function beginAccountSignIn(email: string): Promise<'password' | 'c
   throw new Error('Could not start account sign-in. Contact an administrator.');
 }
 
-export async function finishAccountPasswordSignIn(password: string): Promise<AuthUser> {
+export async function finishAccountPasswordSignIn(password: string, email?: string): Promise<AuthUser> {
   if (!password) throw new Error('Enter your password.');
   requireAmplify();
+  if (isHarvestPasswordMode()) {
+    if (!email) throw new Error('Enter your work email.');
+    return signInWithPassword(email, password);
+  }
   try {
     const result = await confirmCognitoSignIn({ challengeResponse: password });
     if (result.nextStep.signInStep !== 'DONE') throw new Error('This account needs administrator assistance to finish setup.');
@@ -187,7 +193,9 @@ export async function signInWithPassword(email: string, password: string): Promi
   requireAmplify();
   try {
     let result = await cognitoSignIn({ username: email.trim().toLowerCase(), password,
-      options: { authFlowType: 'USER_AUTH', preferredChallenge: 'PASSWORD' } });
+      options: isHarvestPasswordMode()
+        ? { authFlowType: 'USER_SRP_AUTH' }
+        : { authFlowType: 'USER_AUTH', preferredChallenge: 'PASSWORD' } });
     if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_PASSWORD') {
       result = await confirmCognitoSignIn({ challengeResponse: password });
     }

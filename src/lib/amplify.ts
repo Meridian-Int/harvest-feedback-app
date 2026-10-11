@@ -21,3 +21,8 @@ export function isAmplifyConfigured(): boolean {
 export function requireAmplify(): void {
   if (!config) throw new Error('Harvest sign-in is not configured yet.');
 }
+
+/** Activated only with a Feedback backend wired to HARVEST staging Cognito. */
+export function isHarvestPasswordMode(): boolean {
+  return import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging';
+}

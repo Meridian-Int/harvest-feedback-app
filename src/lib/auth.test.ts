@@ -1,4 +1,4 @@
-import { beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { requestAccountPasswordSetup, completeAccountPasswordSetup, beginAccountSignIn, finishAccountPasswordSignIn, confirmSignIn, createAccountPassword, getCurrentUser, hasAccountPassword, isAdmin, isValidEmail, requireUser, restoreSession, signIn, signInWithPassword, signOut, validateNewPassword } from './auth';
 
 const passwordSdk = vi.hoisted(() => ({ send: vi.fn(), getConfig: vi.fn() }));
@@ -15,7 +15,13 @@ const cognito = vi.hoisted(() => ({
   updateUserAttributes: vi.fn(), getCurrentUser: vi.fn(), fetchUserAttributes: vi.fn(), fetchAuthSession: vi.fn(),
 }));
 vi.mock('aws-amplify/auth', () => cognito);
-vi.mock('./amplify', () => ({ isAmplifyConfigured: () => true, requireAmplify: vi.fn() }));
+vi.mock('./amplify', () => ({
+  isAmplifyConfigured: () => true,
+  isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging',
+  requireAmplify: vi.fn(),
+}));
+
+afterEach(() => vi.unstubAllEnvs());
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -161,6 +167,17 @@ it('chooses an existing password instead of sending another verification email',
   expect(cognito.signIn).toHaveBeenCalledWith({ username: 'client@example.com', options: { authFlowType: 'USER_AUTH' } });
   expect(cognito.confirmSignIn).toHaveBeenLastCalledWith({ challengeResponse: 'PASSWORD' });
   await expect(finishAccountPasswordSignIn('Test-password-2468!')).resolves.toMatchObject({ id: 'user-1' });
+});
+
+it('uses HARVEST staging password SRP without starting a code challenge', async () => {
+  vi.stubEnv('VITE_HARVEST_AUTH_MODE', 'staging');
+  await expect(beginAccountSignIn('CLIENT@EXAMPLE.COM')).resolves.toBe('password');
+  expect(cognito.signIn).not.toHaveBeenCalled();
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'DONE' } });
+  await expect(finishAccountPasswordSignIn('Test-password-2468!', 'CLIENT@EXAMPLE.COM')).resolves.toMatchObject({ id: 'user-1' });
+  expect(cognito.signIn).toHaveBeenCalledWith({
+    username: 'client@example.com', password: 'Test-password-2468!', options: { authFlowType: 'USER_SRP_AUTH' },
+  });
 });
 
 it('chooses email verification only when a provisioned account has no password', async () => {

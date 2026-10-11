@@ -3,6 +3,8 @@ import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';
 import { vi } from 'vitest';
 
+afterEach(() => vi.unstubAllEnvs());
+
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), confirmSignIn: vi.fn(), createAccountPassword: vi.fn(), hasAccountPassword: vi.fn(), beginAccountSignIn: vi.fn(), finishAccountPasswordSignIn: vi.fn(), requestAccountPasswordSetup: vi.fn(), completeAccountPasswordSetup: vi.fn() }));
 vi.mock('../lib/auth', async original => ({ ...(await original<typeof import('../lib/auth')>()), ...auth }));
 const verified = { id: 'user-1', email: 'company@example.com', name: 'Company', persona: 'Company', company: 'Northstar', groups: [] };
@@ -24,9 +26,18 @@ it('defaults to password sign-in and does not send a code', async () => {
   await user.click(screen.getByRole('button', { name: /^Sign in$/ }));
   expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
   expect(auth.beginAccountSignIn).toHaveBeenCalledWith('company@example.com');
-  expect(auth.finishAccountPasswordSignIn).toHaveBeenCalledWith('Test-password-2468!');
+  expect(auth.finishAccountPasswordSignIn).toHaveBeenCalledWith('Test-password-2468!', 'company@example.com');
   expect(auth.confirmSignIn).not.toHaveBeenCalled();
   expect(auth.signIn).not.toHaveBeenCalled();
+});
+
+it('does not offer email-code sign-in against HARVEST staging', async () => {
+  vi.stubEnv('VITE_HARVEST_AUTH_MODE', 'staging');
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/sign-in', user: null });
+  await user.type(screen.getByLabelText('Work email'), 'company@example.com');
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Use an email code instead' })).not.toBeInTheDocument();
 });
 
 it('offers no public account creation, setup or code login actions', () => {
