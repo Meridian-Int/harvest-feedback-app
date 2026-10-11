@@ -8,6 +8,7 @@ import { notifyAdmin } from './functions/notify-admin/resource';
 import { feedbackEmailDelivery } from './functions/feedback-email/resource';
 import { authEmail } from './functions/auth-email/resource';
 import { harvestViewer } from './functions/harvest-viewer/resource';
+import { harvestReportActor } from './functions/harvest-report-actor/resource';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource, SqsDlq } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -15,7 +16,7 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { CfnResource, Stack } from 'aws-cdk-lib';
 
-const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin, feedbackEmailDelivery, harvestViewer, ...(process.env.COGNITO_EMAIL_SOURCE_ARN ? { authEmail } : {}) });
+const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin, feedbackEmailDelivery, harvestViewer, harvestReportActor, ...(process.env.COGNITO_EMAIL_SOURCE_ARN ? { authEmail } : {}) });
 
 // Enable only after sender identities, DNS and production recipients are verified.
 // LATEST avoids emailing the existing demonstration reports when this is enabled.
@@ -24,6 +25,7 @@ if (process.env.FEEDBACK_EMAIL_ENABLED === 'true') {
   reportTableDefinition.resource.addPropertyOverride('streamSpecification', { streamViewType: 'NEW_AND_OLD_IMAGES' });
   const delivery = backend.feedbackEmailDelivery;
   delivery.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+  if (process.env.HARVEST_STAGING_USER_POOL_ID) delivery.addEnvironment('HARVEST_STAGING_USER_POOL_ID', process.env.HARVEST_STAGING_USER_POOL_ID);
   const stack = backend.createStack('feedback-email-events');
   const receipts = new Table(stack, 'EmailDelivery', { partitionKey: { name: 'id', type: AttributeType.STRING }, billingMode: BillingMode.PAY_PER_REQUEST, timeToLiveAttribute: 'expiresAt' });
   const failed = new Queue(stack, 'FailedFeedbackEmail');
@@ -33,6 +35,10 @@ if (process.env.FEEDBACK_EMAIL_ENABLED === 'true') {
     startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(failed),
   }));
   delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['cognito-idp:ListUsersInGroup'], resources: [backend.auth.resources.userPool.userPoolArn] }));
+  if (process.env.HARVEST_STAGING_USER_POOL_ID) delivery.resources.lambda.addToRolePolicy(new PolicyStatement({
+    actions: ['cognito-idp:ListUsersInGroup'],
+    resources: [Stack.of(delivery.resources.lambda).formatArn({ service: 'cognito-idp', resource: 'userpool', resourceName: process.env.HARVEST_STAGING_USER_POOL_ID })],
+  }));
   delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: ['*'], conditions: { StringEquals: { 'ses:FromAddress': [process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai', process.env.ADMIN_NOTIFICATION_FROM_EMAIL ?? 'manasa+feedback@withmeridian.ai'] } } }));
 }
 
@@ -88,10 +94,15 @@ if (
 
 const notifier = backend.notifyAdmin;
 notifier.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+if (process.env.HARVEST_STAGING_USER_POOL_ID) notifier.addEnvironment('HARVEST_STAGING_USER_POOL_ID', process.env.HARVEST_STAGING_USER_POOL_ID);
 backend.data.resources.graphqlApi.addLambdaDataSource('NotifyAdmin', notifier.resources.lambda);
 notifier.resources.lambda.addToRolePolicy(new PolicyStatement({
   actions: ['cognito-idp:ListUsersInGroup'],
   resources: [backend.auth.resources.userPool.userPoolArn],
+}));
+if (process.env.HARVEST_STAGING_USER_POOL_ID) notifier.resources.lambda.addToRolePolicy(new PolicyStatement({
+  actions: ['cognito-idp:ListUsersInGroup'],
+  resources: [Stack.of(notifier.resources.lambda).formatArn({ service: 'cognito-idp', resource: 'userpool', resourceName: process.env.HARVEST_STAGING_USER_POOL_ID })],
 }));
 if (process.env.ADMIN_NOTIFICATION_FROM_EMAIL) {
   notifier.resources.lambda.addToRolePolicy(new PolicyStatement({
@@ -104,11 +115,14 @@ if (process.env.ADMIN_NOTIFICATION_FROM_EMAIL) {
 const validator = backend.verifyAttachment;
 validator.addEnvironment('IDENTITY_POOL_ID', backend.auth.resources.identityPoolId);
 validator.addEnvironment('USER_POOL_PROVIDER', `cognito-idp.${backend.auth.resources.userPool.stack.region}.amazonaws.com/${backend.auth.resources.userPool.userPoolId}`);
+if (process.env.HARVEST_STAGING_USER_POOL_ID) validator.addEnvironment('HARVEST_USER_POOL_PROVIDER', `cognito-idp.us-east-2.amazonaws.com/${process.env.HARVEST_STAGING_USER_POOL_ID}`);
 validator.addEnvironment('MEDIA_BUCKET', backend.storage.resources.bucket.bucketName);
 backend.storage.resources.bucket.grantRead(validator.resources.lambda, 'feedback-media/*');
 backend.data.resources.graphqlApi.addLambdaDataSource('VerifyAttachment', validator.resources.lambda);
 
 const { cfnUserPool, cfnUserPoolClient, cfnIdentityPool } = backend.auth.resources.cfnResources;
+backend.harvestReportActor.addEnvironment('FEEDBACK_USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+backend.data.resources.graphqlApi.addLambdaDataSource('VerifyHarvestReporter', backend.harvestReportActor.resources.lambda);
 
 // During the dev/test transition keep the existing Feedback pool available for
 // old report owners, and accept the active HARVEST staging pool as an additional
@@ -118,11 +132,12 @@ const harvestClientId = process.env.HARVEST_STAGING_APP_CLIENT_ID;
 if (harvestPoolId || harvestClientId) {
   const branch = (process.env.AWS_BRANCH ?? process.env.AMPLIFY_BRANCH ?? '').toLowerCase();
   const backendName = String(cfnUserPool.node.tryGetContext('amplify-backend-name') ?? '').toLowerCase();
+  const permittedStagingTarget = ['dev', 'test'].includes(branch) || ['dev', 'test', 'sahil-feedback'].includes(backendName);
   if (!harvestPoolId || !harvestClientId ||
       !/^us-east-2_[A-Za-z0-9]+$/.test(harvestPoolId) ||
       !/^[a-z0-9]+$/.test(harvestClientId) ||
-      ['main', 'production'].includes(branch) ||
-      ['main', 'production'].includes(backendName)) {
+      !permittedStagingTarget ||
+      ['main', 'production'].includes(branch) || ['main', 'production'].includes(backendName)) {
     throw new Error('Invalid or production HARVEST staging auth configuration');
   }
   const graphqlApi = backend.data.resources.cfnResources.cfnGraphqlApi;

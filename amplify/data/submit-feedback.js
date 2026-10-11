@@ -13,9 +13,17 @@ const DEFAULT_ASSIGNEE = 'admin@example.com';
 export function request(ctx) {
   const identity = ctx.identity;
   const claims = identity?.claims ?? {};
-  const accountPersona = claims['custom:clientPersona'] ?? claims['custom:persona'];
-  const company = claims['custom:company'];
-  if (!identity?.sub || !identity.username || !claims.email || !claims.name || !company ||
+  // The preceding Lambda verifies live HARVEST membership in staging mode.
+  // Existing Feedback-pool users retain the legacy claims path during migration.
+  const harvest = ctx.prev?.result;
+  if (harvest && (harvest.sub !== identity?.sub || harvest.username !== identity?.username)) {
+    util.error('Could not verify your HARVEST account.', 'Unauthorized');
+  }
+  const accountPersona = harvest?.persona ?? claims['custom:clientPersona'] ?? claims['custom:persona'];
+  const company = harvest?.company ?? claims['custom:company'];
+  const reporterName = harvest?.reporterName ?? claims.name;
+  const reporterEmail = harvest?.reporterEmail ?? claims.email;
+  if (!identity?.sub || !identity.username || !reporterEmail || !reporterName || !company ||
       ['Company', 'Partner', 'Operator'].indexOf(accountPersona) < 0) {
     util.error('Your account profile is incomplete. Contact an administrator.', 'InvalidProfile');
   }
@@ -33,7 +41,7 @@ export function request(ctx) {
   if (args.productArea === 'Other — add an area' && (!customArea || customArea.length > 80)) {
     util.error('Please name the product area (up to 80 characters).', 'InvalidInput');
   }
-  if (args.sentryIssueId && (claims['cognito:groups'] ?? []).indexOf('admins') < 0) {
+  if (args.sentryIssueId && !(harvest ? harvest.admin : (claims['cognito:groups'] ?? []).indexOf('admins') >= 0)) {
     util.error('Admin access required.', 'Unauthorized');
   }
 
@@ -53,8 +61,8 @@ export function request(ctx) {
     productArea: args.productArea,
     priority: args.priority,
     severity: args.severity,
-    reporterName: claims.name,
-    reporterEmail: claims.email,
+    reporterName,
+    reporterEmail,
     persona,
     company,
     owner: `${identity.sub}::${identity.username}`,

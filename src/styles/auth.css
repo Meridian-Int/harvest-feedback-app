@@ -23,3 +23,5 @@
 @media (max-height: 700px) and (min-width: 701px) { .auth-brand { font-size: 26px; margin-bottom: 12px; } .auth-card { padding: 18px 22px; } .auth-divider { margin-bottom: 14px; } .auth-card .auth-note { margin-top: 12px; padding-top: 10px; } .auth-screen { padding-top: 12px; padding-bottom: 12px; } }
 
 .auth-card button { border-radius: 4px; }
+.organization-options { display: grid; gap: 8px; }
+.organization-options button { width: 100%; justify-content: flex-start; text-align: left; }

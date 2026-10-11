@@ -13,11 +13,16 @@ type Record = Parameters<typeof noticesFor>[0] & { eventID?: string; dynamodb?: 
 
 async function administrators(): Promise<string[]> {
   const users = [];
-  let token: string | undefined;
-  do {
-    const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: process.env.USER_POOL_ID, GroupName: 'admins', NextToken: token }));
-    users.push(...(page.Users ?? [])); token = page.NextToken;
-  } while (token);
+  for (const source of [
+    { pool: process.env.USER_POOL_ID, group: 'admins' },
+    ...(process.env.HARVEST_STAGING_USER_POOL_ID ? [{ pool: process.env.HARVEST_STAGING_USER_POOL_ID, group: 'feedback-admins' }] : []),
+  ]) {
+    let token: string | undefined;
+    do {
+      const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: source.pool, GroupName: source.group, NextToken: token }));
+      users.push(...(page.Users ?? [])); token = page.NextToken;
+    } while (token);
+  }
   return adminEmails(users);
 }
 

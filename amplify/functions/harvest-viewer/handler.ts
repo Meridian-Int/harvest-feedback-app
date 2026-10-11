@@ -27,12 +27,9 @@ function membershipUrl(base: string): string {
 }
 
 /** HARVEST verifies the access token and resolves live, non-removed memberships. */
-export async function handler(event: ViewerEvent) {
+export async function verifyHarvestViewer(token: string | undefined, callerSub: string | undefined) {
   // The Cognito access token is the GraphQL Authorization header. Keep it out
   // of GraphQL arguments, where request/response logging can capture it.
-  const rawHeader = event.request?.headers?.authorization ?? event.request?.headers?.Authorization;
-  const token = typeof rawHeader === 'string' ? rawHeader : undefined;
-  const callerSub = event.identity?.sub;
   if (!token || !callerSub || tokenSubject(token) !== callerSub) {
     throw new Error('Could not verify your HARVEST account. Try again.');
   }
@@ -54,4 +51,9 @@ export async function handler(event: ViewerEvent) {
     throw new Error('Could not verify your HARVEST account. Try again.');
   }
   return parseHarvestViewer(value);
+}
+
+export async function handler(event: ViewerEvent) {
+  const rawHeader = event.request?.headers?.authorization ?? event.request?.headers?.Authorization;
+  return verifyHarvestViewer(typeof rawHeader === 'string' ? rawHeader : undefined, event.identity?.sub);
 }

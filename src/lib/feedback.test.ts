@@ -1,4 +1,4 @@
-import { beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { adminUpdate, createFeedback, getAttachmentUrl, getFeedback, listAllFeedback, listMyFeedback, observeAllFeedback, removeAttachment, subscribeMyFeedback, requestUpdate, uploadAttachment } from './feedback';
 import { isUpdatePending } from './status';
 import type { AuthUser, CreateFeedbackInput, Feedback } from './types';
@@ -9,14 +9,16 @@ const submitFeedback = vi.hoisted(() => vi.fn());
 const live = vi.hoisted(() => ({ modelSubscribe: vi.fn(), createdSubscribe: vi.fn(), modelUnsubscribe: vi.fn(), createdUnsubscribe: vi.fn() }));
 const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), uploadData: vi.fn(), remove: vi.fn() }));
 const session = vi.hoisted(() => ({ fetchAuthSession: vi.fn() }));
+const amplifyConfig = vi.hoisted(() => ({ getConfig: vi.fn() }));
 
-vi.mock('./amplify', () => ({ requireAmplify: vi.fn() }));
+vi.mock('./amplify', () => ({ requireAmplify: vi.fn(), isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging' }));
 vi.mock('./auth', () => ({
   requireUser: () => { if (!state.user) throw new Error('Sign in to Harvest'); return state.user; },
   isAdmin: (user: AuthUser | null) => Boolean(user?.groups.includes('admins')),
 }));
 vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { Feedback: data }, mutations: { submitFeedback }, subscriptions: { feedbackSubmitted: () => ({ subscribe: live.createdSubscribe }) } }) }));
 vi.mock('aws-amplify/auth', () => session);
+vi.mock('aws-amplify', () => ({ Amplify: { getConfig: amplifyConfig.getConfig } }));
 vi.mock('aws-amplify/storage', () => storage);
 
 const client: AuthUser = { id: 'client-1', email: 'client@company.com', name: 'Client', persona: 'Company', company: 'Company', groups: [] };
@@ -55,6 +57,26 @@ beforeEach(() => {
   storage.getProperties.mockResolvedValue({ size: 5 });
   storage.getUrl.mockResolvedValue({ url: new URL('https://example.com/file') });
   storage.uploadData.mockImplementation(({ path }: { path: (input: { identityId: string }) => string }) => ({ result: Promise.resolve({ path: path({ identityId: 'identity-1' }) }) }));
+});
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+it('submits staging reports with a live organization and separate ID and access tokens', async () => {
+  vi.stubEnv('VITE_HARVEST_AUTH_MODE', 'staging');
+  state.user = { ...client, harvest: { personId: 'person-1', memberships: [
+    { orgId: 'company-1', orgKind: 'company', orgName: 'Company', role: 'user' },
+  ], selectedOrganizationId: 'company-1', organizationRequired: false } };
+  session.fetchAuthSession.mockResolvedValue({ identityId: 'identity-1', tokens: {
+    idToken: { toString: () => 'id-token' }, accessToken: { toString: () => 'access-token' },
+  } });
+  amplifyConfig.getConfig.mockReturnValue({ API: { GraphQL: { endpoint: 'https://feedback.example.com/graphql' } } });
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { submitFeedback: baseReport } }), { status: 200 }));
+  vi.stubGlobal('fetch', fetcher);
+  await expect(createFeedback(input)).resolves.toMatchObject({ id: 'report-1' });
+  expect(submitFeedback).not.toHaveBeenCalled();
+  const options = fetcher.mock.calls[0][1];
+  expect(options.headers).toMatchObject({ Authorization: 'id-token', 'x-harvest-access-token': 'access-token' });
+  expect(JSON.parse(options.body).variables.organizationId).toBe('company-1');
+  expect(options.body).not.toContain('access-token');
 });
 
 it('streams model changes and refetches after secure custom report creation', async () => {

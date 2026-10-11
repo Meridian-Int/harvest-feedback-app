@@ -104,6 +104,12 @@ it('uses account persona and ignores caller attempts to change classification', 
   ctx.args.persona = 'Partner';
   expect(request(ctx).item).toMatchObject({ persona: 'Company', reporterEmail: 'client@company.com', owner: 'user-1::client@company.com', status: 'NEW' });
 });
+it('uses the verified HARVEST reporter and rejects identity mismatches', () => {
+  const actor = { sub: 'user-1', username: 'client@company.com', reporterName: 'Partner User', reporterEmail: 'partner@example.com', persona: 'Partner', company: 'Partner Org', admin: false };
+  const ctx = context({ prev: { result: actor } });
+  expect(request(ctx).item).toMatchObject({ reporterName: 'Partner User', reporterEmail: 'partner@example.com', persona: 'Partner', company: 'Partner Org' });
+  expect(() => request(context({ prev: { result: { ...actor, sub: 'other' } } }))).toThrow('Could not verify');
+});
 it.each(['Payment — payout status or delay', 'Payment — amount or calculation', 'Payment — failed or missing payout', 'Payment — confirmation or receipt'])('rejects a removed payment area %s', productArea => {
   const ctx = context(); ctx.args.productArea = productArea;
   expect(() => request(ctx)).toThrow('Please choose a product area.');

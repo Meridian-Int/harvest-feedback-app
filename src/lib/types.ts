@@ -1,4 +1,5 @@
 /** Stable application contracts. No SDK or mock-storage types escape the lib layer. */
+import type { HarvestMembership } from './harvest-membership';
 export type Priority = 'BLOCKER' | 'BUG' | 'IMPROVEMENT';
 export type Severity = 'CRITICAL' | 'MEDIUM' | 'LOW';
 export type Status = 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'CLOSED';
@@ -13,6 +14,12 @@ export interface AuthUser {
   persona: Persona;
   company: string;
   groups: string[];
+  harvest?: {
+    personId: string;
+    memberships: HarvestMembership[];
+    selectedOrganizationId?: string;
+    organizationRequired: boolean;
+  };
 }
 
 export interface Attachment {

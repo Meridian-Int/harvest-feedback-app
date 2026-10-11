@@ -12,6 +12,8 @@ import { isAmplifyConfigured, isHarvestPasswordMode, requireAmplify } from './am
 import type { AuthUser } from './types';
 import { Amplify } from 'aws-amplify';
 import { ChangePasswordCommand, GetUserAuthFactorsCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { harvestAccount, FEEDBACK_ADMIN_GROUP } from './harvest-account';
+import { fetchHarvestViewer } from './harvest-viewer';
 
 let currentUser: AuthUser | null = null;
 
@@ -24,20 +26,40 @@ export function getCurrentUser(): AuthUser | null {
 }
 
 export function isAdmin(user: AuthUser | null): boolean {
-  return Boolean(user?.groups.includes('admins'));
+  return Boolean(user && (user.harvest
+    ? user.groups.includes(FEEDBACK_ADMIN_GROUP) && user.harvest.memberships.some(item => item.orgKind === 'operator')
+    : user.groups.includes('admins')));
 }
 
 export function requireUser(): AuthUser {
   if (!currentUser) throw new Error('Sign in to Harvest');
+  if (currentUser.harvest?.organizationRequired) throw new Error('Choose an organization to continue.');
+  return currentUser;
+}
+
+export function selectHarvestOrganization(orgId: string): AuthUser {
+  if (!currentUser?.harvest) throw new Error('Sign in to Harvest');
+  const { personId, memberships } = currentUser.harvest;
+  if (!memberships.some(item => item.orgId === orgId)) throw new Error('Organization unavailable.');
+  localStorage.setItem(`harvest:organization:${personId}`, orgId);
+  currentUser = harvestAccount({
+    person: { id: personId, email: currentUser.email, name: currentUser.name },
+    memberships,
+  }, currentUser.id, currentUser.groups, orgId);
   return currentUser;
 }
 
 async function loadUser(): Promise<AuthUser> {
-  const [identity, attributes, session] = await Promise.all([
-    getCognitoUser(), fetchUserAttributes(), fetchAuthSession(),
-  ]);
+  const [identity, session] = await Promise.all([getCognitoUser(), fetchAuthSession()]);
   const rawGroups = session.tokens?.idToken?.payload['cognito:groups'];
   const groups = Array.isArray(rawGroups) ? rawGroups.filter((value): value is string => typeof value === 'string') : [];
+  if (isHarvestPasswordMode()) {
+    const viewer = await fetchHarvestViewer(session.tokens?.accessToken?.toString());
+    const selectedId = localStorage.getItem(`harvest:organization:${viewer.person.id}`) ?? undefined;
+    currentUser = harvestAccount(viewer, identity.userId, groups, selectedId);
+    return currentUser;
+  }
+  const attributes = await fetchUserAttributes();
   const admin = groups.includes('admins');
   const clientPersona = attributes['custom:clientPersona'];
   const storedPersona = clientPersona ?? attributes['custom:persona'];

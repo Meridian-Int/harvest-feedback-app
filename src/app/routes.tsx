@@ -4,6 +4,7 @@ import { RequireAdmin } from './RequireAdmin';
 import { RequireSignedIn } from './RequireSignedIn';
 import { AccountSetupPage } from './AccountSetupPage';
 import { SignInPage } from './SignInPage';
+import { OrganizationPage } from './OrganizationPage';
 import { NewFeedbackPage } from '../features/client/NewFeedbackPage';
 import { MyReportsPage } from '../features/client/MyReportsPage';
 import { ReviewPage } from '../features/admin/ReviewPage';
@@ -13,12 +14,13 @@ import { useAuth } from './AuthProvider';
 
 function Landing() {
   const { user } = useAuth();
-  return <Navigate to={!user ? '/sign-in' : isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
+  return <Navigate to={!user ? '/sign-in' : user.harvest?.organizationRequired ? '/account/organization' : isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
 }
 export function AppRoutes() {
   return <Routes>
     <Route path="/account/setup" element={<AccountSetupPage />} />
     <Route path="/sign-in" element={<SignInPage />} />
+    <Route path="/account/organization" element={<OrganizationPage />} />
     <Route element={<RequireSignedIn />}><Route element={<AppShell />}>
       <Route path="/feedback/new" element={<NewFeedbackPage />} />
       <Route path="/feedback/mine" element={<MyReportsPage />} />

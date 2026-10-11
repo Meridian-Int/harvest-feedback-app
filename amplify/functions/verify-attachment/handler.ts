@@ -7,11 +7,14 @@ const storage = new S3Client({});
 
 export async function handler(event: AttachmentRequest) {
   try {
+    const stagingProvider = process.env.HARVEST_USER_POOL_PROVIDER;
+    const provider = stagingProvider && event.identity?.claims?.iss === `https://${stagingProvider}`
+      ? stagingProvider : process.env.USER_POOL_PROVIDER!;
     return await validateAttachment(event, {
-      provider: process.env.USER_POOL_PROVIDER!,
+      provider,
       resolveIdentity: async token => (await identity.send(new GetIdCommand({
         IdentityPoolId: process.env.IDENTITY_POOL_ID,
-        Logins: { [process.env.USER_POOL_PROVIDER!]: token },
+        Logins: { [provider]: token },
       }))).IdentityId,
       inspectObject: async key => {
         const object = await storage.send(new HeadObjectCommand({ Bucket: process.env.MEDIA_BUCKET, Key: key }));

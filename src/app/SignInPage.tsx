@@ -19,7 +19,7 @@ export function SignInPage() {
   const passwordInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (user) return <Navigate to={isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
+  if (user) return <Navigate to={user.harvest?.organizationRequired ? '/account/organization' : isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);

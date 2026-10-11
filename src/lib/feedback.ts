@@ -1,8 +1,9 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/data';
 import { getProperties, getUrl, remove, uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
-import { requireAmplify } from './amplify';
+import { isHarvestPasswordMode, requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
 import { sortFeedback } from './list';
 import { ASSIGNEES, MAX_ATTACHMENT_BYTES, PRODUCT_AREAS, PRIORITY_LABELS, SEVERITY_LABELS, STATUS_ORDER } from './options';
@@ -28,6 +29,40 @@ function resultOrThrow<T>(result: { data: T; errors?: readonly { message: string
 
 type FeedbackRecord = NonNullable<Awaited<ReturnType<typeof client.models.Feedback.get>>['data']>;
 type SubmittedFeedbackRecord = NonNullable<Awaited<ReturnType<typeof client.mutations.submitFeedback>>['data']>;
+
+async function submitWithHarvestTokens(
+  input: Parameters<typeof client.mutations.submitFeedback>[0],
+  idToken: string,
+  accessToken: string,
+): Promise<SubmittedFeedbackRecord> {
+  const endpoint = Amplify.getConfig().API?.GraphQL?.endpoint;
+  if (!endpoint || new URL(endpoint).protocol !== 'https:') throw new Error('Feedback API is not configured.');
+  const query = `mutation SubmitFeedback(
+    $description: String!, $productArea: String!, $customArea: String,
+    $priority: Priority!, $severity: Severity!, $attachmentKey: String,
+    $attachmentName: String, $attachmentType: String, $attachmentSize: Int,
+    $sentryIssueId: String, $organizationId: String
+  ) { submitFeedback(
+    description: $description, productArea: $productArea, customArea: $customArea,
+    priority: $priority, severity: $severity, attachmentKey: $attachmentKey,
+    attachmentName: $attachmentName, attachmentType: $attachmentType,
+    attachmentSize: $attachmentSize, sentryIssueId: $sentryIssueId,
+    organizationId: $organizationId
+  ) { id title description productArea customArea priority severity reporterName
+    reporterEmail persona company attachmentKey attachmentName attachmentType
+    attachmentSize status assignee updateRequestedAt adminActivityAt sentryIssueId
+    owner createdAt updatedAt } }`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: idToken, 'x-harvest-access-token': accessToken },
+    body: JSON.stringify({ query, variables: input }),
+  });
+  if (!response.ok) throw new Error('Could not create the report. Try again.');
+  const body = await response.json() as { data?: { submitFeedback?: SubmittedFeedbackRecord }; errors?: { message: string }[] };
+  if (body.errors?.length) throw new Error(body.errors[0].message);
+  if (!body.data?.submitFeedback) throw new Error('Could not create the report. Try again.');
+  return body.data.submitFeedback;
+}
 
 function toFeedback(row: FeedbackRecord | SubmittedFeedbackRecord): Feedback {
   return {
@@ -97,15 +132,24 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
       attachmentSize: properties.size,
     };
   }
-  const token = (await fetchAuthSession()).tokens?.idToken?.toString();
-  if (!token) throw new Error('Sign in to Harvest');
-  const created = resultOrThrow(await client.mutations.submitFeedback({
+  const session = await fetchAuthSession();
+  const idToken = session.tokens?.idToken?.toString();
+  const accessToken = session.tokens?.accessToken?.toString();
+  if (!idToken || (isHarvestPasswordMode() && !accessToken)) throw new Error('Sign in to Harvest');
+  if (isHarvestPasswordMode() && !user.harvest?.selectedOrganizationId) {
+    throw new Error('Choose an organization to continue.');
+  }
+  const submission = {
     description, productArea: input.productArea,
     ...(input.productArea === 'Other — add an area' ? { customArea } : {}),
     priority: input.priority, severity: input.severity,
     ...(input.sentryIssueId ? { sentryIssueId: input.sentryIssueId } : {}),
+    ...(user.harvest?.selectedOrganizationId ? { organizationId: user.harvest.selectedOrganizationId } : {}),
     ...attachment,
-  }, { authToken: token }));
+  };
+  const created = isHarvestPasswordMode()
+    ? await submitWithHarvestTokens(submission, idToken, accessToken!)
+    : resultOrThrow(await client.mutations.submitFeedback(submission, { authToken: idToken }));
   if (!created) throw new Error('Could not create the report.');
   window.dispatchEvent(new Event('harvest:feedback-submitted'));
   return toFeedback(created);

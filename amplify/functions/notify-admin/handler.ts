@@ -17,12 +17,17 @@ export async function handler(report: ReportNotice): Promise<{ sent: boolean }> 
   }
   try {
     const users: UserType[] = [];
-    let nextToken: string | undefined;
-    do {
-      const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: poolId, GroupName: 'admins', NextToken: nextToken }));
-      users.push(...(page.Users ?? []));
-      nextToken = page.NextToken;
-    } while (nextToken);
+    for (const source of [
+      { pool: poolId, group: 'admins' },
+      ...(process.env.HARVEST_STAGING_USER_POOL_ID ? [{ pool: process.env.HARVEST_STAGING_USER_POOL_ID, group: 'feedback-admins' }] : []),
+    ]) {
+      let nextToken: string | undefined;
+      do {
+        const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: source.pool, GroupName: source.group, NextToken: nextToken }));
+        users.push(...(page.Users ?? []));
+        nextToken = page.NextToken;
+      } while (nextToken);
+    }
     const recipients = adminEmails(users);
     if (!recipients.length) {
       console.warn('No admin email recipients are configured.');

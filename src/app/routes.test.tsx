@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 vi.mock('../lib/auth', async importOriginal => ({
   ...await importOriginal<typeof import('../lib/auth')>(),
   signOut: vi.fn().mockResolvedValue(undefined),
+  selectHarvestOrganization: vi.fn(),
 }));
 vi.mock('../lib/feedback', () => ({ listAllFeedback: vi.fn().mockResolvedValue([]), observeAllFeedback: vi.fn(() => () => {}), listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
 vi.mock('../lib/notifications', () => ({ subscribeNotificationReads: vi.fn(() => () => {}), markNotificationsRead: vi.fn().mockResolvedValue(undefined) }));
@@ -10,6 +11,7 @@ import { screen } from '@testing-library/react';
 import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';
 import { makeAdminUser, makeClientUser } from '../test/factories';
+import { selectHarvestOrganization } from '../lib/auth';
 
 it('redirects signed-out protected routes to sign-in', () => { renderWithProviders(<AppRoutes />, { route: '/feedback/mine', user: null }); expect(screen.getByRole('heading', { name: 'Sign in to Harvest' })).toBeInTheDocument(); });
 it.each(['/admin/reviews', '/admin/insights?tab=traffic', '/admin/invite', '/admin/unknown'])('redirects a client away from %s', route => {
@@ -25,4 +27,20 @@ it('keeps the insights tab in the query string and respects a traffic link', asy
 it('redirects the removed invite URL to admin reviews', () => {
   renderWithProviders(<AppRoutes />, { route: '/admin/invite', user: makeAdminUser() });
   expect(screen.getByRole('heading', { level: 1, name: 'Feedback review' })).toBeInTheDocument();
+});
+it('requires an explicit organization choice before opening a report workspace', async () => {
+  const memberships = [
+    { orgId: 'one', orgKind: 'company' as const, orgName: 'Company One', role: 'user' as const },
+    { orgId: 'two', orgKind: 'partner' as const, orgName: 'Partner Two', role: 'user' as const },
+  ];
+  const pending = makeClientUser({ harvest: { personId: 'person-1', memberships, organizationRequired: true } });
+  vi.mocked(selectHarvestOrganization).mockReturnValue(makeClientUser({
+    harvest: { personId: 'person-1', memberships, selectedOrganizationId: 'two', organizationRequired: false },
+    persona: 'Partner', company: 'Partner Two',
+  }));
+  const { user } = renderWithProviders(<AppRoutes />, { route: '/feedback/new', user: pending });
+  expect(screen.getByRole('heading', { name: 'Choose an organization' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Partner Two · Partner' }));
+  expect(selectHarvestOrganization).toHaveBeenCalledWith('two');
+  expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
 });

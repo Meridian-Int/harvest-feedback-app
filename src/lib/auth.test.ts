@@ -14,7 +14,9 @@ const cognito = vi.hoisted(() => ({
   signIn: vi.fn(), confirmSignIn: vi.fn(), signOut: vi.fn(),
   updateUserAttributes: vi.fn(), getCurrentUser: vi.fn(), fetchUserAttributes: vi.fn(), fetchAuthSession: vi.fn(),
 }));
+const harvestViewer = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock('aws-amplify/auth', () => cognito);
+vi.mock('./harvest-viewer', () => ({ fetchHarvestViewer: harvestViewer.fetch }));
 vi.mock('./amplify', () => ({
   isAmplifyConfigured: () => true,
   isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging',
@@ -32,6 +34,9 @@ beforeEach(async () => {
   cognito.getCurrentUser.mockResolvedValue({ userId: 'user-1' });
   cognito.fetchUserAttributes.mockResolvedValue({ email: 'admin@example.com', name: 'Admin', 'custom:persona': 'Operator', 'custom:company': 'Meridian' });
   cognito.fetchAuthSession.mockResolvedValue({ tokens: { accessToken: { toString: () => 'access-token' }, idToken: { payload: { 'cognito:groups': ['admins'] } } } });
+  harvestViewer.fetch.mockResolvedValue({ person: { id: 'person-1', email: 'client@example.com', name: 'Client' }, memberships: [
+    { orgId: 'company-1', orgKind: 'company', orgName: 'Company', role: 'user' },
+  ] });
   await signOut();
 });
 
