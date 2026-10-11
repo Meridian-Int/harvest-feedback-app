@@ -75,16 +75,6 @@
 .layout:has(.client-new) main{padding-top:16px;padding-bottom:16px}
 .dialog:has(.client-detail-body) .dialog-body{padding:0}
 .dialog:has(.client-detail-body) .dialog-footer:empty{display:none}
-@media(max-width:700px){
-  .layout:has(.harvest-client){display:grid;grid-template-columns:120px minmax(0,1fr)}
-  .layout:has(.harvest-client) .rail{position:sticky;top:0;height:100dvh;padding:16px 8px;border-right:1px solid var(--line);border-bottom:0}
-  .layout:has(.harvest-client) .brand{font-size:11px;letter-spacing:1px;gap:6px;flex-wrap:wrap}
-  .layout:has(.harvest-client) .workspace-nav{display:grid;gap:6px;margin-top:24px}
-  .layout:has(.harvest-client) .workspace-nav a{padding:8px 6px;font-size:11px;gap:6px}
-  .layout:has(.harvest-client) .top{padding:0 10px}
-  .layout:has(.harvest-client) .breadcrumb{display:none}
-  .layout:has(.harvest-client) main{padding:12px}
-}
 
 /* Match the foundation’s serif heading and sans-serif supporting copy. */
 .harvest-client h1,.harvest-client h2,.harvest-client h3{font-family:var(--font-serif);font-weight:400}
@@ -94,5 +84,126 @@
 .client-recording-bar{position:fixed;bottom:18px;right:18px;z-index:100;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100vw - 36px);padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
 
 /* Match the supplied My reports list and grid reference. */
-.client-mine .client-pagehead h1{font-family:var(--font-sans);font-weight:400}
-.client-mine .client-panel-head h2{font-family:var(--font-sans);font-weight:550}
+.client-mine .client-pagehead h1{font-family:var(--font-serif);font-weight:400}
+.client-mine .client-panel-head h2{font-family:var(--font-serif);font-weight:400}
+
+.harvest-client button, .client-dialog button { border-radius: 4px; }
+.client-tags { display: flex; width: auto; }
+.client-pagehead, .client-panel-head { min-width: 0; }
+@media (max-width: 700px) {
+  .client-pagehead, .client-panel-head { flex-wrap: wrap; gap: 8px; }
+  .client-reports[data-layout] .client-report {
+    grid-template-columns: minmax(0,1fr) 28px;
+    grid-template-rows: auto auto;
+    gap: 12px 6px;
+    min-height: 0;
+    padding: 14px 12px;
+    align-items: start;
+  }
+  .client-reports[data-layout] .client-report-main { grid-column: 1; grid-row: 1; }
+  .client-tag-column { grid-column: 1 / -1; grid-row: 2; width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .client-arrow { grid-column: 2; grid-row: 1; }
+  .client-report-heading { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .client-report-heading .client-helper { overflow-wrap: anywhere; }
+  .client-progress.compact { margin: 10px 0 0; gap: 8px; }
+  .client-report-toolbar { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; }
+  .client-report-toolbar label { min-width: 0; justify-content: flex-end; }
+  .client-report-toolbar select { width: 100%; max-width: 150px; font-size:16px; }
+  .client-pagination { flex-direction: column; align-items: stretch; gap: 6px; }
+  .client-pagination > div { margin: 0; justify-content: space-between; gap: 6px; }
+  .client-pagination > .client-helper { font-size:12px; }
+  .client-mine .client-pagehead { align-items: flex-start; }
+  .client-mine .client-pagehead > div { flex: 1 1 180px; }
+  .client-mine .client-pagehead > button { min-height: 36px; padding: 6px 9px; }
+  .client-mine .client-panel-head { padding: 12px; }
+  .client-mine .client-legend { padding: 8px 12px; }
+  .client-progress { flex-wrap: wrap; gap: 6px; }
+  .client-progress li { white-space: normal; }
+  .client-new .client-field select, .client-new textarea { font-size:16px; }
+  .client-new .client-form-footer button { width: 100%; min-height: 44px; }
+}
+@media (max-height: 650px) and (min-width: 701px) {
+  .client-new .client-field { margin-bottom: 8px; }
+  .client-new .client-panel-head { padding: 8px 16px; }
+}
+@media (max-height: 800px) and (min-width: 701px) {
+  .client-new .client-form { padding-top: 12px; padding-bottom: 12px; }
+  .client-new .client-field { margin-bottom: 9px; }
+  .client-new .client-drop { padding-top: 8px; padding-bottom: 8px; }
+  .client-new .client-form-footer { margin-top: 8px; padding-top: 8px; }
+}
+
+/* Center the upload symbol independently of the form label's alignment. */
+.client-drop > label > .client-icon { display: block; margin-inline: auto; }
+
+/* Match the report controls instead of enlarging only the mobile select. */
+.client-report-toolbar label, .client-report-toolbar select,
+.harvest-client .client-segment button { font-size: 12px; line-height: 1.5; }
+.client-report-toolbar select { height: 36px; min-height: 36px; padding-block: 6px; }
+.client-segment { height: 36px; padding: 3px; align-items: stretch; }
+.harvest-client .client-segment button { height: 28px; min-height: 28px; padding: 4px 10px; }
+
+/* Compact client close control, consistently aligned. */
+.dialog:has(.harvest-client) .dialog-head { align-items: center; }
+.dialog:has(.harvest-client) .dialog-head h2 { margin: 0; font: 400 18px/1.3 var(--font-serif); }
+.dialog:has(.harvest-client) .dialog-head .icon-btn { display: grid; place-items: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border-radius: 4px; }
+.dialog:has(.harvest-client) .dialog-head .icon { display: block; width: 18px; height: 18px; margin: 0; }
+.client-video-stage { position: relative; overflow: hidden; border-radius: 8px; background: var(--input); }
+.client-detail-body .client-video-stage video { display: block; margin: 0; cursor: pointer; }
+.client-playback-controls { display: flex; align-items: center; gap: 10px; }
+.client-video-stage .client-playback-controls { position: absolute; inset: auto 0 0; padding: 6px 10px; background: var(--surface); }
+.client-video-stage .client-playback-controls button { display: grid; place-items: center; width: 32px; height: 32px; min-height: 32px; padding: 4px; border: 0; background: transparent; }
+.client-video-stage svg { display: block; width: 20px; height: 20px; }
+.harvest-client .client-video-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%; background: var(--surface); }
+.client-playback-controls input[type=range] { flex: 1; width: 0; min-width: 0; min-height: 24px; padding: 0; accent-color: var(--accent); background: transparent; border: 0; }
+.client-playback-controls span { flex-shrink: 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.client-video-stage:fullscreen { display: grid; place-items: center; background: var(--bg); }
+.client-detail-body .client-video-stage:fullscreen video { width: 100%; height: 100%; max-height: 100dvh; object-fit: contain; }
+/* Keep uploads visible while fitting the attached file in the same drop zone. */
+.client-new .client-drop { min-height: 98px; display: grid; align-items: center; }
+.client-new .client-attachment { margin-top: 0; min-width: 0; }
+.client-new .client-attachment-info { min-width: 0; }
+.client-new .client-attachment-info > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-new .client-attachment img, .client-new .client-attachment video { width: 64px; height: 48px; flex: 0 0 64px; }
+.client-new .client-drop[data-attached=true] > .client-upload-prompt { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; margin-bottom: 6px; }
+.client-new .client-drop[data-attached=true] > .client-upload-prompt br,
+.client-new .client-drop[data-attached=true] > .client-upload-prompt .client-helper { display: none; }
+.client-new .client-drop[data-attached=true] > .client-upload-prompt .client-icon { width: 16px; height: 16px; margin: 0; }
+
+/* Client phone geometry: compact shell and a connected four-step timeline. */
+@media (max-width: 800px) {
+  .harvest-client .progress-track, .client-detail-body .progress-track { --track-dot: 21px; flex-wrap: nowrap; gap: 8px; }
+  .harvest-client .compact-progress { --track-dot: 17px; }
+  .harvest-client .progress-track li, .client-detail-body .progress-track li { flex: 1; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; white-space: normal; }
+  .harvest-client .progress-track li:not(:last-child)::after, .client-detail-body .progress-track li:not(:last-child)::after { content: ''; display: block; position: absolute; top: calc((var(--track-dot) - 1px)/2); left: calc(var(--track-dot) + 5px); width: calc(100% - var(--track-dot) - 2px); height: 1px; background: var(--dim); opacity: .5; }
+  .harvest-client .progress-track .completed:not(:last-child)::after, .client-detail-body .progress-track .completed:not(:last-child)::after { background: var(--progress-green); opacity: .8; }
+}
+@media (max-width: 700px) {
+  .layout:has(.harvest-client) .rail { padding: 8px 12px; }
+  .layout:has(.harvest-client) .brand { font-size: 14px; }
+  .layout:has(.harvest-client) .workspace-nav { gap: 6px; margin-top: 6px; }
+  .layout:has(.harvest-client) .workspace-nav a { min-height: 34px; padding: 6px 9px; font-size: 12px; border-radius: 4px; }
+  .layout:has(.harvest-client) .workspace-nav .icon { width: 16px; height: 16px; }
+  .layout:has(.harvest-client) .rail-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding-top: 6px; }
+  .layout:has(.harvest-client) .user { align-items: center; min-width: 0; gap: 7px; font-size: 12px; }
+  .layout:has(.harvest-client) .avatar { width: 24px; height: 24px; font-size: 9px; }
+  .layout:has(.harvest-client) .user-role { display: none; }
+  .layout:has(.harvest-client) .rail-bottom .rail-sign-out { margin: 0; height: 30px; min-height: 30px; padding: 0 8px; border-radius: 4px; }
+  .layout:has(.harvest-client) .top { height: 44px; padding: 0 12px; }
+  .layout:has(.harvest-client) .breadcrumb { font-size: 11px; }
+  .layout:has(.harvest-client) .top-actions .icon-btn, .layout:has(.harvest-client) .notification-bell { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 4px; }
+  .layout:has(.harvest-client) main { padding: 10px 12px; }
+  .client-mine .client-pagehead h1 { font-size: 20px; }
+  .client-mine .client-pagehead p { font-size: 11px; }
+  .client-mine .client-panel-head { padding: 10px 12px; }
+  .client-mine .client-report-toolbar { gap: 8px; }
+  .client-mine .client-panel { border-radius: 10px; }
+  .client-mine .client-report { padding: 12px; }
+  .client-mine .client-tag-column { gap: 6px; }
+  .client-mine .client-pagination { padding: 8px 12px; }
+  .client-mine .client-pagination button { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+  .client-mine .client-pagination > .client-helper { font-size: 11px; }
+}
+
+.client-replace-notice { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--input); }
+.client-replace-notice span { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }

@@ -237,3 +237,15 @@ it('subscribes to synced own reports and releases the subscription', () => {
   observer.error(); expect(error).toHaveBeenCalledOnce();
   stop(); expect(unsubscribe).toHaveBeenCalledOnce();
 });
+
+it('refreshes authorized client notifications after a custom submission and cleans up its listener', async () => {
+  const next = vi.fn(), error = vi.fn();
+  const stop = subscribeMyFeedback(next, error);
+  await createFeedback(input);
+  await vi.waitFor(() => expect(next).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: 'created-1' })])));
+  expect(error).not.toHaveBeenCalled();
+  stop(); next.mockClear();
+  window.dispatchEvent(new Event('harvest:feedback-submitted'));
+  await Promise.resolve();
+  expect(next).not.toHaveBeenCalled();
+});

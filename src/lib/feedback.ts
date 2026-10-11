@@ -107,6 +107,7 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
     ...attachment,
   }, { authToken: token }));
   if (!created) throw new Error('Could not create the report.');
+  window.dispatchEvent(new Event('harvest:feedback-submitted'));
   return toFeedback(created);
 }
 
@@ -224,11 +225,16 @@ export async function removeAttachment(key: string): Promise<void> {
 export function subscribeMyFeedback(next: (reports: Feedback[]) => void, error: () => void): () => void {
   requireAmplify();
   const user = requireUser();
+  let active = true;
+  // Custom submit mutations do not emit the generated model onCreate stream.
+  // Refetch authorized records after this browser has saved a report.
+  const submitted = () => { void listMyFeedback().then(rows => { if (active) next(rows); }).catch(() => { if (active) error(); }); };
+  window.addEventListener('harvest:feedback-submitted', submitted);
   const subscription = client.models.Feedback.observeQuery().subscribe({
     next: ({ items, isSynced }) => {
       if (isSynced) next(sortFeedback(items.map(toFeedback).filter(report => ownedBy(report, user))));
     },
     error,
   });
-  return () => subscription.unsubscribe();
+  return () => { active = false; window.removeEventListener('harvest:feedback-submitted', submitted); subscription.unsubscribe(); };
 }

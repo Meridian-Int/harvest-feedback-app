@@ -3,12 +3,12 @@
 .notification-bell:hover, .notification-bell[aria-expanded="true"] { background: var(--raised); }
 .notification-bell .icon { width: 18px; height: 18px; }
 .notification-count { position: absolute; top: -6px; right: -6px; min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 4px; border-radius: 999px; border: 1px solid var(--rail); background: var(--red); color: var(--bg); font: 700 10px/1 var(--font-figures); font-variant-numeric: tabular-nums; }
-.notification-panel { position: fixed; top: 62px; right: 36px; z-index: 60; width: min(360px, calc(100vw - 32px)); max-height: min(520px, calc(100dvh - 78px)); display: flex; flex-direction: column; overflow: hidden; }
-.notification-panel > header { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-.notification-panel > header h2 { font-size: 17px; }
+.notification-panel { position: fixed; top: 62px; right: 36px; z-index: 60; width: min(320px, calc(100vw - 32px)); max-height: min(320px, calc(100dvh - 78px)); display: flex; flex-direction: column; overflow: hidden; }
+.notification-panel > header { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.notification-panel > header h2 { font-size: 15px; }
 .notification-panel > header span { color: var(--dim); font-size: 11px; }
 .notification-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.notification-item { width: 100%; display: grid; gap: 3px; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; }
+.notification-item { width: 100%; display: grid; gap: 3px; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; }
 .notification-item:last-child { border-bottom: 0; }
 .notification-item:hover, .notification-item:focus-visible { background: var(--raised); }
 .notification-item[data-unread="true"] { background: var(--soft); }
@@ -29,3 +29,5 @@
   .notification-bell { width: 40px; height: 40px; }
   .notification-toast { top: 118px; left: 16px; }
 }
+
+.notification-panel > header { flex-shrink: 0; }

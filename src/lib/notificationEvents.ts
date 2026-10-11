@@ -4,7 +4,7 @@ import type { Feedback } from './types';
 export interface NotificationEvent {
   id: string;
   reportId: string;
-  kind: 'created' | 'requested' | 'updated';
+  kind: 'created' | 'submitted' | 'requested' | 'updated';
   title: string;
   detail: string;
   time: string;
@@ -31,7 +31,9 @@ export function notificationEvents(reports: Feedback[], admin: boolean): Notific
         detail: `${report.company} · ${report.title}`,
         time: report.updateRequestedAt,
       });
-    } else if (report.adminActivityAt) {
+    } else {
+      events.push({ id: `created:${report.id}`, reportId: report.id, kind: 'submitted', title: 'You’ve submitted your report.', detail: report.title, time: report.createdAt });
+      if (report.adminActivityAt) {
       events.push({
         id: `updated:${report.id}:${report.adminActivityAt}`,
         reportId: report.id,
@@ -40,6 +42,7 @@ export function notificationEvents(reports: Feedback[], admin: boolean): Notific
         detail: `${report.title} · ${STATUS_LABELS[report.status]}`,
         time: report.adminActivityAt,
       });
+      }
     }
   }
   return events.sort((a, b) => Date.parse(b.time) - Date.parse(a.time));

@@ -3,5 +3,5 @@ import { useAuth } from './AuthProvider';
 
 export function RequireSignedIn() {
   const { user } = useAuth();
-  return !user ? <Navigate to="/sign-in" replace /> : <Outlet />;
+  return !user || user.needsPasswordSetup ? <Navigate to="/sign-in" replace /> : <Outlet />;
 }

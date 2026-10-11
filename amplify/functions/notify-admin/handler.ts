@@ -5,7 +5,8 @@ import { adminEmails, reportNotice, type ReportNotice } from './message';
 const cognito = new CognitoIdentityProviderClient({});
 const ses = new SESv2Client({});
 
-export async function handler(report: ReportNotice): Promise<{ sent: boolean }> {
+export async function handler(report: ReportNotice | { deliveryHandledByStream: true }): Promise<{ sent: boolean }> {
+  if ('deliveryHandledByStream' in report) return { sent: false };
   if (report.sentryIssueId) return { sent: false };
   const from = process.env.ADMIN_NOTIFICATION_FROM_EMAIL?.trim();
   const poolId = process.env.USER_POOL_ID;

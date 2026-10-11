@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClientControls } from './contract';
 import { ClientDialog } from './ClientDialog';
+import { RecordingPreview } from './RecordingPreview';
 import { chooseRecordingMime, recordingClock, shouldStopRecording, validRecordingSize } from './logic/recorder';
 
 export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }: { controls: ClientControls; replacing: boolean; onAttach: (file: File) => void; onClose: () => void }) {
   const [phase, setPhase] = useState<'ready' | 'choosing' | 'recording' | 'preview' | 'error'>('ready');
   const [message, setMessage] = useState('Choose a tab, window or screen in your browser’s sharing picker.');
   const [url, setUrl] = useState('');
+  const [recordedSeconds, setRecordedSeconds] = useState(0);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const session = useRef({ cancelled: false, stream: null as MediaStream | null, recorder: null as MediaRecorder | null, timer: undefined as ReturnType<typeof setInterval> | undefined, url: '', file: null as File | null });
   const busy = useRef(false);
@@ -53,6 +55,7 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
         const blob = new Blob(chunks, { type });
         if (!validRecordingSize(blob.size)) { setPhase('error'); setMessage('The recording is empty or too large. Close this window and try a shorter recording.'); return; }
         current.file = new File([blob], `harvest-recording-${Date.now()}.${type === 'video/mp4' ? 'mp4' : 'webm'}`, { type });
+        setRecordedSeconds(Math.max(0.1, (Date.now() - started) / 1000));
         current.url = URL.createObjectURL(blob); setUrl(current.url); setPhase('preview');
         setMessage(`Review your recording (${(blob.size / 1048576).toFixed(1)} MB), then attach it.`);
       };
@@ -88,7 +91,7 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
   return <ClientDialog title="Screen recording" onClose={discard}>
     <div className="client-detail-body">
       <p role={phase === 'error' ? 'alert' : 'status'}>{message}</p>
-      {url && <video src={url} controls playsInline aria-label="Recording preview" />}
+      {url && <RecordingPreview src={url} recordedSeconds={recordedSeconds} />}
       {confirmReplace && <p role="alert">Replace the current attachment with this recording?</p>}
       <div className="client-capture-controls">
         {phase === 'ready' && <Button onClick={start}>Start recording</Button>}

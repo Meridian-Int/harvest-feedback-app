@@ -1,5 +1,7 @@
 import {
   confirmSignIn as confirmCognitoSignIn,
+  resetPassword as cognitoResetPassword,
+  confirmResetPassword as cognitoConfirmResetPassword,
   fetchAuthSession,
   fetchUserAttributes,
   getCurrentUser as getCognitoUser,
@@ -63,7 +65,9 @@ export async function restoreSession(): Promise<AuthUser | null> {
   currentUser = null;
   if (!isAmplifyConfigured()) return null;
   try {
-    return await loadUser();
+    const user = await loadUser();
+    user.needsPasswordSetup = !(await hasAccountPassword());
+    return user;
   } catch (error) {
     // Missing or expired Cognito sessions are normal on the sign-in page.
     if (['UserUnAuthenticatedException', 'NotAuthorizedException'].includes((error as { name?: string }).name ?? '')) return null;
@@ -80,6 +84,36 @@ export async function signIn(email: string): Promise<void> {
   });
   if (result.nextStep.signInStep !== 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') {
     throw new Error('Email verification is unavailable for this account.');
+  }
+}
+
+/** Ask Cognito which factors this account actually has; never guess from local storage. */
+export async function beginAccountSignIn(email: string): Promise<'password' | 'code'> {
+  if (!isValidEmail(email)) throw new Error('Enter a valid work email.');
+  requireAmplify();
+  let result = await cognitoSignIn({ username: email.trim().toLowerCase(), options: { authFlowType: 'USER_AUTH' } });
+  if (result.nextStep.signInStep === 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION') {
+    const available = result.nextStep.availableChallenges ?? [];
+    // A configured password always wins over OTP, so returning users get no email.
+    const factor = available.includes('PASSWORD') ? 'PASSWORD' : available.includes('EMAIL_OTP') ? 'EMAIL_OTP' : null;
+    if (!factor) throw new Error('This account cannot sign in. Contact an administrator.');
+    result = await confirmCognitoSignIn({ challengeResponse: factor });
+  }
+  if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_PASSWORD') return 'password';
+  if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE') return 'code';
+  throw new Error('Could not start account sign-in. Contact an administrator.');
+}
+
+export async function finishAccountPasswordSignIn(password: string): Promise<AuthUser> {
+  if (!password) throw new Error('Enter your password.');
+  requireAmplify();
+  try {
+    const result = await confirmCognitoSignIn({ challengeResponse: password });
+    if (result.nextStep.signInStep !== 'DONE') throw new Error('This account needs administrator assistance to finish setup.');
+    return loadUser();
+  } catch (cause) {
+    if ((cause as { name?: string }).name === 'NotAuthorizedException') throw new Error('Email or password is incorrect. Try again.');
+    throw cause;
   }
 }
 
@@ -137,6 +171,7 @@ export async function createAccountPassword(password: string, confirmation: stri
   if (!accessToken || !poolId) throw new Error('Sign in again to create your password.');
   try {
     await new CognitoIdentityProviderClient({ region: poolId.split('_')[0] }).send(new ChangePasswordCommand({ AccessToken: accessToken, ProposedPassword: password }));
+    user.needsPasswordSetup = false;
     return user;
   } catch (error) {
     const failure = error as { name?: string; message?: string };
@@ -144,7 +179,7 @@ export async function createAccountPassword(password: string, confirmation: stri
       throw new Error('Your password is already set. Continue to the workspace, then use Sign in with password next time.');
     }
     if (failure.name === 'NotAuthorizedException') throw new Error('Sign in again before creating your password.');
-    throw new Error('Could not create your password. Try again or continue with email-code sign-in.');
+    throw new Error('Could not create your password. Try again or contact an administrator.');
   }
 }
 
@@ -158,12 +193,28 @@ export async function signInWithPassword(email: string, password: string): Promi
     if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_PASSWORD') {
       result = await confirmCognitoSignIn({ challengeResponse: password });
     }
-    if (result.nextStep.signInStep !== 'DONE') throw new Error('Use email-code sign-in to finish verifying this account.');
+    if (result.nextStep.signInStep !== 'DONE') throw new Error('This account needs initial verification or administrator setup before password sign-in.');
     return await loadUser();
   } catch (error) {
     if (['NotAuthorizedException', 'UserNotFoundException'].includes((error as { name?: string }).name ?? '')) {
-      throw new Error('Email or password is incorrect. Try again or use an email code.');
+      throw new Error('Email or password is incorrect. Try again.');
     }
     throw error;
   }
+}
+
+/** Verify the inbox before replacing a provisioned or forgotten password. */
+export async function requestAccountPasswordSetup(email: string): Promise<void> {
+  if (!isValidEmail(email)) throw new Error('Enter a valid work email.');
+  requireAmplify();
+  const result = await cognitoResetPassword({ username: email.trim().toLowerCase() });
+  if (result.nextStep.resetPasswordStep !== 'CONFIRM_RESET_PASSWORD_WITH_CODE') throw new Error('Password setup is unavailable. Contact an administrator.');
+}
+
+export async function completeAccountPasswordSetup(email: string, code: string, password: string, confirmation: string): Promise<AuthUser> {
+  if (!/^(?:[0-9]{6}|[0-9]{8})$/.test(code)) throw new Error('Enter the verification code from your email (6 or 8 digits).');
+  validateNewPassword(password, confirmation);
+  requireAmplify();
+  await cognitoConfirmResetPassword({ username: email.trim().toLowerCase(), confirmationCode: code, newPassword: password });
+  return signInWithPassword(email, password);
 }

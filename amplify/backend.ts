@@ -5,10 +5,35 @@ import { storage } from './storage/resource';
 import { sentryIssues } from './functions/sentry-issues/resource';
 import { verifyAttachment } from './functions/verify-attachment/resource';
 import { notifyAdmin } from './functions/notify-admin/resource';
+import { feedbackEmailDelivery } from './functions/feedback-email/resource';
+import { authEmail } from './functions/auth-email/resource';
+import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
+import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { DynamoEventSource, SqsDlq } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { PolicyStatement, Role } from 'aws-cdk-lib/aws-iam';
 import { CfnResource, Stack } from 'aws-cdk-lib';
 
-const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin });
+const backend = defineBackend({ auth, data, storage, sentryIssues, verifyAttachment, notifyAdmin, feedbackEmailDelivery, ...(process.env.COGNITO_EMAIL_SOURCE_ARN ? { authEmail } : {}) });
+
+// Enable only after sender identities, DNS and production recipients are verified.
+// LATEST avoids emailing the existing demonstration reports when this is enabled.
+if (process.env.FEEDBACK_EMAIL_ENABLED === 'true') {
+  const reportTableDefinition = backend.data.resources.cfnResources.amplifyDynamoDbTables.Feedback as unknown as { resource: CfnResource };
+  reportTableDefinition.resource.addPropertyOverride('streamSpecification', { streamViewType: 'NEW_AND_OLD_IMAGES' });
+  const delivery = backend.feedbackEmailDelivery;
+  delivery.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+  const stack = backend.createStack('feedback-email-events');
+  const receipts = new Table(stack, 'EmailDelivery', { partitionKey: { name: 'id', type: AttributeType.STRING }, billingMode: BillingMode.PAY_PER_REQUEST, timeToLiveAttribute: 'expiresAt' });
+  const failed = new Queue(stack, 'FailedFeedbackEmail');
+  delivery.addEnvironment('EMAIL_DELIVERY_TABLE', receipts.tableName);
+  receipts.grantReadWriteData(delivery.resources.lambda);
+  delivery.resources.lambda.addEventSource(new DynamoEventSource(backend.data.resources.tables.Feedback, {
+    startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(failed),
+  }));
+  delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['cognito-idp:ListUsersInGroup'], resources: [backend.auth.resources.userPool.userPoolArn] }));
+  delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: ['*'], conditions: { StringEquals: { 'ses:FromAddress': [process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai', process.env.ADMIN_NOTIFICATION_FROM_EMAIL ?? 'manasa+feedback@withmeridian.ai'] } } }));
+}
 
 // Keep the shared sandbox's report table easy to identify in DynamoDB. Amplify
 // does not expose a table-name setter, so update its generated custom resource.
@@ -98,6 +123,13 @@ if (
 // Cognito Essentials supports email OTP and optional password sign-in.
 cfnUserPool.userPoolTier = 'ESSENTIALS';
 cfnUserPool.adminCreateUserConfig = { allowAdminCreateUserOnly: true };
+if (process.env.COGNITO_EMAIL_SOURCE_ARN) {
+  cfnUserPool.emailConfiguration = {
+    emailSendingAccount: 'DEVELOPER', sourceArn: process.env.COGNITO_EMAIL_SOURCE_ARN,
+    from: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai',
+    replyToEmailAddress: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai',
+  };
+}
 // USER_AUTH offers email OTP by default and PASSWORD after a client sets one.
 cfnUserPool.addPropertyOverride('Policies.SignInPolicy.AllowedFirstAuthFactors', ['PASSWORD', 'EMAIL_OTP']);
 cfnUserPoolClient.explicitAuthFlows = ['ALLOW_USER_AUTH', 'ALLOW_REFRESH_TOKEN_AUTH'];

@@ -64,3 +64,13 @@ Run this sequence with approved test accounts: client signs in → submits a rep
 ### Account type assignment
 
 Company/Partner selection and its Cognito provisioning were removed. Cognito attributes and the `admins` group now determine the user's persona and workspace. Password setup and subsequent password sign-in remain available. No AWS deployment was run for this removal.
+
+### Local client changes ready for shared testing — 10 October 2026
+
+Client updates compact the notification panel, improve phone layouts and connected status tracks, retain the existing themes, use 4px button corners, and keep silent recording playback with play/pause, seeking and fullscreen. One attachment per report remains the backend contract; replacement requires confirmation.
+
+Sign-in starts with email. Passwordless provisioned accounts verify an eight-digit Cognito code before choosing a password. Accounts with a configured password use password sign-in; users who never chose their provisioned password can select Set or reset password, verify the recovery code, and choose their own password. This is a recovery flow, not public signup. New-email self-registration is still disabled and has not been implemented; the required new-account profile flow awaits agreement.
+
+Feedback email templates and delivery handlers are prepared locally but sending remains disabled unless FEEDBACK_EMAIL_ENABLED=true is explicitly configured. No AWS deployment or email delivery is authorized by this code push. The commit uses [skip ci] to avoid automatically starting the deployment workflow while it is paused.
+
+Live acceptance remains pending for new-account onboarding, password recovery delivery, client/admin submissions with files and recordings, status updates, and API/storage authorization with separate client sessions. Database inspection confirmed separate client A/B owner IDs and pre-existing client B demo reports; it does not replace authenticated cross-user API tests.

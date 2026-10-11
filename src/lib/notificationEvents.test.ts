@@ -17,7 +17,7 @@ it('shows only admin activity to a client and creates a new unread identity for 
   const report = makeFeedback({ adminActivityAt: '2026-10-09T11:00:00Z', status: 'ASSIGNED' });
   const first = notificationEvents([report], false);
   const second = notificationEvents([{ ...report, adminActivityAt: '2026-10-09T12:00:00Z', status: 'CLOSED' }], false);
-  expect(first).toEqual([expect.objectContaining({ title: 'Your report was updated', detail: expect.stringContaining('Assigned') })]);
+  expect(first).toEqual([expect.objectContaining({ title: 'Your report was updated', detail: expect.stringContaining('Assigned') }), expect.objectContaining({ kind: 'submitted', id: `created:${report.id}` })]);
   expect(second[0].id).not.toBe(first[0].id);
   expect(second[0].detail).toContain('Done');
 });

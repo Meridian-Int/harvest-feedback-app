@@ -10,7 +10,7 @@
 .auth-card label[for="auth-code"] { font-size: 12px; line-height: 18px; }
 .auth-card .control { height: 36px; min-height: 36px; padding: 7px 10px; font-size: 13px; }
 .auth-card input:not(#auth-code) { height: 42px; min-height: 42px; padding: 10px 12px; }
-.auth-continue { min-height: 36px; padding: 7px 12px; font-size: 12px; }
+.auth-continue { border-radius: 4px; min-height: 36px; padding: 7px 12px; font-size: 12px; }
 #auth-code { font-family: var(--font-figures); font-size: 13px; height: 34px; min-height: 34px; padding: 6px 10px; line-height: 20px; letter-spacing: 0; font-variant-numeric: lining-nums tabular-nums; }
 #auth-code:focus-visible { outline-width: 1px; outline-offset: 2px; }
 #auth-demo-code { margin-bottom: 12px; font-size: 11px; }
@@ -21,3 +21,5 @@
 .auth-bottom { text-align: center; color: var(--dim); font-size: 10px; }
 @media (max-width: 700px) { .auth-screen { padding: 14px 18px; } .auth-card { padding: 20px; } .auth-card input:not(#auth-code) { font-size: 16px; min-height: 40px; height: 40px; } .auth-continue { min-height: 40px; } .auth-top { font-size: 14px; } }
 @media (max-height: 700px) and (min-width: 701px) { .auth-brand { font-size: 26px; margin-bottom: 12px; } .auth-card { padding: 18px 22px; } .auth-divider { margin-bottom: 14px; } .auth-card .auth-note { margin-top: 12px; padding-top: 10px; } .auth-screen { padding-top: 12px; padding-bottom: 12px; } }
+
+.auth-card button { border-radius: 4px; }

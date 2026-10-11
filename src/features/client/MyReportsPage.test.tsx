@@ -1,3 +1,4 @@
+import { ReportPills } from './ReportDetailDialog';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
@@ -62,4 +63,12 @@ it('handles inaccessible deep links and removes only report parameter on close',
   render(<MemoryRouter initialEntries={['/feedback/mine?report=unreadable&keep=1']}><Navigation /><Routes><Route path="/feedback/*" element={<ClientRoutes api={api} choices={choices} controls={controls} draftScope="a" />} /></Routes></MemoryRouter>);
   const user = userEvent.setup(); expect(await screen.findByText('This report is unavailable or you do not have access to it.')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Done' })); expect(screen.getByTestId('url')).toHaveTextContent('/feedback/mine?keep=1');
+});
+
+it('automatically marks Blocker reports as Critical, including older report data', () => {
+  const { rerender } = render(<ReportPills report={makeReport({ priority: 'BLOCKER', severity: 'LOW' })} />);
+  expect(screen.getByText('Blocker')).toBeInTheDocument();
+  expect(screen.getByText('Critical')).toBeInTheDocument();
+  rerender(<ReportPills report={makeReport({ priority: 'BUG' })} />);
+  expect(screen.queryByText('Critical')).not.toBeInTheDocument();
 });

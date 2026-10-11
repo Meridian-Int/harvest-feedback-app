@@ -1,5 +1,5 @@
 import { beforeEach, vi } from 'vitest';
-import { confirmSignIn, createAccountPassword, getCurrentUser, hasAccountPassword, isAdmin, isValidEmail, requireUser, restoreSession, signIn, signInWithPassword, signOut, validateNewPassword } from './auth';
+import { requestAccountPasswordSetup, completeAccountPasswordSetup, beginAccountSignIn, finishAccountPasswordSignIn, confirmSignIn, createAccountPassword, getCurrentUser, hasAccountPassword, isAdmin, isValidEmail, requireUser, restoreSession, signIn, signInWithPassword, signOut, validateNewPassword } from './auth';
 
 const passwordSdk = vi.hoisted(() => ({ send: vi.fn(), getConfig: vi.fn() }));
 vi.mock('aws-amplify', () => ({ Amplify: { getConfig: passwordSdk.getConfig } }));
@@ -10,6 +10,7 @@ vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
 }));
 
 const cognito = vi.hoisted(() => ({
+  resetPassword: vi.fn(), confirmResetPassword: vi.fn(), signUp: vi.fn(), confirmSignUp: vi.fn(), autoSignIn: vi.fn(), resendSignUpCode: vi.fn(),
   signIn: vi.fn(), confirmSignIn: vi.fn(), signOut: vi.fn(),
   updateUserAttributes: vi.fn(), getCurrentUser: vi.fn(), fetchUserAttributes: vi.fn(), fetchAuthSession: vi.fn(),
 }));
@@ -19,12 +20,12 @@ vi.mock('./amplify', () => ({ isAmplifyConfigured: () => true, requireAmplify: v
 beforeEach(async () => {
   vi.clearAllMocks();
   passwordSdk.getConfig.mockReturnValue({ Auth: { Cognito: { userPoolId: 'us-east-2_test' } } });
-  passwordSdk.send.mockResolvedValue({});
+  passwordSdk.send.mockResolvedValue({ ConfiguredUserAuthFactors: ['PASSWORD'] });
   cognito.signIn.mockResolvedValue({ nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE' } });
   cognito.confirmSignIn.mockResolvedValue({ nextStep: { signInStep: 'DONE' } });
   cognito.getCurrentUser.mockResolvedValue({ userId: 'user-1' });
   cognito.fetchUserAttributes.mockResolvedValue({ email: 'admin@example.com', name: 'Admin', 'custom:persona': 'Operator', 'custom:company': 'Meridian' });
-  cognito.fetchAuthSession.mockResolvedValue({ tokens: { idToken: { payload: { 'cognito:groups': ['admins'] } } } });
+  cognito.fetchAuthSession.mockResolvedValue({ tokens: { accessToken: { toString: () => 'access-token' }, idToken: { payload: { 'cognito:groups': ['admins'] } } } });
   await signOut();
 });
 
@@ -50,6 +51,7 @@ it('creates an initial password for the authenticated user without passing Previ
 it('requires a verified session before password creation and handles service failure safely', async () => {
   await expect(createAccountPassword('Test-password-2468!', 'Test-password-2468!')).rejects.toThrow('Sign in');
   await confirmSignIn('65432187');
+  cognito.fetchAuthSession.mockResolvedValueOnce({ tokens: {} });
   await expect(createAccountPassword('Test-password-2468!', 'Test-password-2468!')).rejects.toThrow('Sign in again');
   cognito.fetchAuthSession.mockResolvedValueOnce({ tokens: { accessToken: { toString: () => 'access-token' } } });
   passwordSdk.send.mockRejectedValueOnce(new Error('private service detail'));
@@ -70,7 +72,7 @@ it('rejects invalid password login and unexpected challenges without guessing', 
   await expect(signInWithPassword('client@example.com', '')).rejects.toThrow('Enter your password');
   cognito.signIn.mockRejectedValueOnce(Object.assign(new Error('bad credentials'), { name: 'NotAuthorizedException' }));
   await expect(signInWithPassword('client@example.com', 'incorrect')).rejects.toThrow('Email or password');
-  await expect(signInWithPassword('client@example.com', 'Test-password-2468!')).rejects.toThrow('email-code sign-in');
+  await expect(signInWithPassword('client@example.com', 'Test-password-2468!')).rejects.toThrow('initial verification');
 });
 
 it('validates the email and requests an email OTP through Cognito', async () => {
@@ -144,4 +146,54 @@ it('checks the server factors for an existing password instead of prompting for 
   await expect(hasAccountPassword()).resolves.toBe(false);
   passwordSdk.send.mockRejectedValueOnce(new Error('private service detail'));
   await expect(hasAccountPassword()).rejects.toThrow('Could not check');
+});
+
+it('restores an unfinished verified account into required password setup', async () => {
+  passwordSdk.send.mockResolvedValueOnce({ ConfiguredUserAuthFactors: ['EMAIL_OTP'] });
+  expect(await restoreSession()).toMatchObject({ needsPasswordSetup: true });
+});
+
+it('chooses an existing password instead of sending another verification email', async () => {
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION', availableChallenges: ['PASSWORD', 'EMAIL_OTP'] } });
+  cognito.confirmSignIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_PASSWORD' } });
+  await expect(beginAccountSignIn(' CLIENT@EXAMPLE.COM ')).resolves.toBe('password');
+  expect(cognito.signIn).toHaveBeenCalledWith({ username: 'client@example.com', options: { authFlowType: 'USER_AUTH' } });
+  expect(cognito.confirmSignIn).toHaveBeenLastCalledWith({ challengeResponse: 'PASSWORD' });
+  await expect(finishAccountPasswordSignIn('Test-password-2468!')).resolves.toMatchObject({ id: 'user-1' });
+});
+
+it('chooses email verification only when a provisioned account has no password', async () => {
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION', availableChallenges: ['EMAIL_OTP'] } });
+  cognito.confirmSignIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE' } });
+  await expect(beginAccountSignIn('client@example.com')).resolves.toBe('code');
+  expect(cognito.confirmSignIn).toHaveBeenLastCalledWith({ challengeResponse: 'EMAIL_OTP' });
+});
+
+it('handles direct password and code challenges and rejects unsupported account flows', async () => {
+  await expect(beginAccountSignIn('bad')).rejects.toThrow('valid work email');
+  await expect(beginAccountSignIn('client@example.com')).resolves.toBe('code');
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_PASSWORD' } });
+  await expect(beginAccountSignIn('client@example.com')).resolves.toBe('password');
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONTINUE_SIGN_IN_WITH_FIRST_FACTOR_SELECTION' } });
+  await expect(beginAccountSignIn('client@example.com')).rejects.toThrow();
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'DONE' } });
+  await expect(beginAccountSignIn('client@example.com')).rejects.toThrow();
+});
+
+it('rejects missing or incorrect passwords and unexpected follow-up challenges', async () => {
+  await expect(finishAccountPasswordSignIn('')).rejects.toThrow('Enter your password');
+  cognito.confirmSignIn.mockRejectedValueOnce(Object.assign(new Error('wrong'), { name: 'NotAuthorizedException' }));
+  await expect(finishAccountPasswordSignIn('wrong')).rejects.toThrow('Email or password');
+  cognito.confirmSignIn.mockResolvedValueOnce({ nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE' } });
+  await expect(finishAccountPasswordSignIn('password')).rejects.toThrow('administrator assistance');
+});
+
+it('verifies email through Cognito before setting a provisioned password', async () => {
+  cognito.resetPassword.mockResolvedValueOnce({ nextStep: { resetPasswordStep: 'CONFIRM_RESET_PASSWORD_WITH_CODE' } });
+  await requestAccountPasswordSetup(' CLIENT@EXAMPLE.COM ');
+  expect(cognito.resetPassword).toHaveBeenCalledWith({ username: 'client@example.com' });
+  cognito.signIn.mockResolvedValueOnce({ nextStep: { signInStep: 'DONE' } });
+  await expect(completeAccountPasswordSetup('client@example.com', '123456', 'Test-password-2468!', 'Test-password-2468!')).resolves.toMatchObject({ id: 'user-1' });
+  expect(cognito.confirmResetPassword).toHaveBeenCalledWith({ username: 'client@example.com', confirmationCode: '123456', newPassword: 'Test-password-2468!' });
+  await expect(completeAccountPasswordSetup('client@example.com', '123', 'Test-password-2468!', 'Test-password-2468!')).rejects.toThrow('verification code');
 });

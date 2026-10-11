@@ -18,7 +18,7 @@ function NotificationToast({ event, onDismiss }: { event: NotificationEvent; onD
   return <div className="notification-toast glass" role="status">
     <span className="notification-toast-label">Notification</span>
     <strong>{event.title}</strong>
-    <span className="notification-toast-detail">{event.detail}</span>
+    {event.kind !== 'submitted' && <span className="notification-toast-detail">{event.detail}</span>}
     <span className="notification-toast-timer" aria-hidden="true" />
   </div>;
 }
@@ -36,10 +36,12 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
   const [optimistic, setOptimistic] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
+  const [latestClientEvent, setLatestClientEvent] = useState<NotificationEvent | null>(null);
   const [toast, setToast] = useState<NotificationEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const events = useMemo(() => notificationEvents(reports ?? [], admin), [reports, admin]);
-  const unread = events.filter(event => !readIds?.has(event.id) && !optimistic.has(event.id));
+  const visibleEvents = admin ? events : latestClientEvent ? [latestClientEvent] : [];
+  const unread = visibleEvents.filter(event => !readIds?.has(event.id) && !optimistic.has(event.id));
 
   useEffect(() => {
     let active = true;
@@ -61,10 +63,10 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
     const current = new Set(events.map(event => event.id));
     if (seen.current) {
       const arrived = events.find(event => !seen.current?.has(event.id) && !readIds.has(event.id));
-      if (arrived) setToast(arrived);
+      if (arrived) { setToast(arrived); if (!admin) setLatestClientEvent(arrived); }
     }
     seen.current = current;
-  }, [events, readIds, reports]);
+  }, [events, readIds, reports, admin]);
 
   useEffect(() => {
     if (!open || readIds === null) return;
@@ -100,7 +102,7 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
       setPanelPosition({
         top,
         right: Math.max(16, Math.round(window.innerWidth - rect.right)),
-        maxHeight: Math.max(0, Math.min(520, window.innerHeight - top - 16)),
+        maxHeight: Math.max(0, Math.min(320, window.innerHeight - top - 16)),
       });
     }
     positionPanel();
@@ -125,11 +127,11 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
     {open && createPortal(<section ref={panel} id="notification-panel" className="notification-panel glass" role="dialog" aria-label="Notifications" style={panelPosition ?? undefined}>
       <header><h2>Notifications</h2><span>{unread.length ? `${unread.length} unread` : 'All caught up'}</span></header>
       {error && <p className="notification-error" role="alert">{error}</p>}
-      {reports === null || readIds === null ? <p className="notification-empty" role="status">Loading notifications…</p> : events.length === 0 ? <p className="notification-empty">No notifications yet.</p> : <div className="notification-list">
-        {events.map(event => <button type="button" key={event.id} className="notification-item" data-unread={!readIds.has(event.id) && !optimistic.has(event.id)} onClick={() => openReport(event)}>
+      {reports === null || readIds === null ? <p className="notification-empty" role="status">Loading notifications…</p> : visibleEvents.length === 0 ? <p className="notification-empty">No new notifications.</p> : <div className="notification-list">
+        {visibleEvents.map(event => <button type="button" key={event.id} className="notification-item" data-unread={!readIds.has(event.id) && !optimistic.has(event.id)} onClick={() => openReport(event)}>
           <span className="notification-item-title">{event.title}</span>
-          <span className="notification-item-detail">{event.detail}</span>
-          <time dateTime={event.time}>{new Date(event.time).toLocaleString()}</time>
+          {event.kind !== 'submitted' && <><span className="notification-item-detail">{event.detail}</span>
+          <time dateTime={event.time}>{new Date(event.time).toLocaleString()}</time></>}
         </button>)}
       </div>}
     </section>, document.body)}

@@ -11,26 +11,34 @@ function mount(api = makeApi()) {
   return { api, onSubmitted, onOpenReport, user: userEvent.setup() };
 }
 async function fill(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByLabelText('Product area *'), 'Data room');
+  await user.selectOptions(screen.getByLabelText('Category *'), 'Data room');
   await user.selectOptions(screen.getByLabelText('Priority *'), 'BUG');
-  await user.selectOptions(screen.getByLabelText('Severity *'), 'LOW');
   await user.type(screen.getByLabelText('Description *'), 'Download fails for signed document');
 }
 it('focuses the first missing field and associates errors', async () => {
   const { user } = mount(); await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
   expect(screen.getByLabelText('Description *')).toHaveFocus();
-  expect(screen.getByRole('alert')).toHaveTextContent('Please describe your feedback, choose a priority, choose severity, choose or name a product area.');
+  expect(screen.getByRole('alert')).toHaveTextContent('Please describe your feedback, choose a priority, choose or name a category.');
   expect(screen.getByLabelText('Description *')).toHaveAttribute('aria-invalid', 'true');
 });
 it('requires Other name, autosaves, replaces/removes files, and clears only on success', async () => {
   const { user, api, onSubmitted } = mount(); await fill(user);
-  await user.selectOptions(screen.getByLabelText('Product area *'), 'Other');
-  await user.click(screen.getByRole('button', { name: 'Submit feedback' })); expect(screen.getByLabelText('Name the area *')).toHaveFocus();
-  await user.type(screen.getByLabelText('Name the area *'), 'Alerts');
+  await user.selectOptions(screen.getByLabelText('Category *'), 'Other');
+  await user.click(screen.getByRole('button', { name: 'Submit feedback' })); expect(screen.getByLabelText('Name the category *')).toHaveFocus();
+  await user.type(screen.getByLabelText('Name the category *'), 'Alerts');
   expect(localStorage.getItem(draftKey('client-a'))).toContain('Alerts');
   const input = screen.getByLabelText(/Screenshot or recording/);
   await user.upload(input, new File(['one'], 'one.png', { type: 'image/png' })); expect(screen.getByText('one.png')).toBeInTheDocument();
-  await user.upload(input, new File(['two'], 'two.png', { type: 'image/png' })); expect(screen.queryByText('one.png')).not.toBeInTheDocument();
+  expect(screen.getByText('Choose a file')).toBeVisible();
+  await user.upload(input, new File(['two'], 'two.png', { type: 'image/png' }));
+  expect(screen.getByText('one.png')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Submit feedback' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Keep current attachment' }));
+  expect(screen.getByText('one.png')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Replace attachment' })).not.toBeInTheDocument();
+  await user.upload(input, new File(['two'], 'two.png', { type: 'image/png' }));
+  await user.click(screen.getByRole('button', { name: 'Replace attachment' }));
+  expect(screen.queryByText('one.png')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Remove attachment' })); expect(screen.queryByText('two.png')).not.toBeInTheDocument();
   await user.upload(input, new File(['three'], 'three.png', { type: 'image/png' }));
   await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
@@ -63,4 +71,14 @@ it('refuses invalid files from drop and accepts pasted files', async () => {
   fireEvent.paste(screen.getByLabelText('Description *'), { clipboardData: { files: [new File(['ok'], 'paste.png', { type: 'image/png' })] } });
   expect(screen.getByText('paste.png')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Record screen now' })); expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
+
+it('uses a single priority selector and derives severity for the existing API', async () => {
+  const { user, api } = mount();
+  expect(screen.queryByLabelText('Severity *')).not.toBeInTheDocument();
+  await fill(user);
+  await user.selectOptions(screen.getByLabelText('Priority *'), 'BLOCKER');
+  expect(screen.getByText('Blocker: you cannot continue.')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
+  await waitFor(() => expect(api.createFeedback).toHaveBeenCalledWith(expect.objectContaining({ priority: 'BLOCKER', severity: 'CRITICAL' })));
 });

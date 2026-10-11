@@ -5,6 +5,7 @@ export type Status = 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'CLOSED';
 export type Persona = 'Company' | 'Partner' | 'Operator';
 
 export interface AuthUser {
+  needsPasswordSetup?: boolean;
   needsPersonaSetup?: boolean;
   id: string;
   email: string;

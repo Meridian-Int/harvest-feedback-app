@@ -1,5 +1,5 @@
 import { Pill, ProgressTrack } from '../../components/ui';
-import type { Priority, Severity } from '../../lib/types';
+import type { Priority } from '../../lib/types';
 import { useEffect, useState } from 'react';
 import type { ClientApi, ClientControls, Feedback } from './contract';
 import { ClientDialog } from './ClientDialog';
@@ -7,7 +7,7 @@ import { displayId } from './logic/reports';
 
 export { ProgressTrack } from '../../components/ui';
 export function ReportPills({ report }: { report: Feedback }) {
-  return <div className="client-tags"><Pill value={report.priority as Priority} /><Pill value={report.severity as Severity} /></div>;
+  return <div className="client-tags"><Pill value={report.priority as Priority} />{report.priority === 'BLOCKER' && <Pill value="CRITICAL" />}</div>;
 }
 export function ReportDetailDialog({ id, api, controls, onClose }: { id: string; api: ClientApi; controls: ClientControls; onClose: () => void }) {
   const [report, setReport] = useState<Feedback | null>(null);

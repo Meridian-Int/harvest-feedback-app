@@ -14,10 +14,9 @@ beforeEach(() => {
 
 it('connects the authenticated form, shared options, API and success navigation', async () => {
   const { user } = renderWithProviders(<AppRoutes />, { route: '/feedback/new', user: makeClientUser() });
-  await user.selectOptions(screen.getByLabelText('Product area *'), 'Other — add an area');
-  await user.type(screen.getByLabelText('Name the area *'), 'Account settings');
+  await user.selectOptions(screen.getByLabelText('Category *'), 'Other — add an area');
+  await user.type(screen.getByLabelText('Name the category *'), 'Account settings');
   await user.selectOptions(screen.getByLabelText('Priority *'), 'BLOCKER');
-  await user.selectOptions(screen.getByLabelText('Severity *'), 'CRITICAL');
   fireEvent.change(screen.getByLabelText('Description *'), { target: { value: 'Cannot open account settings' } });
   await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
   await screen.findByRole('heading', { name: 'My reports' });
