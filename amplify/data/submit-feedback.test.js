@@ -61,6 +61,8 @@ it.each([
   [{ productArea: 'Unknown' }, 'product area'],
   [{ productArea: 'Other — add an area' }, 'name'],
   [{ productArea: 'Other — add an area', customArea: 'x'.repeat(81) }, '80'],
+  [{ priority: 'BUG', severity: 'CRITICAL' }, 'priority and severity'],
+  [{ priority: 'BLOCKER', severity: 'LOW' }, 'priority and severity'],
 ])('rejects invalid input %o at the server', (overrides, message) => {
   const ctx = context();
   Object.assign(ctx.args, overrides);

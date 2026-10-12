@@ -37,6 +37,10 @@ export function request(ctx) {
   if (PRODUCT_AREAS.indexOf(args.productArea) < 0) {
     util.error('Please choose a product area.', 'InvalidInput');
   }
+  const severityByPriority = { BLOCKER: 'CRITICAL', BUG: 'MEDIUM', IMPROVEMENT: 'LOW' };
+  if (severityByPriority[args.priority] !== args.severity) {
+    util.error('Please choose a valid priority and severity.', 'InvalidInput');
+  }
   const customArea = args.customArea?.trim();
   if (args.productArea === 'Other — add an area' && (!customArea || customArea.length > 80)) {
     util.error('Please name the product area (up to 80 characters).', 'InvalidInput');

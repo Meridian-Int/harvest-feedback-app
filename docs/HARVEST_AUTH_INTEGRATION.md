@@ -2,7 +2,9 @@
 
 ## Target
 
-Feedback `dev` and `test` use HARVEST **staging** credentials. Their reports and attachments stay in separate Feedback backends. Feedback production will use HARVEST **production** Cognito only after the staging integration passes its security and user tests. A person enters the same email and password in each app; single-click SSO is not part of this change.
+HARVEST **prestaging** is the first integration target, followed by staging. Both HARVEST sites currently use the HARVEST staging API and Cognito user pool. The Feedback page opens on the HARVEST origin and uses the session HARVEST has already restored; users must not sign in a second time. Feedback reports and attachments remain in separate Feedback backends. Production is outside this rollout.
+
+The Feedback standalone sign-in and its own Cognito pool are legacy transition paths. The integrated HARVEST page does not use them. Do not call the shared-session migration complete until the old Feedback pool is retired after its records and owner identities are handled.
 
 HARVEST prestaging and staging frontends currently share one staging backend. The active staging user pool is `us-east-2_9T9vblhIf` in `us-east-2`. Another pool has the same display name; select by ID, never by name. Keep pool IDs and app client IDs in environment configuration rather than hardcoding them in application logic.
 
@@ -16,11 +18,11 @@ HARVEST prestaging and staging frontends currently share one staging backend. Th
 
 ## Implementation order
 
-1. For the initial staging integration, use HARVEST's existing staging web app client with password SRP. A separate Feedback app client can be added later if the HARVEST staging API is updated to accept its client ID. Do not edit the production pool.
+1. In HARVEST prestaging, use the existing HARVEST staging session and web app client. Do not create a second sign-in or edit the production pool.
 2. Read HARVEST membership from a trusted backend path. Validate the Cognito token, resolve live memberships, and reject users with no active HARVEST person or membership. Use the same server-side decision for ticket authorization and trusted reporter fields; a frontend-only role check is insufficient.
 3. Map company and partner memberships to the client workspace. **Only selected operators are Feedback admins**, per Sahil's decision; an operator membership alone must never grant admin access. Maintain a Feedback-specific server-side admin assignment and check that the user still has an active HARVEST operator membership. Users with several memberships must select the organization for a report; never silently choose one.
-4. Connect Feedback `dev` first. Keep its own AppSync, DynamoDB table, S3 bucket, and notification records. Back up existing reports and handle ownership changes from Feedback's old Cognito subjects before switching the pool. Verify a client cannot read another client's report or edit admin fields through the API.
-5. Repeat with Feedback `test`, using its separate data and storage but the same HARVEST staging pool. Check company, partner, operator/admin, multi-organization, removed-membership, password-reset, upload, notification, and sign-out cases.
+4. Connect HARVEST prestaging to Feedback `dev` first. Keep Feedback's own AppSync, DynamoDB table, S3 bucket, and notification records. Back up existing reports and handle ownership changes from Feedback's old Cognito subjects before retiring its pool. Verify a client cannot read another client's report or edit admin fields through the API.
+5. Repeat with HARVEST staging and Feedback `test`, using its separate data and storage but the same HARVEST staging pool. Check company, partner, operator/admin, multi-organization, removed-membership, password-reset, upload, notification, and sign-out cases.
 6. Prepare production configuration separately. Do not point any branch at HARVEST production Cognito or deploy to Feedback `main` until approved.
 
 ## Open coordination
@@ -29,6 +31,6 @@ HARVEST prestaging and staging frontends currently share one staging backend. Th
 - The `harvestViewer` resolver forwards the caller's Cognito access token from the GraphQL Authorization header to HARVEST's `/api/me`; the token is not sent as a GraphQL argument. The report mutation uses the same live membership check and derives reporter fields on the server. Admin model operations still rely on Cognito group membership. Review AppSync request logging so bearer tokens are never recorded.
 - Confirm the Feedback dev/test URLs, app client callback settings if needed, and which team owns the staging Cognito app client. These are configuration changes only in staging.
 
-The current Feedback sandbox and its users remain usable while the integration is built. `HARVEST_STAGING_USER_POOL_ID`, `HARVEST_STAGING_APP_CLIENT_ID`, and `HARVEST_API_BASE_URL` are backend build settings for dev/test only. The browser additionally needs `VITE_HARVEST_AUTH_MODE=staging`, `VITE_COGNITO_USER_POOL_ID`, and `VITE_COGNITO_USER_POOL_CLIENT_ID`. Enable them together after the backend deploys; a partial configuration fails closed. The frontend then keeps Feedback's own Data and Storage endpoints while signing in through HARVEST staging.
+The current Feedback sandbox and its users remain usable while the integration is built. `HARVEST_STAGING_USER_POOL_ID`, `HARVEST_STAGING_APP_CLIENT_ID`, and `HARVEST_API_BASE_URL` are Feedback backend build settings for dev/test only. HARVEST prestaging's integrated page additionally needs `VITE_FEEDBACK_GRAPHQL_URL` set to Feedback `dev`'s AppSync endpoint after that backend deploys. The standalone Feedback browser variables (`VITE_HARVEST_AUTH_MODE`, `VITE_COGNITO_USER_POOL_ID`, and `VITE_COGNITO_USER_POOL_CLIENT_ID`) support its legacy separate-login path and are not used by the integrated HARVEST page.
 
 The staging report mutation now verifies the access token and selected organization through HARVEST's live `/api/me` response. Admin model authorization still uses the dedicated `feedback-admins` Cognito group. Charan must agree how an Operator losing HARVEST membership is promptly removed from that group; otherwise an already issued group token could retain direct AppSync admin access until it expires. The existing Feedback report owners also need a reviewed mapping to HARVEST subjects before those users can see their historical reports. Do not approve production until that revocation path, migration, and direct API authorization tests are complete.
