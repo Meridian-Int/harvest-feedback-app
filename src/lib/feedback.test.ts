@@ -11,7 +11,12 @@ const storage = vi.hoisted(() => ({ getProperties: vi.fn(), getUrl: vi.fn(), upl
 const session = vi.hoisted(() => ({ fetchAuthSession: vi.fn() }));
 const amplifyConfig = vi.hoisted(() => ({ getConfig: vi.fn() }));
 
-vi.mock('./amplify', () => ({ requireAmplify: vi.fn(), isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging' }));
+vi.mock('./amplify', () => ({
+  requireAmplify: vi.fn(),
+  isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging',
+  isHarvestSharedSessionMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'shared',
+  isLocalFeedbackPreview: () => false,
+}));
 vi.mock('./auth', () => ({
   requireUser: () => { if (!state.user) throw new Error('Sign in to Harvest'); return state.user; },
   isAdmin: (user: AuthUser | null) => Boolean(user?.groups.includes('admins')),

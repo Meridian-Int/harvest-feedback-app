@@ -6,6 +6,7 @@ const outputs = import.meta.glob('../../amplify_outputs.json', { eager: true, im
 const userPoolId = import.meta.env.VITE_COGNITO_USER_POOL_ID;
 const userPoolClientId = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
 const harvestStaging = import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging';
+const harvestShared = import.meta.env.VITE_HARVEST_AUTH_MODE === 'shared';
 // Auth can connect to an existing Cognito pool without deploying an Amplify
 // sandbox (which also provisions Data and Storage in this foundation).
 const authOnly: ResourcesConfig | undefined = userPoolId && userPoolClientId ? {
@@ -16,7 +17,7 @@ const identityPoolId = generated?.Auth?.Cognito && 'identityPoolId' in generated
   ? generated.Auth.Cognito.identityPoolId : undefined;
 // HARVEST sign-in still uses Feedback's own Data and Storage resources. Fail
 // closed if any staging value is missing instead of falling back to the old pool.
-const config: ResourcesConfig | undefined = harvestStaging
+const config: ResourcesConfig | undefined = harvestStaging || harvestShared
   ? generated && identityPoolId && userPoolId && userPoolClientId ? {
     ...generated,
     Auth: { Cognito: { userPoolId, userPoolClientId, identityPoolId, loginWith: { email: true } } },
@@ -36,4 +37,14 @@ export function requireAmplify(): void {
 /** Activated only with a Feedback backend wired to HARVEST staging Cognito. */
 export function isHarvestPasswordMode(): boolean {
   return import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging';
+}
+
+/** Feedback is served by HARVEST and reads the session on the same origin. */
+export function isHarvestSharedSessionMode(): boolean {
+  return import.meta.env.VITE_HARVEST_AUTH_MODE === 'shared';
+}
+
+/** Local UI preview only; never enabled in a built or deployed app. */
+export function isLocalFeedbackPreview(): boolean {
+  return import.meta.env.DEV && isHarvestSharedSessionMode() && import.meta.env.VITE_FEEDBACK_LOCAL_PREVIEW === 'true';
 }

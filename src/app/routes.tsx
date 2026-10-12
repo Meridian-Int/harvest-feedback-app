@@ -11,23 +11,24 @@ import { ReviewPage } from '../features/admin/ReviewPage';
 import { InsightsPage } from '../features/admin/InsightsPage';
 import { isAdmin } from '../lib/auth';
 import { useAuth } from './AuthProvider';
+import { appPaths } from './paths';
 
 function Landing() {
   const { user } = useAuth();
-  return <Navigate to={!user ? '/sign-in' : user.harvest?.organizationRequired ? '/account/organization' : isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
+  return <Navigate to={!user ? appPaths.signIn : user.harvest?.organizationRequired ? appPaths.organization : isAdmin(user) ? appPaths.adminReviews : appPaths.newFeedback} replace />;
 }
 export function AppRoutes() {
   return <Routes>
     <Route path="/account/setup" element={<AccountSetupPage />} />
     <Route path="/sign-in" element={<SignInPage />} />
-    <Route path="/account/organization" element={<OrganizationPage />} />
+    <Route path={appPaths.organization} element={<OrganizationPage />} />
     <Route element={<RequireSignedIn />}><Route element={<AppShell />}>
-      <Route path="/feedback/new" element={<NewFeedbackPage />} />
-      <Route path="/feedback/mine" element={<MyReportsPage />} />
+      <Route path={appPaths.newFeedback} element={<NewFeedbackPage />} />
+      <Route path={appPaths.myReports} element={<MyReportsPage />} />
       <Route element={<RequireAdmin />}>
-        <Route path="/admin/reviews" element={<ReviewPage />} />
-        <Route path="/admin/insights" element={<InsightsPage />} />
-        <Route path="/admin/*" element={<Navigate to="/admin/reviews" replace />} />
+        <Route path={appPaths.adminReviews} element={<ReviewPage />} />
+        <Route path={appPaths.adminInsights} element={<InsightsPage />} />
+        <Route path={appPaths.adminReviews.replace(/\/reviews$/, '/*')} element={<Navigate to={appPaths.adminReviews} replace />} />
       </Route>
     </Route></Route>
     <Route path="*" element={<Landing />} />

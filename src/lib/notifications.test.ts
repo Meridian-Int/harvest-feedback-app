@@ -2,7 +2,7 @@ import { beforeEach, vi } from 'vitest';
 import { markNotificationsRead, subscribeNotificationReads } from './notifications';
 
 const data = vi.hoisted(() => ({ subscribe: vi.fn(), unsubscribe: vi.fn(), create: vi.fn(), get: vi.fn() }));
-vi.mock('./amplify', () => ({ requireAmplify: vi.fn() }));
+vi.mock('./amplify', () => ({ requireAmplify: vi.fn(), isHarvestSharedSessionMode: () => false, isLocalFeedbackPreview: () => false }));
 vi.mock('./auth', () => ({ requireUser: () => ({ id: 'viewer-1' }) }));
 vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ models: { NotificationRead: {
   observeQuery: () => ({ subscribe: data.subscribe }), create: data.create, get: data.get,

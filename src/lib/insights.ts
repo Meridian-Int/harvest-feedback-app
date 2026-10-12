@@ -1,8 +1,9 @@
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
-import { requireAmplify } from './amplify';
+import { isHarvestSharedSessionMode, requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
 import type { SentryIssue } from './types';
+import { sharedRequest } from './shared-feedback-api';
 
 const client = generateClient<Schema>();
 
@@ -14,7 +15,13 @@ export interface SentryIssuesResult {
 export async function getSentryIssues(): Promise<SentryIssuesResult> {
   requireAmplify();
   if (!isAdmin(requireUser())) throw new Error('Admin access required.');
-  const response = await client.queries.sentryIssues();
+  const response = isHarvestSharedSessionMode()
+    ? { data: (await sharedRequest<{ sentryIssues?: SentryIssuesResult }>(
+      `query SentryIssues { sentryIssues {
+        configured issues { id title culprit project level count userCount lastSeen permalink trend }
+      } }`, {},
+    )).sentryIssues }
+    : await client.queries.sentryIssues();
   if (response.errors?.length) throw new Error(response.errors[0].message);
   if (!response.data) throw new Error('Could not load Sentry issues.');
   return {

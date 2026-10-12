@@ -13,7 +13,7 @@ it('notifies administrators only when the update request changes', () => {
 it.each(['ASSIGNED', 'IN_PROGRESS', 'CLOSED'])('sends exactly one status notice for %s', status => {
   const notices = noticesFor({ eventName: 'MODIFY', dynamodb: { OldImage: image(report), NewImage: image({ ...report, status, adminActivityAt: '2026-10-10T12:00:00Z' }) } });
   expect(notices).toHaveLength(1);
-  expect(notices[0].kind).toBe(status === 'CLOSED' ? 'closed' : 'admin-updated');
+  expect(notices[0].kind).toBe(status === 'CLOSED' ? 'closed' : 'status-changed');
   expect(notices[0].report.reporterEmail).toBe('client@example.com');
 });
 it('notifies on an admin change without a status change', () => {
@@ -23,4 +23,16 @@ it('ignores deletions, malformed records and Sentry-generated reports', () => {
   expect(noticesFor({ eventName: 'REMOVE' })).toEqual([]);
   expect(noticesFor({ eventName: 'INSERT', dynamodb: { NewImage: image({ id: '1' }) } })).toEqual([]);
   expect(noticesFor({ eventName: 'INSERT', dynamodb: { NewImage: image({ ...report, sentryIssueId: 'sentry' }) } })).toEqual([]);
+});
+
+it('does not email for internal owner-only or updatedAt changes', () => {
+  expect(noticesFor({ eventName: 'MODIFY', dynamodb: { OldImage: image(report), NewImage: image({ ...report, assignee: 'owner', updatedAt: 'now' }) } })).toEqual([]);
+});
+it('combines admin activity and progress into one client message with the previous stage', () => {
+  expect(noticesFor({ eventName: 'MODIFY', dynamodb: { OldImage: image(report), NewImage: image({ ...report, status: 'ASSIGNED', adminActivityAt: 'now' }) } })).toMatchObject([{ kind: 'status-changed', audience: 'client', previousStatus: 'NEW' }]);
+});
+
+it('passes the saved report type through to the email instead of inferring it from a title', () => {
+  const notices = noticesFor({ eventName: 'INSERT', dynamodb: { NewImage: image({ ...report, priority: 'BLOCKER', title: 'An improvement to uploads' }) } });
+  expect(notices[0].report.priority).toBe('BLOCKER');
 });

@@ -2,12 +2,13 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Button, ThemeToggle } from '../components/ui';
 import { isAdmin, selectHarvestOrganization } from '../lib/auth';
 import { useAuth } from './AuthProvider';
+import { appPaths } from './paths';
 
 export function OrganizationPage() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
-  if (!user) return <Navigate to="/sign-in" replace />;
-  if (!user.harvest?.organizationRequired) return <Navigate to={isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
+  if (!user) return <Navigate to={appPaths.signIn} replace />;
+  if (!user.harvest?.organizationRequired) return <Navigate to={isAdmin(user) ? appPaths.adminReviews : appPaths.newFeedback} replace />;
   const memberships = user.harvest.memberships;
   return <section className="auth-screen" aria-labelledby="organization-heading">
     <div className="auth-top"><span>HARVEST</span><ThemeToggle /></div>
@@ -19,7 +20,7 @@ export function OrganizationPage() {
         {memberships.map(item => <Button key={item.orgId} type="button" variant="quiet" onClick={() => {
           const selected = selectHarvestOrganization(item.orgId);
           setUser(selected);
-          navigate(isAdmin(selected) ? '/admin/reviews' : '/feedback/new', { replace: true });
+          navigate(isAdmin(selected) ? appPaths.adminReviews : appPaths.newFeedback, { replace: true });
         }}>{item.orgName} · {item.orgKind === 'operator' ? 'Operator' : item.orgKind === 'partner' ? 'Partner' : 'Company'}</Button>)}
       </div>
     </div>

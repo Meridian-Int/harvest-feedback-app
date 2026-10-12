@@ -4,7 +4,7 @@ import { makeAdminUser, makeClientUser, makeSentryIssue } from '../test/factorie
 
 const state = vi.hoisted(() => ({ user: null as ReturnType<typeof makeAdminUser> | null }));
 const query = vi.hoisted(() => vi.fn());
-vi.mock('./amplify', () => ({ requireAmplify: vi.fn() }));
+vi.mock('./amplify', () => ({ requireAmplify: vi.fn(), isHarvestSharedSessionMode: () => false }));
 vi.mock('./auth', () => ({ requireUser: () => { if (!state.user) throw new Error('Sign in'); return state.user; }, isAdmin: (user: { groups: string[] }) => user.groups.includes('admins') }));
 vi.mock('aws-amplify/data', () => ({ generateClient: () => ({ queries: { sentryIssues: query } }) }));
 

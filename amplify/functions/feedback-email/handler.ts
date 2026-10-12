@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { CognitoIdentityProviderClient, ListUsersInGroupCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import { feedbackMarkContentId, feedbackMarkPngBase64 } from './brand';
 import { feedbackEmail } from '../email-content';
 import { adminEmails } from '../notify-admin/message';
 import { noticesFor } from './events';
@@ -32,7 +33,7 @@ export async function handler(event: { Records: Record[] }): Promise<{ batchItem
   if (process.env.FEEDBACK_EMAIL_ENABLED !== 'true') return { batchItemFailures: [] };
   const base = process.env.APP_BASE_URL;
   const table = process.env.EMAIL_DELIVERY_TABLE;
-  if (!base || new URL(base).protocol !== 'https:' || !table || !process.env.USER_POOL_ID) throw new Error('Feedback email delivery configuration is incomplete.');
+  if ((base && (new URL(base).protocol !== 'https:' || new URL(base).username || new URL(base).password)) || !table || !process.env.USER_POOL_ID) throw new Error('Feedback email delivery configuration is incomplete.');
   let admins: string[] | undefined;
   for (const record of event.Records) {
     try {
@@ -56,11 +57,11 @@ export async function handler(event: { Records: Record[] }): Promise<{ batchItem
             throw cause;
           }
           const path = notice.audience === 'admin' ? '/admin/reviews' : '/feedback/mine';
-          const url = new URL(path, base); url.searchParams.set('report', notice.report.id);
-          const email = feedbackEmail({ kind: notice.kind, reportId: notice.report.id, reportTitle: notice.report.title, reporterName: notice.report.reporterName, status: notice.report.status, reportUrl: url.href });
+          const url = base ? new URL(path, base) : undefined; url?.searchParams.set('report', notice.report.id);
+          const email = feedbackEmail({ kind: notice.kind, reportId: notice.report.id, reportTitle: notice.report.title, reporterName: notice.report.reporterName, priority: notice.report.priority, persona: notice.report.persona, company: notice.report.company, status: notice.report.status, previousStatus: notice.previousStatus, reportUrl: url?.href });
           try {
-            await ses.send(new SendEmailCommand({ FromEmailAddress: from, ReplyToAddresses: [from], Destination: { ToAddresses: [recipient] },
-              Content: { Simple: { Subject: { Data: email.subject, Charset: 'UTF-8' }, Body: { Html: { Data: email.html, Charset: 'UTF-8' }, Text: { Data: email.text, Charset: 'UTF-8' } } } } }));
+            await ses.send(new SendEmailCommand({ FromEmailAddress: `HARVEST <${from}>`, ReplyToAddresses: [from], Destination: { ToAddresses: [recipient] },
+              Content: { Simple: { Attachments: [{ RawContent: Buffer.from(feedbackMarkPngBase64, 'base64'), FileName: 'harvest-mark.png', ContentDisposition: 'INLINE', ContentId: feedbackMarkContentId, ContentType: 'image/png', ContentTransferEncoding: 'BASE64' }], Subject: { Data: email.subject, Charset: 'UTF-8' }, Body: { Html: { Data: email.html, Charset: 'UTF-8' }, Text: { Data: email.text, Charset: 'UTF-8' } } } } }));
           } catch (cause) {
             await db.send(new DeleteItemCommand({ TableName: table, Key: { id: { S: key } } }));
             throw cause;

@@ -12,6 +12,7 @@ function AttachmentPreview({ report }: { report: Feedback }) {
   const [state, setState] = useState<'none' | 'loading' | 'ready' | 'unavailable'>('none');
   useEffect(() => {
     let active = true;
+    let resolvedUrl: string | null = null;
     setUrl(null);
     if (!report.attachmentKey) {
       setState(report.attachmentName ? 'unavailable' : 'none');
@@ -19,9 +20,11 @@ function AttachmentPreview({ report }: { report: Feedback }) {
     }
     setState('loading');
     getAttachmentUrl(report.attachmentKey).then(value => {
+      resolvedUrl = value;
       if (active) { setUrl(value); setState('ready'); }
+      else if (value.startsWith('blob:')) URL.revokeObjectURL(value);
     }).catch(() => { if (active) setState('unavailable'); });
-    return () => { active = false; };
+    return () => { active = false; if (resolvedUrl?.startsWith('blob:')) URL.revokeObjectURL(resolvedUrl); };
   }, [report.attachmentKey, report.attachmentName]);
 
   return <section className="admin-attachment"><h3>Attachments</h3>

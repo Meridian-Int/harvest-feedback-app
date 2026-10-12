@@ -8,12 +8,13 @@ import {
   signIn as cognitoSignIn,
   signOut as cognitoSignOut,
 } from 'aws-amplify/auth';
-import { isAmplifyConfigured, isHarvestPasswordMode, requireAmplify } from './amplify';
+import { isAmplifyConfigured, isHarvestPasswordMode, isHarvestSharedSessionMode, requireAmplify } from './amplify';
 import type { AuthUser } from './types';
 import { Amplify } from 'aws-amplify';
 import { ChangePasswordCommand, GetUserAuthFactorsCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
-import { harvestAccount, FEEDBACK_ADMIN_GROUP } from './harvest-account';
+import { harvestAccount } from './harvest-account';
 import { fetchHarvestViewer } from './harvest-viewer';
+import { restoreSharedHarvestSession } from './harvest-shared-session';
 
 let currentUser: AuthUser | null = null;
 
@@ -27,7 +28,8 @@ export function getCurrentUser(): AuthUser | null {
 
 export function isAdmin(user: AuthUser | null): boolean {
   return Boolean(user && (user.harvest
-    ? user.groups.includes(FEEDBACK_ADMIN_GROUP) && user.harvest.memberships.some(item => item.orgKind === 'operator')
+    ? user.groups.includes('feedback-admins') && user.harvest.memberships.some(item =>
+      item.orgId === user.harvest?.selectedOrganizationId && item.orgKind === 'operator')
     : user.groups.includes('admins')));
 }
 
@@ -85,6 +87,10 @@ async function loadUser(): Promise<AuthUser> {
 
 export async function restoreSession(): Promise<AuthUser | null> {
   currentUser = null;
+  if (isHarvestSharedSessionMode()) {
+    currentUser = await restoreSharedHarvestSession();
+    return currentUser;
+  }
   if (!isAmplifyConfigured()) return null;
   try {
     return await loadUser();

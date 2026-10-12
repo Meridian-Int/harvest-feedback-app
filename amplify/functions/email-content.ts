@@ -1,3 +1,4 @@
+import { renderFeedbackEmail } from './feedback-email/layout';
 /** Provider-neutral email content. Delivery and token issuance belong to the backend. */
 export interface HarvestEmail {
   subject: string;
@@ -72,38 +73,71 @@ export function verificationEmail(input: { code: string; expiresInMinutes: numbe
   };
 }
 
-export type FeedbackEmailKind = 'client-submitted' | 'admin-submitted' | 'update-requested' | 'admin-updated' | 'closed';
+export type FeedbackEmailKind = 'client-submitted' | 'admin-submitted' | 'update-requested' | 'admin-updated' | 'status-changed' | 'closed';
 
 /** Content only: the backend must select recipients from trusted report ownership. */
 export function feedbackEmail(input: {
   kind: FeedbackEmailKind;
   reportId: string;
   reportTitle: string;
-  reportUrl: string;
+  reportUrl?: string;
   reporterName?: string;
+  priority?: 'BLOCKER' | 'BUG' | 'IMPROVEMENT';
+  company?: string;
+  persona?: 'Company' | 'Partner' | 'Operator';
+  referenceHandle?: string;
+  referenceNumber?: number;
   status?: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'CLOSED';
+  previousStatus?: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'CLOSED';
 }): HarvestEmail {
+  const types = { BLOCKER: 'Blocker', BUG: 'Bug', IMPROVEMENT: 'Improvement' };
+  const acknowledgements = {
+    BLOCKER: `Your experience matters to us. We’ve received your report about “${input.reportTitle}”.`,
+    BUG: `Your experience matters to us. We’ve received your report about “${input.reportTitle}”.`,
+    IMPROVEMENT: 'We’ve received your feedback. Thank you for helping improve HARVEST.',
+  };
+  if (input.priority && !types[input.priority]) throw new Error('Invalid feedback type.');
+  const organizationName = input.company?.trim() || 'A client organization';
+  const organization = `${organizationName}${input.persona ? ` (${input.persona})` : ''}`;
   const messages: Record<FeedbackEmailKind, [string, string]> = {
-    'client-submitted': ['Your feedback was submitted', 'You’ve successfully submitted your report. We’ll email you when it is updated.'],
+    'client-submitted': ['Your feedback was submitted', input.priority ? acknowledgements[input.priority] : 'Thank you for your feedback. We’ve received your report.'],
     'admin-submitted': ['New feedback submitted', `${input.reporterName || 'A client'} has submitted new feedback.`],
-    'update-requested': ['An update was requested', `${input.reporterName || 'A client'} has requested an update on their report.`],
-    'admin-updated': ['Your report was updated', 'An administrator has updated your report.'],
+    'update-requested': ['An update was requested', `${organization} has requested an update on their report.`],
+    'admin-updated': ['An update on your report', 'You have an update on your report.'],
+    'status-changed': ['Your report’s progress changed', 'An administrator has updated your report’s progress.'],
     closed: ['Your report was closed', 'Your feedback report has been closed. Thank you for helping us improve HARVEST.'],
   };
   const message = messages[input.kind];
   if (!message || !input.reportId.trim() || !input.reportTitle.trim()) throw new Error('A valid feedback event and report are required.');
-  const [title, introduction] = message;
-  const link = httpsLink(input.reportUrl);
-  const statuses = { NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress', CLOSED: 'Completed / Closed' };
-  const displayId = `FB-${input.reportId.slice(-4).toUpperCase()}`;
+  let [title, introduction] = message;
+  const link = input.reportUrl ? httpsLink(input.reportUrl) : undefined;
+  const statuses = { NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress', CLOSED: 'Closed' };
+  const hasReference = input.referenceHandle !== undefined || input.referenceNumber !== undefined;
+  if (hasReference && (!input.referenceHandle || !/^[A-Z][A-Z0-9-]{1,11}$/.test(input.referenceHandle) || input.referenceHandle.endsWith('-') || input.referenceHandle.includes('--') || !Number.isInteger(input.referenceNumber) || input.referenceNumber! < 1 || input.referenceNumber! > 999)) throw new Error('A valid handle and report number are required.');
+  const displayId = hasReference ? `${input.referenceHandle} · #${String(input.referenceNumber).padStart(3, '0')}` : `FB-${input.reportId.slice(-4).toUpperCase()}`;
   const status = input.status ? statuses[input.status] : undefined;
   if (input.status && !status) throw new Error('Invalid feedback status.');
-  const summary = `${displayId}: ${input.reportTitle}`;
+  const compactAdminSubmission = input.kind === 'admin-submitted';
+  if (compactAdminSubmission) {
+    title = input.priority ? { BLOCKER: 'New blocker reported', BUG: 'New bug reported', IMPROVEMENT: 'New improvement suggested' }[input.priority] : 'New feedback submitted';
+    introduction = input.priority === 'IMPROVEMENT' ? `${organization} suggested “${input.reportTitle}”.`
+      : `${organization} reported “${input.reportTitle}”.${input.priority === 'BLOCKER' ? ' Urgent review required.' : input.priority === 'BUG' ? ' Review required.' : ''}`;
+  }
+  const adminAudience = input.kind === 'admin-submitted' || input.kind === 'update-requested';
+  const priorityDescriptions = { BLOCKER: 'Blocker — urgent review required', BUG: 'Bug — review required', IMPROVEMENT: 'Improvement — suggested enhancement' };
+  const reportDetails = compactAdminSubmission ? [displayId] : [`Report ID: ${displayId}`, `Report: ${input.reportTitle}`,
+    ...(input.priority ? [adminAudience ? `Priority: ${priorityDescriptions[input.priority]}` : `Feedback type: ${types[input.priority]}`] : []),
+    ...(adminAudience && input.persona ? [`Account type: ${input.persona}`] : []),
+  ];
+  const previousStatus = input.previousStatus ? statuses[input.previousStatus] : undefined;
+  const progress = !compactAdminSubmission && status ? `Status: ${previousStatus && previousStatus !== status ? `${previousStatus} → ` : ''}${status}` : '';
   return {
     subject: `HARVEST Feedback · ${title} · ${displayId}`,
-    html: shell(title, introduction, paragraph(escapeHtml(introduction)) + paragraph(escapeHtml(summary)) +
-      (status ? paragraph(`Status: ${escapeHtml(status)}`) : '') +
-      `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="${palette.accent}" style="border-radius:7px;text-align:center;"><a href="${link}" style="display:inline-block;padding:12px 20px;color:${palette.accentInk};font-family:${font};font-size:14px;font-weight:400;text-decoration:none;border-radius:7px;">View report</a></td></tr></table>`),
-    text: `${title}\n\n${introduction}\n\n${summary}${status ? `\nStatus: ${status}` : ''}\n\nView report: ${input.reportUrl}\n\nHARVEST · By Meridian Intelligence`,
+    html: renderFeedbackEmail({ heading: title,
+      paragraphs: [...(input.kind === 'client-submitted' || input.kind === 'admin-updated' || input.kind === 'status-changed' || input.kind === 'closed' ? [`Hello ${input.reporterName || 'there'},`] : []), introduction, ...reportDetails, ...(progress ? [progress] : [])],
+      ctaUrl: input.reportUrl,
+      footnote: link ? undefined : 'Open HARVEST Feedback to view your report.',
+    }),
+    text: `${title}\n\n${introduction}\n\n${reportDetails.join('\n')}${progress ? `\n${progress}` : ''}\n\n${input.reportUrl ? `View report: ${input.reportUrl}` : 'Open HARVEST Feedback to view your report.'}\n\nHARVEST · By Meridian Intelligence`,
   };
 }

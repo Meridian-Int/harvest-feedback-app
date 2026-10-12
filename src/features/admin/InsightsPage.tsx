@@ -8,6 +8,7 @@ import { SENTRY_PROJECTS } from '../../lib/options';
 import type { Feedback, SentryIssue } from '../../lib/types';
 import { filterIssues, issueMetrics, linkedReport, lookerEmbedUrl, reportFromIssue } from './logic/insights';
 import { SAMPLE_ISSUES, SAMPLE_TRAFFIC, type SampleIssue } from './sampleInsights';
+import { appPaths } from '../../app/paths';
 import './insights.css';
 
 function Metric({ label, value, helper }: { label: string; value: number; helper: string }) {
@@ -91,13 +92,13 @@ export function InsightsPage() {
 
   async function openOrCreate(issue: SentryIssue) {
     const existing = linkedReport(issue, reports);
-    if (existing) { navigate(`/admin/reviews?report=${encodeURIComponent(existing.id)}`); return; }
+    if (existing) { navigate(`${appPaths.adminReviews}?report=${encodeURIComponent(existing.id)}`); return; }
     setCreatingId(issue.id);
     setError(null);
     try {
       const latest = linkedReport(issue, await listAllFeedback());
       const report = latest ?? await createFeedback(reportFromIssue(issue));
-      navigate(`/admin/reviews?report=${encodeURIComponent(report.id)}`);
+      navigate(`${appPaths.adminReviews}?report=${encodeURIComponent(report.id)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not create the report.');
     } finally {

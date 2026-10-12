@@ -3,12 +3,15 @@ import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/data';
 import { getProperties, getUrl, remove, uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
-import { isHarvestPasswordMode, requireAmplify } from './amplify';
+import { isHarvestPasswordMode, isHarvestSharedSessionMode, isLocalFeedbackPreview, requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
 import { sortFeedback } from './list';
 import { ASSIGNEES, MAX_ATTACHMENT_BYTES, PRODUCT_AREAS, PRIORITY_LABELS, SEVERITY_LABELS, STATUS_ORDER } from './options';
 import { isUpdatePending } from './status';
 import type { AdminUpdateInput, Attachment, AuthUser, CreateFeedbackInput, Feedback, Priority, Severity, Status } from './types';
+import { getUsableHarvestTokens } from './harvest-shared-session';
+import { getSharedFeedback, listSharedFeedback, submitSharedFeedback, updateSharedFeedback } from './shared-feedback-api';
+import { getSharedAttachmentProperties, getSharedAttachmentUrl, removeSharedAttachment, sharedAttachmentIdentityId, uploadSharedAttachment } from './shared-storage';
 
 export type { AdminUpdateInput, Attachment, CreateFeedbackInput, Feedback } from './types';
 
@@ -97,6 +100,7 @@ function ownedBy(report: Feedback, user: AuthUser): boolean {
 }
 
 async function listFeedback(): Promise<Feedback[]> {
+  if (isHarvestSharedSessionMode()) return sortFeedback((await listSharedFeedback()).map(row => toFeedback(row as unknown as FeedbackRecord)));
   const rows: Feedback[] = [];
   let nextToken: string | null | undefined;
   do {
@@ -120,9 +124,11 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
 
   let attachment: Attachment | undefined;
   if (input.attachmentKey) {
-    const identityId = (await fetchAuthSession()).identityId;
+    const identityId = isHarvestSharedSessionMode() ? await sharedAttachmentIdentityId() : (await fetchAuthSession()).identityId;
     if (!identityId || !input.attachmentKey.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
-    const properties = await getProperties({ path: input.attachmentKey });
+    const properties = isHarvestSharedSessionMode()
+      ? await getSharedAttachmentProperties(input.attachmentKey)
+      : await getProperties({ path: input.attachmentKey });
     if (!input.attachmentName || !input.attachmentType || properties.size == null || properties.size > MAX_ATTACHMENT_BYTES) throw new Error('Attachment unavailable.');
     if ((await listMyFeedback()).some(report => report.attachmentKey === input.attachmentKey)) throw new Error('Attachment unavailable.');
     attachment = {
@@ -132,9 +138,10 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
       attachmentSize: properties.size,
     };
   }
-  const session = await fetchAuthSession();
-  const idToken = session.tokens?.idToken?.toString();
-  const accessToken = session.tokens?.accessToken?.toString();
+  const sharedTokens = isHarvestSharedSessionMode() ? await getUsableHarvestTokens() : null;
+  const session = sharedTokens ? null : await fetchAuthSession();
+  const idToken = sharedTokens?.idToken ?? session?.tokens?.idToken?.toString();
+  const accessToken = sharedTokens?.accessToken ?? session?.tokens?.accessToken?.toString();
   if (!idToken || (isHarvestPasswordMode() && !accessToken)) throw new Error('Sign in to Harvest');
   if (isHarvestPasswordMode() && !user.harvest?.selectedOrganizationId) {
     throw new Error('Choose an organization to continue.');
@@ -147,7 +154,9 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
     ...(user.harvest?.selectedOrganizationId ? { organizationId: user.harvest.selectedOrganizationId } : {}),
     ...attachment,
   };
-  const created = isHarvestPasswordMode()
+  const created = isHarvestSharedSessionMode()
+    ? await submitSharedFeedback(submission)
+    : isHarvestPasswordMode()
     ? await submitWithHarvestTokens(submission, idToken, accessToken!)
     : resultOrThrow(await client.mutations.submitFeedback(submission, { authToken: idToken }));
   if (!created) throw new Error('Could not create the report.');
@@ -156,6 +165,7 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
 }
 
 export async function listMyFeedback(): Promise<Feedback[]> {
+  if (isLocalFeedbackPreview()) return [];
   requireAmplify();
   const user = requireUser();
   return (await listFeedback()).filter(report => ownedBy(report, user));
@@ -171,6 +181,16 @@ export async function listAllFeedback(): Promise<Feedback[]> {
 export function observeAllFeedback(onChange: (reports: Feedback[]) => void, onError: (error: Error) => void): () => void {
   requireAmplify();
   requireAdmin(requireUser());
+  if (isHarvestSharedSessionMode()) {
+    let active = true;
+    const refresh = () => { void listAllFeedback().then(rows => { if (active) onChange(rows); }).catch(cause => {
+      if (active) onError(cause instanceof Error ? cause : new Error('Could not load reports.'));
+    }); };
+    refresh();
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }
   const fail = (cause: unknown) => onError(cause instanceof Error ? cause : new Error('Could not load reports.'));
   const model = client.models.Feedback.observeQuery().subscribe({
     next: ({ items, isSynced }) => { if (isSynced) onChange(sortFeedback(items.map(toFeedback))); },
@@ -192,6 +212,10 @@ export function observeAllFeedback(onChange: (reports: Feedback[]) => void, onEr
 export async function getFeedback(id: string): Promise<Feedback | null> {
   requireAmplify();
   requireUser();
+  if (isHarvestSharedSessionMode()) {
+    const row = await getSharedFeedback(id);
+    return row ? toFeedback(row as unknown as FeedbackRecord) : null;
+  }
   const row = resultOrThrow(await client.models.Feedback.get({ id }));
   return row ? toFeedback(row) : null;
 }
@@ -203,7 +227,9 @@ export async function requestUpdate(id: string): Promise<Feedback> {
   if (!ownedBy(report, user) || report.status === 'CLOSED') throw new Error('An update cannot be requested for this report.');
   if (isUpdatePending(report)) return report;
   const timestamp = new Date(Math.max(Date.now(), Date.parse(report.adminActivityAt ?? '') + 1 || 0)).toISOString();
-  const updated = resultOrThrow(await client.models.Feedback.update({ id, updateRequestedAt: timestamp }));
+  const updated = isHarvestSharedSessionMode()
+    ? await updateSharedFeedback({ id, updateRequestedAt: timestamp })
+    : resultOrThrow(await client.models.Feedback.update({ id, updateRequestedAt: timestamp }));
   if (!updated) throw new Error('Report unavailable.');
   return toFeedback(updated);
 }
@@ -216,9 +242,10 @@ export async function adminUpdate(id: string, input: AdminUpdateInput): Promise<
   const report = await getFeedback(id);
   if (!report) throw new Error('Report unavailable.');
   const timestamp = new Date(Math.max(Date.now(), Date.parse(report.updateRequestedAt ?? '') + 1 || 0)).toISOString();
-  const updated = resultOrThrow(await client.models.Feedback.update({
-    id, status: input.status, assignee: input.assignee || null, adminActivityAt: timestamp,
-  }));
+  const update = { id, status: input.status, assignee: input.assignee || null, adminActivityAt: timestamp };
+  const updated = isHarvestSharedSessionMode()
+    ? await updateSharedFeedback(update)
+    : resultOrThrow(await client.models.Feedback.update(update));
   if (!updated) throw new Error('Report unavailable.');
   return toFeedback(updated);
 }
@@ -232,6 +259,15 @@ export async function uploadAttachment(file: File): Promise<Attachment> {
   }
   if (file.size > MAX_ATTACHMENT_BYTES) throw new Error('Keep the attachment under 50 MB.');
   const name = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  if (isHarvestSharedSessionMode()) {
+    const attachmentType = file.type || FILE_TYPES[extension];
+    return {
+      attachmentKey: await uploadSharedAttachment(file, name, attachmentType),
+      attachmentName: file.name,
+      attachmentType,
+      attachmentSize: file.size,
+    };
+  }
   const uploaded = await uploadData({
     path: ({ identityId }) => `feedback-media/${identityId}/${name}`,
     data: file,
@@ -249,6 +285,7 @@ export async function getAttachmentUrl(key: string): Promise<string> {
   requireAmplify();
   requireUser();
   try {
+    if (isHarvestSharedSessionMode()) return await getSharedAttachmentUrl(key);
     return (await getUrl({ path: key, options: { validateObjectExistence: true } })).url.toString();
   } catch {
     throw new Error('Attachment unavailable.');
@@ -259,14 +296,20 @@ export async function getAttachmentUrl(key: string): Promise<string> {
 export async function removeAttachment(key: string): Promise<void> {
   requireAmplify();
   requireUser();
-  const identityId = (await fetchAuthSession()).identityId;
+  const identityId = isHarvestSharedSessionMode() ? await sharedAttachmentIdentityId() : (await fetchAuthSession()).identityId;
   if (!identityId || !key.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
   if ((await listMyFeedback()).some(report => report.attachmentKey === key)) throw new Error('Attachment is already attached to a report.');
-  await remove({ path: key });
+  if (isHarvestSharedSessionMode()) await removeSharedAttachment(key);
+  else await remove({ path: key });
 }
 
 /** AppSync enforces ownership; the additional filter also scopes admin client views. */
 export function subscribeMyFeedback(next: (reports: Feedback[]) => void, error: () => void): () => void {
+  if (isLocalFeedbackPreview()) {
+    let active = true;
+    queueMicrotask(() => { if (active) next([]); });
+    return () => { active = false; };
+  }
   requireAmplify();
   const user = requireUser();
   let active = true;
@@ -274,6 +317,17 @@ export function subscribeMyFeedback(next: (reports: Feedback[]) => void, error: 
   // Refetch authorized records after this browser has saved a report.
   const submitted = () => { void listMyFeedback().then(rows => { if (active) next(rows); }).catch(() => { if (active) error(); }); };
   window.addEventListener('harvest:feedback-submitted', submitted);
+  if (isHarvestSharedSessionMode()) {
+    submitted();
+    const timer = window.setInterval(submitted, 15_000);
+    window.addEventListener('focus', submitted);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', submitted);
+      window.removeEventListener('harvest:feedback-submitted', submitted);
+    };
+  }
   const subscription = client.models.Feedback.observeQuery().subscribe({
     next: ({ items, isSynced }) => {
       if (isSynced) next(sortFeedback(items.map(toFeedback).filter(report => ownedBy(report, user))));

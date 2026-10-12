@@ -5,7 +5,7 @@ export const storage = defineStorage({
   access: (allow) => ({
     'feedback-media/{entity_id}/*': [
       allow.entity('identity').to(['read', 'write', 'delete']),
-      allow.groups(['admins']).to(['read']),
+      allow.groups(['admins', 'feedback-admins']).to(['read']),
     ],
   }),
 });

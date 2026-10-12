@@ -5,6 +5,7 @@ import { beginAccountSignIn, requestAccountPasswordSetup, completeAccountPasswor
 import type { AuthUser } from '../lib/types';
 import { useAuth } from './AuthProvider';
 import { isHarvestPasswordMode } from '../lib/amplify';
+import { appPaths } from './paths';
 
 export function SignInPage() {
   const { user, setUser } = useAuth();
@@ -19,7 +20,7 @@ export function SignInPage() {
   const passwordInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (user) return <Navigate to={user.harvest?.organizationRequired ? '/account/organization' : isAdmin(user) ? '/admin/reviews' : '/feedback/new'} replace />;
+  if (user) return <Navigate to={user.harvest?.organizationRequired ? appPaths.organization : isAdmin(user) ? appPaths.adminReviews : appPaths.newFeedback} replace />;
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);

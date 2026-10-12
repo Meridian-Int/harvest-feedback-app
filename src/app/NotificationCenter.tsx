@@ -7,6 +7,7 @@ import { notificationEvents, type NotificationEvent } from '../lib/notificationE
 import { markNotificationsRead, subscribeNotificationReads } from '../lib/notifications';
 import { isAdmin } from '../lib/auth';
 import type { AuthUser, Feedback } from '../lib/types';
+import { appPaths } from './paths';
 
 function NotificationToast({ event, onDismiss }: { event: NotificationEvent; onDismiss: () => void }) {
   const dismiss = useRef(onDismiss);
@@ -115,7 +116,7 @@ export function NotificationCenter({ user }: { user: AuthUser }) {
 
   function openReport(event: NotificationEvent) {
     setOpen(false);
-    navigate(admin ? `/admin/reviews?report=${encodeURIComponent(event.reportId)}` : `/feedback/mine?report=${encodeURIComponent(event.reportId)}`);
+    navigate(`${admin ? appPaths.adminReviews : appPaths.myReports}?report=${encodeURIComponent(event.reportId)}`);
   }
 
   return <div className="notification-center" ref={root}>

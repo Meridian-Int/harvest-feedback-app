@@ -20,6 +20,7 @@ vi.mock('./harvest-viewer', () => ({ fetchHarvestViewer: harvestViewer.fetch }))
 vi.mock('./amplify', () => ({
   isAmplifyConfigured: () => true,
   isHarvestPasswordMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'staging',
+  isHarvestSharedSessionMode: () => import.meta.env.VITE_HARVEST_AUTH_MODE === 'shared',
   requireAmplify: vi.fn(),
 }));
 
