@@ -17,7 +17,10 @@ const identityPoolId = generated?.Auth?.Cognito && 'identityPoolId' in generated
   ? generated.Auth.Cognito.identityPoolId : undefined;
 // HARVEST sign-in still uses Feedback's own Data and Storage resources. Fail
 // closed if any staging value is missing instead of falling back to the old pool.
-const config: ResourcesConfig | undefined = harvestStaging || harvestShared
+const sharedEndpoint = import.meta.env.VITE_FEEDBACK_GRAPHQL_URL;
+const config: ResourcesConfig | undefined = harvestShared && sharedEndpoint && userPoolId && userPoolClientId
+  ? { Auth: { Cognito: { userPoolId, userPoolClientId } }, API: { GraphQL: { endpoint: sharedEndpoint, region: 'us-east-2', defaultAuthMode: 'userPool' } } }
+  : harvestStaging || harvestShared
   ? generated && identityPoolId && userPoolId && userPoolClientId ? {
     ...generated,
     Auth: { Cognito: { userPoolId, userPoolClientId, identityPoolId, loginWith: { email: true } } },

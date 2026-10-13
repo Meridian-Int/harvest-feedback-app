@@ -7,3 +7,6 @@ coverage/
 amplify_outputs.json
 *.tsbuildinfo
 .codebase-memory/
+
+cdk.out/
+.integration-outputs.json

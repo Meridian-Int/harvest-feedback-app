@@ -21,13 +21,13 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
 
-it('reads all authorized report pages with the HARVEST ID token', async () => {
+it('reads all authorized report pages with the HARVEST access token', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(answer({ listFeedbacks: { items: [report], nextToken: 'page-2' } }))
     .mockResolvedValueOnce(answer({ listFeedbacks: { items: [], nextToken: null } }));
   expect(await listSharedFeedback()).toEqual([report]);
   expect(fetch).toHaveBeenCalledTimes(2);
   const [, init] = vi.mocked(fetch).mock.calls[0];
-  expect(init?.headers).toMatchObject({ Authorization: 'id' });
+  expect(init?.headers).toMatchObject({ Authorization: 'access' });
   expect(JSON.parse(String(init?.body)).variables.nextToken).toBeNull();
 });
 
@@ -39,7 +39,7 @@ it('uses HARVEST tokens for report detail, updates, and submission', async () =>
   expect((await updateSharedFeedback({ id: 'report-1', status: 'ASSIGNED' })).status).toBe('ASSIGNED');
   await submitSharedFeedback({ description: 'Broken button', productArea: 'Data room', priority: 'BUG', severity: 'MEDIUM', organizationId: 'company-1' });
   const [, submitInit] = vi.mocked(fetch).mock.calls[2];
-  expect(submitInit?.headers).toMatchObject({ Authorization: 'id', 'x-harvest-access-token': 'access' });
+  expect(submitInit?.headers).toMatchObject({ Authorization: 'access' });
   expect(JSON.parse(String(submitInit?.body)).variables.organizationId).toBe('company-1');
 });
 

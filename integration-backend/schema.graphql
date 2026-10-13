@@ -1,0 +1,38 @@
+scalar AWSJSON
+scalar AWSDateTime
+enum Priority { BLOCKER BUG IMPROVEMENT }
+enum Severity { CRITICAL MEDIUM LOW }
+enum Status { NEW ASSIGNED IN_PROGRESS CLOSED }
+type Feedback {
+  id: ID!, title: String!, description: String!, productArea: String!, customArea: String,
+  priority: Priority!, severity: Severity!, reporterName: String!, reporterEmail: String!,
+  persona: String!, company: String!, status: Status!, assignee: String,
+  attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int,
+  updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime, sentryIssueId: String,
+  owner: String!, createdAt: AWSDateTime!, updatedAt: AWSDateTime!
+}
+type FeedbackPage { items: [Feedback!]!, nextToken: String }
+type NotificationRead { id: ID!, eventId: String! }
+type NotificationReadPage { items: [NotificationRead!]!, nextToken: String }
+input UpdateFeedbackInput { id: ID!, status: Status, assignee: String, updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime }
+input CreateNotificationReadInput { id: ID!, eventId: String! }
+type AttachmentAccess { key: String!, url: String, size: Int, contentType: String }
+type SentryIssue { id: String!, title: String!, culprit: String!, project: String!, level: String!, count: Int!, userCount: Int!, lastSeen: String!, permalink: String!, trend: [Int!]! }
+type SentryIssuesResult { configured: Boolean!, issues: [SentryIssue!]! }
+type Query {
+  harvestViewer: AWSJSON!
+  listFeedbacks(limit: Int, nextToken: String): FeedbackPage!
+  getFeedback(id: ID!): Feedback
+  listNotificationReads(nextToken: String): NotificationReadPage!
+  getNotificationRead(id: ID!): NotificationRead
+  attachmentAccess(key: String!, operation: String!): AttachmentAccess!
+  sentryIssues: SentryIssuesResult!
+}
+type Mutation {
+  submitFeedback(description: String!, productArea: String!, customArea: String, priority: Priority!, severity: Severity!, organizationId: String, attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int, sentryIssueId: String): Feedback!
+  updateFeedback(input: UpdateFeedbackInput!): Feedback!
+  createNotificationRead(input: CreateNotificationReadInput!): NotificationRead!
+  prepareAttachment(name: String!, contentType: String!, size: Int!, organizationId: String!): AttachmentAccess!
+  removeAttachment(key: String!): Boolean!
+}
+schema { query: Query, mutation: Mutation }

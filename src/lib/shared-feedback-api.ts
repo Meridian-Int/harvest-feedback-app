@@ -14,16 +14,16 @@ export async function sharedRequest<T>(
   variables: Record<string, unknown>,
   headers: Record<string, string> = {},
   request: typeof fetch = fetch,
-  providedIdToken?: string,
+  providedAccessToken?: string,
 ): Promise<T> {
   const endpoint = Amplify.getConfig().API?.GraphQL?.endpoint;
   if (!endpoint || new URL(endpoint).protocol !== 'https:') throw new Error('Feedback API is not configured.');
-  const idToken = providedIdToken ?? (await getUsableHarvestTokens()).idToken;
+  const accessToken = providedAccessToken ?? (await getUsableHarvestTokens()).accessToken;
   let response: Response;
   try {
     response = await request(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: idToken, ...headers },
+      headers: { 'Content-Type': 'application/json', Authorization: accessToken, ...headers },
       body: JSON.stringify({ query, variables }),
       credentials: 'omit',
       cache: 'no-store',
@@ -74,7 +74,7 @@ export async function updateSharedFeedback(input: Record<string, unknown>): Prom
 }
 
 export async function submitSharedFeedback(input: Record<string, unknown>): Promise<RawFeedback> {
-  const { accessToken, idToken } = await getUsableHarvestTokens();
+  const { accessToken } = await getUsableHarvestTokens();
   const data = await sharedRequest<{ submitFeedback?: RawFeedback | null }>(
     `mutation SubmitFeedback(
       $description: String!, $productArea: String!, $customArea: String,
@@ -87,7 +87,7 @@ export async function submitSharedFeedback(input: Record<string, unknown>): Prom
       attachmentName: $attachmentName, attachmentType: $attachmentType,
       attachmentSize: $attachmentSize, sentryIssueId: $sentryIssueId,
       organizationId: $organizationId
-    ) { ${FIELDS} } }`, input, { 'x-harvest-access-token': accessToken }, fetch, idToken,
+    ) { ${FIELDS} } }`, input, {}, fetch, accessToken,
   );
   if (!data.submitFeedback) throw new Error('Could not create the report. Try again.');
   return data.submitFeedback;

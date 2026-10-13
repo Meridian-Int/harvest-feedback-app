@@ -113,7 +113,7 @@ export async function restoreSharedHarvestSession(
   const viewer = await fetchHarvestViewer(tokens.accessToken);
   const organizationKey = `harvest:organization:${viewer.person.id}`;
   const selection = selectedOrgId ?? storage.getItem(organizationKey) ?? undefined;
-  const user = harvestAccount(viewer, claims.sub, claims.groups, selection);
+  const user = harvestAccount(viewer, claims.sub, viewer.feedbackAdmin === true ? ['feedback-admins'] : [], selection);
   if (selectedOrgId && user.harvest?.selectedOrganizationId === selectedOrgId) {
     try { storage.setItem(organizationKey, selectedOrgId); } catch { /* The current tab still has the selection. */ }
   }

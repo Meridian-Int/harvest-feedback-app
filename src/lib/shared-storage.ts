@@ -1,75 +1,39 @@
-import { Amplify } from 'aws-amplify';
-import { CognitoIdentityClient, GetCredentialsForIdentityCommand, GetIdCommand } from '@aws-sdk/client-cognito-identity';
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getUsableHarvestTokens } from './harvest-shared-session';
-
-interface StorageAccess {
-  identityId: string;
-  bucket: string;
-  client: S3Client;
-}
-
-async function storageAccess(): Promise<StorageAccess> {
-  const config = Amplify.getConfig();
-  const cognito = config.Auth?.Cognito;
-  const identityPoolId = cognito && 'identityPoolId' in cognito ? cognito.identityPoolId : undefined;
-  const userPoolId = cognito?.userPoolId;
-  const bucket = config.Storage?.S3?.bucket;
-  const region = config.Storage?.S3?.region;
-  if (!identityPoolId || !userPoolId || !bucket || !region) {
-    throw new Error('Feedback attachments are not configured.');
-  }
-  const { idToken } = await getUsableHarvestTokens();
-  const identityRegion = identityPoolId.split(':')[0];
-  const poolRegion = userPoolId.split('_')[0];
-  const logins = { [`cognito-idp.${poolRegion}.amazonaws.com/${userPoolId}`]: idToken };
-  const identity = new CognitoIdentityClient({ region: identityRegion });
-  const id = await identity.send(new GetIdCommand({ IdentityPoolId: identityPoolId, Logins: logins }));
-  if (!id.IdentityId) throw new Error('Feedback attachment identity is unavailable.');
-  const result = await identity.send(new GetCredentialsForIdentityCommand({ IdentityId: id.IdentityId, Logins: logins }));
-  const credentials = result.Credentials;
-  if (!credentials?.AccessKeyId || !credentials.SecretKey || !credentials.SessionToken) {
-    throw new Error('Feedback attachment access is unavailable.');
-  }
-  return {
-    identityId: id.IdentityId,
-    bucket,
-    client: new S3Client({ region, credentials: {
-      accessKeyId: credentials.AccessKeyId,
-      secretAccessKey: credentials.SecretKey,
-      sessionToken: credentials.SessionToken,
-    } }),
-  };
-}
-
+import { requireUser } from './auth';
+import { sharedRequest } from './shared-feedback-api';
+interface Access { key: string; url?: string; size?: number; contentType?: string }
 export async function uploadSharedAttachment(file: File, name: string, contentType: string): Promise<string> {
-  const { identityId, bucket, client } = await storageAccess();
-  const key = `feedback-media/${identityId}/${name}`;
-  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: new Uint8Array(await file.arrayBuffer()), ContentType: contentType }));
-  return key;
+  const organizationId = requireUser().harvest?.selectedOrganizationId;
+  if (!organizationId) throw new Error('Choose an organization to continue.');
+  const data = await sharedRequest<{ prepareAttachment: Access }>(
+    `mutation PrepareAttachment($name: String!, $contentType: String!, $size: Int!, $organizationId: String!) {
+      prepareAttachment(name: $name, contentType: $contentType, size: $size, organizationId: $organizationId) { key url }
+    }`, { name, contentType, size: file.size, organizationId });
+  if (!data.prepareAttachment?.url || !data.prepareAttachment.key) throw new Error('Attachment unavailable.');
+  const response = await fetch(data.prepareAttachment.url, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file, credentials: 'omit' });
+  if (!response.ok) throw new Error('Attachment upload failed. Try again.');
+  return data.prepareAttachment.key;
 }
-
+async function access(key: string, operation: 'HEAD' | 'GET'): Promise<Access> {
+  const data = await sharedRequest<{ attachmentAccess: Access }>(
+    `query AttachmentAccess($key: String!, $operation: String!) {
+      attachmentAccess(key: $key, operation: $operation) { key url size contentType }
+    }`, { key, operation });
+  if (!data.attachmentAccess) throw new Error('Attachment unavailable.');
+  return data.attachmentAccess;
+}
 export async function getSharedAttachmentProperties(key: string): Promise<{ size: number }> {
-  const { bucket, client } = await storageAccess();
-  const result = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-  if (result.ContentLength == null) throw new Error('Attachment unavailable.');
-  return { size: result.ContentLength };
+  const data = await access(key, 'HEAD');
+  if (data.size == null) throw new Error('Attachment unavailable.');
+  return { size: data.size };
 }
-
 export async function getSharedAttachmentUrl(key: string): Promise<string> {
-  const { bucket, client } = await storageAccess();
-  const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-  if (!result.Body) throw new Error('Attachment unavailable.');
-  const bytes = await result.Body.transformToByteArray();
-  return URL.createObjectURL(new Blob([bytes as BlobPart], { type: result.ContentType ?? 'application/octet-stream' }));
+  const data = await access(key, 'GET');
+  if (!data.url) throw new Error('Attachment unavailable.');
+  const response = await fetch(data.url, { credentials: 'omit' });
+  if (!response.ok) throw new Error('Attachment unavailable.');
+  return URL.createObjectURL(await response.blob());
 }
-
 export async function removeSharedAttachment(key: string): Promise<void> {
-  const { identityId, bucket, client } = await storageAccess();
-  if (!key.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
-  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  await sharedRequest(`mutation RemoveAttachment($key: String!) { removeAttachment(key: $key) }`, { key });
 }
-
-export async function sharedAttachmentIdentityId(): Promise<string> {
-  return (await storageAccess()).identityId;
-}
+export async function sharedAttachmentIdentityId(): Promise<string> { return requireUser().id; }

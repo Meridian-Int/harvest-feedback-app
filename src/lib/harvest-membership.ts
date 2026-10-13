@@ -7,6 +7,7 @@ export interface HarvestMembership {
 }
 
 export interface HarvestViewer {
+  feedbackAdmin?: boolean;
   person: { id: string; email: string; name: string | null };
   memberships: HarvestMembership[];
 }
@@ -54,6 +55,7 @@ export function parseHarvestViewer(value: unknown): HarvestViewer {
   }
   return {
     person: { id: person.id, email: person.email, name: person.name },
+    ...(value.feedbackAdmin === true ? { feedbackAdmin: true } : {}),
     memberships,
   };
 }
