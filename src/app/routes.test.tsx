@@ -44,3 +44,10 @@ it('requires an explicit organization choice before opening a report workspace',
   expect(selectHarvestOrganization).toHaveBeenCalledWith('two');
   expect(await screen.findByRole('heading', { name: 'Share your feedback' })).toBeInTheDocument();
 });
+
+it.each(['/feedback/new', '/feedback/mine'])('redirects selected admins out of the client workspace at %s', route => {
+  renderWithProviders(<AppRoutes />, { route, user: makeAdminUser() });
+  expect(screen.getByRole('heading', { level: 1, name: 'Feedback review' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'My reports' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Request update' })).not.toBeInTheDocument();
+});

@@ -6,6 +6,7 @@ import { displayId, formatDateTime } from '../../lib/format';
 import { STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
 import { useAssignees } from './useAssignees';
 import type { Feedback, Status } from '../../lib/types';
+import { isUpdatePending } from '../../lib/status';
 import { initialReviewAssignee } from './logic/review';
 
 function AttachmentPreview({ report }: { report: Feedback }) {
@@ -64,7 +65,7 @@ export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; o
   return <Dialog open onClose={onClose} title={<span className="admin-detail-id">{displayId(report.id)} · {formatDateTime(report.createdAt)}</span>} footer={<>
     <label className="admin-detail-control">Status<Select aria-label="Report status" value={status} onChange={event => setStatus(event.target.value as Status)}>{STATUS_ORDER.map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</Select></label>
     <label className="admin-detail-control">Owner<Select aria-label="Report owner" value={assignee} onChange={event => setAssignee(event.target.value)}>{assignee && !owners.options.some(item => item.value === assignee) && <option value={assignee}>Previous owner</option>}{owners.options.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></label>
-    <Button variant="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Button>
+    <Button variant="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : isUpdatePending(report) ? 'Send update' : 'Save'}</Button>
   </>}>
     <div className="admin-detail-content"><h2>{report.title}</h2><div className="admin-detail-badges"><Pill value={report.priority} /><Pill value={report.severity} /></div>
       <ProgressTrack status={report.status} />

@@ -1,19 +1,24 @@
 # Prestaging integration inspection and proposed backend boundary
 
-Inspected on 12 October 2026. The user approved the implementation. The dedicated backend and shared-session adapters are implemented locally; deployment and live validation remain pending.
+Inspected on 12 October 2026. The user approved the implementation. The dedicated dev backend is deployed and local browser integration is under final demo validation; publication remains pending.
 
-## Current result
+## Current result (local demo, 12 October 2026)
 
-- Both requested starting HEADs were verified. HARVEST's feature branch was then merged with current `origin/main`, following the user's clarified flow.
-- The HARVEST flow is now documented in `docs/CICD.md` and `deploy/gitlab/SETUP.md`: GitHub PR into main, GitLab tests and deploys the prestaging frontend. Never run the retired laptop deploy script or press promotion buttons for this work.
-- The backend synthesizes with zero Cognito resources, four dedicated Feedback tables, a private versioned S3 bucket and twelve Lambda-guarded operations. It has not been deployed.
-- Shared mode now uses access tokens for every API operation, server-derived admin decisions and mediated attachment operations. It no longer requires a Feedback identity pool or browser S3 credentials.
-- Feedback UI build, 365 unit tests and the coverage gate passed before adding handler-level tests. HARVEST typecheck, prestaging build and 7,230 focused configuration/API/design checks passed.
-- Existing Feedback and HARVEST APIs reject unauthenticated calls with HTTP 401. This proves only that specific denial, not live reporter isolation or revocation.
-- Ignored local settings were recreated. No credentials, tokens or local environment files are staged.
-- The user selected `harvest@withmeridian.ai`, then `sahil+admin@withmeridian.ai`. Both exact email lookups returned no staging Cognito user. No admin grant was made.
-- Browser automation returned `Computer Use permissions are not granted`. Real login, new-tab routing, attachment and sign-out checks remain blocked.
-- Hosting/proxy connection, selected-account provisioning, email worker/recipient integration and real delivery tests remain pending. No staging promotion or production change was made.
+- Initial requested HEADs were verified. Work remains only on `codex/feedback-prestaging-integration` and `codex/feedback-prestaging`. HARVEST main was merged into its feature branch earlier; no environment branch was pushed.
+- Dedicated `harvest-feedback-integration-dev` is deployed in account `938463256739`, `us-east-2`. It imports HARVEST pool `us-east-2_9T9vblhIf`, creates zero Cognito resources, five dedicated Feedback tables, separate private media/static buckets and thirteen guarded operations. The legacy sandbox is untouched.
+- Selected staging Operator `sahil+admin@withmeridian.ai` is provisioned and assigned Feedback admin access. User-approved Company `manasa+clienta@withmeridian.ai` and Partner `manasa+clientb@withmeridian.ai` are provisioned with separate named demo organizations and `user` memberships, with no admin assignments.
+- Those dedicated demo organizations use per-organization agreement bypass. The Company has seeded onboarding progress and a `mode=mock` payout fixture following HARVEST's demo setup. No signature, real payout or vendor action occurred.
+- The readonly directory login is provisioned with column-scoped grants and verified RDS TLS. Selected-admin lookup succeeds live.
+- Live API checks passed for report writes, reporter lists, upload/download exact bytes, one-time attachment claiming, linked-delete denial, reporter isolation, denied admin changes, server-owned update requests, notification read receipts, selected-admin revocation, membership revocation and Cognito session revocation. Temporary admin/membership test changes were restored.
+- Real local browser HARVEST logins for Company, Partner and selected admin open Feedback in a new tab on `localhost:5173` with the same HARVEST session and correct landing pages. Company and Partner UI submissions and My reports passed. Native Chrome screenshot upload and screen recording submissions passed. These use the deployed dev backend, not a mock viewer.
+- Real admin browser report changes, attachment preview and notification toast/bell/read behavior passed. Background revalidation no longer temporarily clears the current actor. Admins entering client routes now redirect to review; progress numerals have consistent line-height.
+- Dev email worker is enabled. SES domain/DKIM are verified; stream receipts show successful sends and the user confirmed receiving demo mail. The dev demo worker now uses explicit localhost report links; restore HTTPS prestaging links before publication. SES remains in sandbox.
+- Latest completed local Feedback coverage suite: 403 tests passed; typecheck/build passed. Native playback/download and final client response-notification evidence are recorded in the demo handoff as verified.
+- No push during this demo pass. Earlier Feedback feature commits were pushed; HARVEST feature commits remain local because GitHub rejected `Manasavijr` with HTTP 403. No frontend publication or staging promotion occurred; production is untouched.
+
+## Remaining publication gates
+
+The laptop demo does not establish a deployed HARVEST prestaging experience. Resolve HARVEST feature-branch write permission, restore HTTPS email links, refresh the Feedback static package, configure prestaging endpoint/proxy, publish through the approved PR/CI flow, and rerun the same browser/security/storage/email checks on prestaging. Only then consider staging. Analytics connectors remain labelled samples where unconfigured; inbox authentication/reply behavior and orphan attachment cleanup remain separate follow-up checks.
 
 ## Verified starting point
 
@@ -30,7 +35,7 @@ Inspected on 12 October 2026. The user approved the implementation. The dedicate
 | Existing Feedback GraphQL URL | `https://da555cuzubeuzngu43p7lqvwvq.appsync-api.us-east-2.amazonaws.com/graphql` |
 | Existing Feedback storage | `amplify-harvestfeedbackap-feedbackmediabucket7788c-npdc910cvfa6` |
 | Amplify Hosting | `list-apps` returned no apps in this account/region |
-| Admin test account | Staging lookup for `sahil+admin@withmeridian.ai` returned no user; pool has no groups |
+| Admin test account | Initial lookup returned no user; the approved staging test account was subsequently provisioned (see current result) |
 | SES | Sending enabled, production access false; `withmeridian.ai` identity verified |
 | HARVEST instructions | No tracked `AGENTS.md` found in the supplied HARVEST branch |
 
@@ -56,7 +61,7 @@ Client report reads require both exact reporter subject and a live membership in
 
 Replace shared-session direct S3 credentials with server-authorized attachment operations. Uploads must be validated for type, size, ownership and one-time attachment claiming. Downloads require access to the linked report. Any presigned URL has a documented finite capability lifetime; it cannot be described as immediately revocable once issued. Use short expiry and test denial of new operations after revocation. If immediate revocation of in-flight downloads is required, use an authenticated streaming proxy instead.
 
-Keep the latest email renderer and branding. Route recipients through selected server admin assignments rather than every Operator or the legacy pool. Preserve the documented outstanding client-email policy decision; do not silently invent an explicit-response event. Leave delivery disabled until the approved recipients and event policy are resolved.
+Keep the latest email renderer and branding. Route recipients through selected server admin assignments rather than every Operator or the legacy pool. The user subsequently approved the three-event client policy; the integration records a protected requested-response event and excludes routine client status mail. Dev delivery was enabled only after directory and SES checks.
 
 ### Planned files
 

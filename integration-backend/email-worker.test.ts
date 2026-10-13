@@ -9,6 +9,7 @@ const image = { id: { S: 'report-uuid' }, title: { S: 'Broken button' }, reporte
 const record = { eventID: 'event-1', eventName: 'INSERT', dynamodb: { SequenceNumber: '1', NewImage: image } };
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'true'); vi.stubEnv('EMAIL_DELIVERY_TABLE', 'receipts');
+  vi.stubEnv('FEEDBACK_TARGET', 'dev');
   vi.stubEnv('APP_BASE_URL', 'https://harvest-refresh-prestaging-meridian.netlify.app/feedback');
   vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'sahil+feedback@withmeridian.ai'); vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'manasa+feedback@withmeridian.ai');
   sdk.db.mockResolvedValue({}); sdk.ses.mockResolvedValue({});
@@ -46,5 +47,14 @@ it('retries a failed SES send and releases only its own lease', async () => {
 it('fails closed while delivery is disabled', async () => {
   vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'false');
   await expect(handler({ Records: [record] })).rejects.toThrow('disabled');
+  expect(sdk.ses).not.toHaveBeenCalled();
+});
+
+it('supports explicitly configured laptop demo links only in dev or test', async () => {
+  vi.stubEnv('APP_BASE_URL', 'http://localhost:5173/feedback');
+  expect(await handler({ Records: [record] })).toEqual({ batchItemFailures: [] });
+  expect(sdk.ses.mock.calls[0][0].input.Content.Simple.Body.Text.Data).toContain('http://localhost:5173/feedback/mine?report=report-uuid');
+  sdk.ses.mockClear(); vi.stubEnv('FEEDBACK_TARGET', 'production');
+  await expect(handler({ Records: [record] })).rejects.toThrow('configuration');
   expect(sdk.ses).not.toHaveBeenCalled();
 });

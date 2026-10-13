@@ -86,11 +86,18 @@ async function loadUser(): Promise<AuthUser> {
 }
 
 export async function restoreSession(): Promise<AuthUser | null> {
-  currentUser = null;
   if (isHarvestSharedSessionMode()) {
-    currentUser = await restoreSharedHarvestSession();
-    return currentUser;
+    // Focus revalidation keeps the current workspace mounted. Retain its actor
+    // until the fresh check completes; every API operation still authorizes live.
+    try {
+      currentUser = await restoreSharedHarvestSession();
+      return currentUser;
+    } catch (cause) {
+      currentUser = null;
+      throw cause;
+    }
   }
+  currentUser = null;
   if (!isAmplifyConfigured()) return null;
   try {
     return await loadUser();

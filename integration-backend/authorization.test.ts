@@ -41,7 +41,7 @@ it('isolates subjects and revoked organizations', () => {
   expect(canRead(actor, { ...report, owner: 'other' })).toBe(false);
   expect(canRead(actor, { ...report, organizationId: 'removed' })).toBe(false);
 });
-it.each(['owner', 'status', 'assignee', 'reporterEmail', 'adminActivityAt', 'description'])('denies client field %s', key => {
+it.each(['owner', 'status', 'assignee', 'reporterEmail', 'adminActivityAt', 'updateRespondedAt', 'description'])('denies client field %s', key => {
   expect(() => updateFields(actor, report, { id: 'id', [key]: 'forged' }, 1000)).toThrow('Unauthorized report change');
 });
 it('generates trusted timestamps and denies closed report requests', () => {
@@ -49,6 +49,11 @@ it('generates trusted timestamps and denies closed report requests', () => {
   expect(() => updateFields(actor, { ...report, status: 'CLOSED' }, { updateRequestedAt: 'x' }, 1000)).toThrow('Unauthorized report change');
 });
 it('limits admin edits and clears pending requests with server activity', () => {
-  expect(updateFields({ ...actor, admin: true }, { ...report, updateRequestedAt: '1970-01-01T00:00:02Z' }, { status: 'ASSIGNED', assignee: null }, 1000)).toEqual({ status: 'ASSIGNED', assignee: null, adminActivityAt: '1970-01-01T00:00:02.001Z' });
+  expect(updateFields({ ...actor, admin: true }, { ...report, updateRequestedAt: '1970-01-01T00:00:02Z' }, { status: 'ASSIGNED', assignee: null }, 1000)).toEqual({ status: 'ASSIGNED', assignee: null, adminActivityAt: '1970-01-01T00:00:02.001Z', updateRespondedAt: '1970-01-01T00:00:02.001Z' });
   expect(() => updateFields({ ...actor, admin: true }, report, { status: 'CLOSED', owner: 'other' }, 1000)).toThrow('Unauthorized report change');
+});
+
+it('does not create a response event for routine admin edits', () => {
+  expect(updateFields({ ...actor, admin: true }, report, { status: 'ASSIGNED' }, 1000)).not.toHaveProperty('updateRespondedAt');
+  expect(() => updateFields({ ...actor, admin: true }, report, { status: 'ASSIGNED', updateRespondedAt: 'forged' }, 1000)).toThrow('Unauthorized report change');
 });

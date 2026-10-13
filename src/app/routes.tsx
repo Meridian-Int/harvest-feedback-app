@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { RequireAdmin } from './RequireAdmin';
 import { RequireSignedIn } from './RequireSignedIn';
@@ -17,14 +17,21 @@ function Landing() {
   const { user } = useAuth();
   return <Navigate to={!user ? appPaths.signIn : user.harvest?.organizationRequired ? appPaths.organization : isAdmin(user) ? appPaths.adminReviews : appPaths.newFeedback} replace />;
 }
+function ClientWorkspace() {
+  const { user } = useAuth();
+  const location = useLocation();
+  return isAdmin(user) ? <Navigate to={`${appPaths.adminReviews}${location.search}`} replace /> : <Outlet />;
+}
 export function AppRoutes() {
   return <Routes>
     <Route path="/account/setup" element={<AccountSetupPage />} />
     <Route path="/sign-in" element={<SignInPage />} />
     <Route path={appPaths.organization} element={<OrganizationPage />} />
     <Route element={<RequireSignedIn />}><Route element={<AppShell />}>
-      <Route path={appPaths.newFeedback} element={<NewFeedbackPage />} />
-      <Route path={appPaths.myReports} element={<MyReportsPage />} />
+      <Route element={<ClientWorkspace />}>
+        <Route path={appPaths.newFeedback} element={<NewFeedbackPage />} />
+        <Route path={appPaths.myReports} element={<MyReportsPage />} />
+      </Route>
       <Route element={<RequireAdmin />}>
         <Route path={appPaths.adminReviews} element={<ReviewPage />} />
         <Route path={appPaths.adminInsights} element={<InsightsPage />} />

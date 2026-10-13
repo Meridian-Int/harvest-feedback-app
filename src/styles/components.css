@@ -35,7 +35,7 @@ textarea.control { resize: vertical; line-height: 1.6; min-height: 76px; }
 .progress-track li { flex: 1; display: flex; gap: 6px; align-items: center; position: relative; color: var(--dim); font-size: 11px; }
 .progress-track li:last-child { flex: 0 0 auto; }
 .progress-track li:not(:last-child)::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-.progress-dot { width: 21px; height: 21px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; font-size: 10px; background: var(--input); }
+.progress-dot { width: 21px; height: 21px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; font-size: 10px; background: var(--input); line-height: 1; }
 .progress-dot .icon { width: 12px; height: 12px; stroke-width: 2; }
 .progress-track .completed .progress-dot { background: var(--progress-green); border-color: var(--progress-green); color: var(--bg); }
 .progress-track .completed:not(:last-child)::after { background: var(--progress-green); opacity: .6; }

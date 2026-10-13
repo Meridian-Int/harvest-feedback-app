@@ -10,8 +10,8 @@ const app = new App({ outdir: 'cdk.out' });
 const stack = integrationStack(app, {
   target: process.env.FEEDBACK_TARGET ?? 'dev', account: '938463256739', region: 'us-east-2',
   poolId: local.HARVEST_STAGING_USER_POOL_ID, clientId: local.HARVEST_STAGING_APP_CLIENT_ID,
-  apiUrl: local.HARVEST_API_BASE_URL, origins: ['https://harvest-refresh-prestaging-meridian.netlify.app'],
-  emailEnabled: process.env.FEEDBACK_EMAIL_ENABLED === 'true',
+  apiUrl: local.HARVEST_API_BASE_URL, origins: ['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173'],
+  emailEnabled: process.env.FEEDBACK_EMAIL_ENABLED === 'true', appBaseUrl: process.env.FEEDBACK_APP_BASE_URL,
 });
 const assembly = app.synth();
 const template = assembly.getStackArtifact(stack.artifactId).template;
@@ -23,4 +23,4 @@ assert.equal(api.Properties.UserPoolConfig.UserPoolId, local.HARVEST_STAGING_USE
 assert.equal(api.Properties.AdditionalAuthenticationProviders, undefined);
 assert.equal(resources.filter(resource => resource.Type === 'AWS::AppSync::Resolver').length, 13);
 assert.equal(JSON.stringify(template).includes('harvest-refresh-backend-production'), false);
-console.log('Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 13 guarded operations; email starts disabled.');
+console.log(`Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 13 guarded operations; email enabled: ${process.env.FEEDBACK_EMAIL_ENABLED === 'true'}.`);

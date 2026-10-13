@@ -74,8 +74,10 @@ export function updateFields(actor: Actor, report: { owner?: string; organizatio
   if (!['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'].includes(String(input.status))) throw new Error('Choose a valid status.');
   // The preserved Admin option names the queue; it is never an email recipient.
   if (input.assignee != null && input.assignee !== '' && input.assignee !== 'admin@example.com' && !selectedOwners.includes(String(input.assignee))) throw new Error('Choose a valid owner.');
+  const activityAt = new Date(Math.max(now, Date.parse(report.updateRequestedAt ?? '1970-01-01') + 1)).toISOString();
+  const responding = report.updateRequestedAt && Date.parse(report.updateRequestedAt) > Date.parse(report.adminActivityAt ?? '1970-01-01');
   return {
-    status: input.status, assignee: input.assignee || null,
-    adminActivityAt: new Date(Math.max(now, Date.parse(report.updateRequestedAt ?? '1970-01-01') + 1)).toISOString(),
+    status: input.status, assignee: input.assignee || null, adminActivityAt: activityAt,
+    ...(responding ? { updateRespondedAt: activityAt } : {}),
   };
 }

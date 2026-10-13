@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import { noticesFor } from '../amplify/functions/feedback-email/events';
+import { integrationNoticesFor as noticesFor } from './email-events';
 import { feedbackEmail } from '../amplify/functions/email-content';
 import { feedbackMarkContentId, feedbackMarkPngBase64 } from '../amplify/functions/feedback-email/brand';
 import { selectedAdministrators } from './administrators';
@@ -13,7 +13,8 @@ export async function handler(event: { Records: StreamRecord[] }) {
   if (process.env.FEEDBACK_EMAIL_ENABLED !== 'true') throw new Error('Feedback email delivery is disabled.');
   const base = new URL(process.env.APP_BASE_URL ?? '');
   const table = process.env.EMAIL_DELIVERY_TABLE;
-  if (!table || !['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app'].includes(base.origin) || base.pathname.replace(/\/$/, '') !== '/feedback' || base.username || base.password || base.search || base.hash) throw new Error('Feedback email configuration is incomplete.');
+  const localDemo = ['dev', 'test'].includes(process.env.FEEDBACK_TARGET ?? '') && base.origin === 'http://localhost:5173';
+  if (!table || (!localDemo && !['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app'].includes(base.origin)) || base.pathname.replace(/\/$/, '') !== '/feedback' || base.username || base.password || base.search || base.hash) throw new Error('Feedback email configuration is incomplete.');
   const failures: Array<{ itemIdentifier: string }> = [];
   for (const record of event.Records) {
     try {
@@ -27,7 +28,7 @@ export async function handler(event: { Records: StreamRecord[] }) {
           const key = createHash('sha256').update(`${record.eventID}:${notice.kind}:${recipient.toLowerCase()}`).digest('hex');
           const now = Math.floor(Date.now() / 1000), lease = randomUUID();
           try {
-            await db.send(new PutItemCommand({ TableName: table, Item: { id: { S: key }, state: { S: 'SENDING' }, leaseId: { S: lease }, leaseUntil: { N: String(now + 120) }, expiresAt: { N: String(now + 7 * 86400) } }, ConditionExpression: 'attribute_not_exists(id) OR (#state = :sending AND leaseUntil < :now)', ExpressionAttributeNames: { '#state': 'state' }, ExpressionAttributeValues: { ':sending': { S: 'SENDING' }, ':now': { N: String(now) } }, ReturnValuesOnConditionCheckFailure: 'ALL_OLD' }));
+            await db.send(new PutItemCommand({ TableName: table, Item: { id: { S: key }, state: { S: 'SENDING' }, reportId: { S: notice.report.id }, kind: { S: notice.kind }, audience: { S: notice.audience }, leaseId: { S: lease }, leaseUntil: { N: String(now + 120) }, expiresAt: { N: String(now + 7 * 86400) } }, ConditionExpression: 'attribute_not_exists(id) OR (#state = :sending AND leaseUntil < :now)', ExpressionAttributeNames: { '#state': 'state' }, ExpressionAttributeValues: { ':sending': { S: 'SENDING' }, ':now': { N: String(now) } }, ReturnValuesOnConditionCheckFailure: 'ALL_OLD' }));
           } catch (cause) {
             const error = cause as { name?: string; Item?: { state?: { S?: string } } };
             if (error.name === 'ConditionalCheckFailedException' && error.Item?.state?.S === 'SENT') continue;
@@ -35,7 +36,7 @@ export async function handler(event: { Records: StreamRecord[] }) {
           }
           const url = new URL(notice.audience === 'admin' ? '/feedback/admin/reviews' : '/feedback/mine', base.origin);
           url.searchParams.set('report', notice.report.id);
-          const content = feedbackEmail({ kind: notice.kind, reportId: notice.report.id, reportTitle: notice.report.title, reporterName: notice.report.reporterName, priority: notice.report.priority, persona: notice.report.persona, company: notice.report.company, status: notice.report.status, previousStatus: notice.previousStatus, reportUrl: url.href });
+          const content = feedbackEmail({ kind: notice.kind, reportId: notice.report.id, reportTitle: notice.report.title, reporterName: notice.report.reporterName, priority: notice.report.priority, persona: notice.report.persona, company: notice.report.company, status: notice.report.status, previousStatus: notice.previousStatus, reportUrl: url.href, localDemo });
           try {
             await ses.send(new SendEmailCommand({ FromEmailAddress: `HARVEST <${from}>`, ReplyToAddresses: [from], Destination: { ToAddresses: [recipient] }, Content: { Simple: { Attachments: [{ RawContent: Buffer.from(feedbackMarkPngBase64, 'base64'), FileName: 'harvest-mark.png', ContentDisposition: 'INLINE', ContentId: feedbackMarkContentId, ContentType: 'image/png', ContentTransferEncoding: 'BASE64' }], Subject: { Data: content.subject, Charset: 'UTF-8' }, Body: { Html: { Data: content.html, Charset: 'UTF-8' }, Text: { Data: content.text, Charset: 'UTF-8' } } } } }));
           } catch (cause) {

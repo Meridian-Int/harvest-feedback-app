@@ -26,7 +26,7 @@
 #view-admin .admin-progress-step { display: flex; flex: 1; align-items: center; gap: 5px; color: var(--dim); font-size: 10px; white-space: nowrap; }
 #view-admin .admin-progress-step:last-child { flex: 0 0 auto; }
 #view-admin .admin-progress-step:not(:last-child)::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-#view-admin .admin-progress-dot { display: grid; place-items: center; flex: 0 0 17px; width: 17px; height: 17px; border: 1px solid var(--line); border-radius: 50%; background: var(--input); font-size: 9px; }
+#view-admin .admin-progress-dot { display: grid; place-items: center; flex: 0 0 17px; width: 17px; height: 17px; border: 1px solid var(--line); border-radius: 50%; background: var(--input); font-size: 9px; line-height: 1; }
 #view-admin .admin-progress-dot .icon { width: 12px; height: 12px; stroke-width: 2; }
 #view-admin .admin-progress-step.completed, #view-admin .admin-progress-step.current { color: var(--text); }
 #view-admin .admin-progress-step.completed .admin-progress-dot { background: var(--progress-green); border-color: var(--progress-green); color: var(--bg); }

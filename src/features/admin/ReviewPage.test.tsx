@@ -110,3 +110,14 @@ it('previews an image, offers a download and shows unavailable media on failure'
   await user.click(screen.getByRole('button', { name: 'View description: Payment failed' }));
   await waitFor(() => expect(within(screen.getByRole('dialog')).getByText('Attachment is unavailable.')).toBeInTheDocument());
 });
+
+it('makes sending a requested update explicit in the admin dialog', async () => {
+  const pending = { ...reports[0], updateRequestedAt: '2026-10-12T12:00:00Z' };
+  api.listAllFeedback.mockResolvedValue([pending]);
+  api.adminUpdate.mockResolvedValue({ ...pending, adminActivityAt: '2026-10-12T12:01:00Z' });
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-a001', user: makeAdminUser() });
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  await user.click(within(dialog).getByRole('button', { name: 'Send update' }));
+  expect(api.adminUpdate).toHaveBeenCalledWith('report-a001', { status: pending.status, assignee: 'admin@example.com' });
+});

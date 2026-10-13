@@ -81,6 +81,8 @@ export function feedbackEmail(input: {
   reportId: string;
   reportTitle: string;
   reportUrl?: string;
+  /** Explicit server-owned dev setting; authentication emails always require HTTPS. */
+  localDemo?: boolean;
   reporterName?: string;
   priority?: 'BLOCKER' | 'BUG' | 'IMPROVEMENT';
   company?: string;
@@ -110,7 +112,9 @@ export function feedbackEmail(input: {
   const message = messages[input.kind];
   if (!message || !input.reportId.trim() || !input.reportTitle.trim()) throw new Error('A valid feedback event and report are required.');
   let [title, introduction] = message;
-  const link = input.reportUrl ? httpsLink(input.reportUrl) : undefined;
+  const localLink = input.localDemo && input.reportUrl ? new URL(input.reportUrl) : null;
+  const allowLocalLink = localLink?.origin === 'http://localhost:5173' && /^\/feedback\/(mine|admin\/reviews)$/.test(localLink.pathname) && !localLink.username && !localLink.password && !localLink.hash;
+  const link = input.reportUrl ? allowLocalLink ? escapeHtml(localLink!.href) : httpsLink(input.reportUrl) : undefined;
   const statuses = { NEW: 'New', ASSIGNED: 'Assigned', IN_PROGRESS: 'In Progress', CLOSED: 'Closed' };
   const hasReference = input.referenceHandle !== undefined || input.referenceNumber !== undefined;
   if (hasReference && (!input.referenceHandle || !/^[A-Z][A-Z0-9-]{1,11}$/.test(input.referenceHandle) || input.referenceHandle.endsWith('-') || input.referenceHandle.includes('--') || !Number.isInteger(input.referenceNumber) || input.referenceNumber! < 1 || input.referenceNumber! > 999)) throw new Error('A valid handle and report number are required.');
