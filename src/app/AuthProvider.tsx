@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { restoreSession, signOut } from '../lib/auth';
+import { HARVEST_SESSION_KEY } from '../lib/harvest-shared-session';
 import { isHarvestSharedSessionMode } from '../lib/amplify';
 import type { AuthUser } from '../lib/types';
 
@@ -11,14 +12,33 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
   useEffect(() => {
     if (initialUser !== undefined) return;
     let active = true;
-    restoreSession().then(value => {
-      if (active) setUser(value);
-    }).catch((cause: unknown) => {
-      if (active) setError(cause instanceof Error ? cause.message : 'Could not restore your sign-in.');
-    }).finally(() => {
-      if (active) setReady(true);
-    });
-    return () => { active = false; };
+    let generation = 0;
+    const synchronize = (reset = true) => {
+      const current = ++generation;
+      setError(null);
+      if (reset) { setReady(false); setUser(null); }
+      void restoreSession().then(value => {
+        if (active && current === generation) setUser(value);
+      }).catch((cause: unknown) => {
+        if (active && current === generation) { setUser(null); setError(cause instanceof Error ? cause.message : 'Could not restore your sign-in.'); }
+      }).finally(() => {
+        if (active && current === generation) setReady(true);
+      });
+    };
+    const changed = (event: StorageEvent) => {
+      if (event.key === HARVEST_SESSION_KEY || event.key === null) synchronize();
+    };
+    const focused = () => synchronize(false);
+    synchronize();
+    if (isHarvestSharedSessionMode()) {
+      window.addEventListener('storage', changed);
+      window.addEventListener('focus', focused);
+    }
+    return () => {
+      active = false;
+      window.removeEventListener('storage', changed);
+      window.removeEventListener('focus', focused);
+    };
   }, [initialUser]);
   async function logOut() {
     if (isHarvestSharedSessionMode()) { window.location.assign('/'); return; }

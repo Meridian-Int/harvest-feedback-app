@@ -1,5 +1,17 @@
 # HARVEST account integration
 
+## Current feature-branch implementation (12 October 2026)
+
+The dedicated `integration-backend/` supersedes the Amplify plan for new integrated dev/test deployments. It imports the verified HARVEST staging pool and creates no Cognito pool, app client or identity pool. The legacy Amplify sandbox stays intact. Shared mode uses access tokens for every operation and does not fall back to legacy generated configuration.
+
+Every operation checks Cognito token status and HARVEST's live `/api/me`, then uses a server-owned selected-admin assignment. Reporter reads require both exact subject ownership and current membership in the original organization. Report fields and update timestamps are derived server-side. Versioned, atomically claimed attachments use 60-second capabilities; newly issued capabilities are denied after revocation, while a previously issued capability remains valid until expiry.
+
+Email/owner selection uses a separately owned IAM-only directory reading required membership/profile columns through a dedicated database login, rather than releasing a HARVEST staging backend change before prestaging testing. Its credentials are isolated in Secrets Manager; no master secret is granted to Feedback. Read-only transactions and verified RDS TLS are required. See `integration-backend/README.md` for provisioning and release gates.
+
+The user authorized provisioning `sahil+admin@withmeridian.ai`. It is created and confirmed in the active staging pool, with stable subject `e18b45b0-6011-70c6-4052-644877433da2` and an Operator `user` membership. A real SRP login and live `/api/me` lookup passed. No Cognito group was added; Feedback admin access still requires a separate selected assignment.
+
+HARVEST's actual deployment flow is `docs/CICD.md` and `deploy/gitlab/SETUP.md`: `main` publishes prestaging through GitLab; staging/production promotions are separate gated actions. Work and pushes in this task stay on `codex/feedback-prestaging` and `codex/feedback-prestaging-integration`. Do not interpret the older group-based transition notes below as the completed integration.
+
 ## Target
 
 HARVEST **prestaging** is the first integration target, followed by staging. Both HARVEST sites currently use the HARVEST staging API and Cognito user pool. The Feedback page opens on the HARVEST origin and uses the session HARVEST has already restored; users must not sign in a second time. Feedback reports and attachments remain in separate Feedback backends. Production is outside this rollout.

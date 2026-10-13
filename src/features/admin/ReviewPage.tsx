@@ -4,7 +4,8 @@ import { Icon } from '../../components/icons';
 import { listAllFeedback, observeAllFeedback } from '../../lib/feedback';
 import { formatDate } from '../../lib/format';
 import { paginate } from '../../lib/list';
-import { ASSIGNEES, PERSONAS, PRODUCT_AREAS, SEVERITIES, STATUSES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { PERSONAS, PRODUCT_AREAS, SEVERITIES, STATUSES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { useAssignees } from './useAssignees';
 import { isUpdatePending, statusStep } from '../../lib/status';
 import type { Feedback } from '../../lib/types';
 import { changeReviewFilter, filterReviewReports, readReviewFilters, reviewMetrics } from './logic/review';
@@ -34,6 +35,7 @@ function ReportRow({ report, onOpen }: { report: Feedback; onOpen: () => void })
 }
 
 export function ReviewPage() {
+  const assignees = useAssignees();
   const [params, setParams] = useSearchParams();
   const [reports, setReports] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,13 +97,14 @@ export function ReviewPage() {
         <Select aria-label="Filter severity" value={filters.severity} onChange={event => updateFilter('severity', event.target.value)}><option value="">All severities</option>{(['CRITICAL', 'MEDIUM', 'LOW'] as const).map((value, index) => <option key={value} value={value}>{SEVERITIES[index]}</option>)}</Select>
         <Select aria-label="Filter product area" value={filters.productArea} onChange={event => updateFilter('area', event.target.value)}><option value="">All product areas</option>{PRODUCT_AREAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
         <Select aria-label="Filter persona" value={filters.persona} onChange={event => updateFilter('persona', event.target.value)}><option value="">All personas</option>{PERSONAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
-        <Select aria-label="Filter owner" value={filters.owner} onChange={event => updateFilter('owner', event.target.value)}><option value="">All owners</option><option value="unassigned">Unassigned</option>{ASSIGNEES.filter(item => item.value).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
+        <Select aria-label="Filter owner" value={filters.owner} onChange={event => updateFilter('owner', event.target.value)}><option value="">All owners</option><option value="unassigned">Unassigned</option>{assignees.options.filter(item => item.value).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>
         <Button variant="quiet" onClick={() => setParams(new URLSearchParams(), { replace: true })}>Reset</Button>
         <div className="seg seg-compact admin-layout-toggle" role="group" aria-label="Admin report layout">
           <button type="button" aria-label="List" title="List view" aria-pressed={layout === 'list'} onClick={() => updateLayout('list')}><Icon name="list" /></button>
           <button type="button" aria-label="Grid" title="Grid view" aria-pressed={layout === 'grid'} onClick={() => updateLayout('grid')}><Icon name="grid" /></button>
         </div>
       </div>
+      {assignees.error && <p role="alert" className="error">{assignees.error}</p>}
       <div className="report-collection admin-reports" data-view={layout}>
         {loading ? <EmptyState>Loading reports…</EmptyState> : error ? <EmptyState>{error}</EmptyState> : page.items.length ? page.items.map(report => <ReportRow key={report.id} report={report} onOpen={() => openReport(report.id)} />) : <EmptyState>No reports match these filters.</EmptyState>}
       </div>

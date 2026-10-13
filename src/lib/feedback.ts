@@ -12,6 +12,7 @@ import type { AdminUpdateInput, Attachment, AuthUser, CreateFeedbackInput, Feedb
 import { getUsableHarvestTokens } from './harvest-shared-session';
 import { getSharedFeedback, listSharedFeedback, submitSharedFeedback, updateSharedFeedback } from './shared-feedback-api';
 import { getSharedAttachmentProperties, getSharedAttachmentUrl, removeSharedAttachment, sharedAttachmentIdentityId, uploadSharedAttachment } from './shared-storage';
+import { feedbackAssignees } from './administrators';
 
 export type { AdminUpdateInput, Attachment, CreateFeedbackInput, Feedback } from './types';
 
@@ -236,7 +237,9 @@ export async function requestUpdate(id: string): Promise<Feedback> {
 
 export async function adminUpdate(id: string, input: AdminUpdateInput): Promise<Feedback> {
   requireAdmin(requireUser());
-  if (!STATUS_ORDER.includes(input.status) || (input.assignee && !ASSIGNEES.some(item => item.value === input.assignee))) {
+  const assignees = isHarvestSharedSessionMode() && input.assignee && !ASSIGNEES.some(item => item.value === input.assignee)
+    ? await feedbackAssignees() : ASSIGNEES;
+  if (!STATUS_ORDER.includes(input.status) || (input.assignee && !assignees.some(item => item.value === input.assignee))) {
     throw new Error('Please choose a valid status and owner.');
   }
   const report = await getFeedback(id);

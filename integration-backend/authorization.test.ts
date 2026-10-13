@@ -1,10 +1,15 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { authorize, canRead, updateFields, type Actor, type Event } from './authorization';
+const cognito = vi.hoisted(() => ({ send: vi.fn() }));
+vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
+  CognitoIdentityProviderClient: class { send = cognito.send },
+  GetUserCommand: class { constructor(public input: unknown) {} },
+}));
 const viewer = { person: { id: 'p', email: 'client@example.com', name: 'Client' }, memberships: [{ orgId: 'org', orgKind: 'company' as const, orgName: 'Company', role: 'user' as const }] };
 const actor: Actor = { sub: 'sub', viewer, admin: false };
 const report = { owner: 'sub', organizationId: 'org', status: 'NEW' };
 const event = (): Event => ({ arguments: {}, info: { fieldName: 'getFeedback' }, identity: { sub: 'sub', issuer: 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_pool', claims: { token_use: 'access', client_id: 'client', 'cognito:groups': ['feedback-admins'] } }, request: { headers: { authorization: 'access' } } });
-beforeEach(() => { vi.stubEnv('HARVEST_USER_POOL_ID', 'us-east-2_pool'); vi.stubEnv('HARVEST_APP_CLIENT_ID', 'client'); vi.stubEnv('HARVEST_API_BASE_URL', 'https://staging.example.com'); });
+beforeEach(() => { cognito.send.mockReset().mockResolvedValue({ UserAttributes: [{ Name: 'sub', Value: 'sub' }] }); vi.stubEnv('HARVEST_USER_POOL_ID', 'us-east-2_pool'); vi.stubEnv('HARVEST_APP_CLIENT_ID', 'client'); vi.stubEnv('HARVEST_API_BASE_URL', 'https://staging.example.com'); });
 it('requires both server assignment and live Operator membership', async () => {
   const client = () => Promise.resolve(new Response(JSON.stringify(viewer)));
   expect((await authorize(event(), async () => ({ enabled: true }), client)).admin).toBe(false);
@@ -24,6 +29,12 @@ it.each([{ token_use: 'id', client_id: 'client' }, { token_use: 'access', client
 });
 it('fails closed when HARVEST denies the token', async () => {
   await expect(authorize(event(), async () => ({ enabled: true }), async () => new Response('', { status: 401 }))).rejects.toThrow('Unauthorized');
+});
+it('rejects a Cognito-revoked token before fetching membership', async () => {
+  cognito.send.mockRejectedValue(new Error('NotAuthorizedException'));
+  const request = vi.fn();
+  await expect(authorize(event(), async () => null, request)).rejects.toThrow('Unauthorized');
+  expect(request).not.toHaveBeenCalled();
 });
 it('isolates subjects and revoked organizations', () => {
   expect(canRead(actor, report)).toBe(true);

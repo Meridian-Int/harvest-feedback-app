@@ -10,3 +10,6 @@ amplify_outputs.json
 
 cdk.out/
 .integration-outputs.json
+
+.integration-test-session.json
+.integration-release/

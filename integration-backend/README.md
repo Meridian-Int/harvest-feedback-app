@@ -18,6 +18,12 @@ Reporter reads additionally require current membership in the stored organizatio
 
 Attachment upload/download capabilities expire in 60 seconds. New operations recheck live membership. An already issued URL remains usable for its finite lifetime; do not claim instant revocation of that URL. Atomic claims prevent reuse across reports, and downloads pin the immutable S3 version captured at submission. Versioned storage is retained on stack deletion. Cleanup of orphaned objects is still pending.
 
-The existing Admin selector is retained as a queue identifier (`admin@example.com`); it is not a recipient address. Individual owner assignments remain pending the approved account setup.
+The existing Admin selector is retained as a queue identifier (`admin@example.com`); it is not a recipient address. The selector also lists active selected Operators by stable subject, with server validation on every assignment.
 
-**Remaining gates:** live two-user authorization/storage tests, deployment, static UI hosting and HARVEST same-origin proxy configuration, real browser session/sign-out validation, and email worker integration using trusted selected-admin recipients. Email is not enabled by this stack. Preserve the existing latest renderer; the documented explicit-response email policy is still unresolved. Staging and production remain gated.
+Email preserves the latest renderer and existing five-event policy. Recipients are selected assignments intersected with current HARVEST Operator memberships and enabled, confirmed Cognito identities. A Feedback-owned IAM-only directory uses a dedicated column-scoped database credential, read-only transactions and verified RDS TLS. It never reads the HARVEST master database secret. Run the reviewed `node integration-backend/provision-directory.mjs .integration-outputs.json --apply` after the dev stack exists to provision that narrowly scoped login through the existing staging runner. No HARVEST API code deployment or security-group modification is needed.
+
+Email starts disabled. Its receipts, retry lease and failure queue are ready; enable only after the directory and SES identities are checked. The documented explicit-response-only client email policy is still unresolved; this integration preserves the copied feature's existing event behavior.
+
+The private static bucket and CloudFront origin serve only `/feedback` and its assets. `prepare-release.mjs` builds from verified stack outputs and prepares the upload package. Its public settings file supplies HARVEST prestaging's endpoint and reverse-proxy origin. Netlify's HARVEST headers do not apply to proxied responses, so the static origin supplies its own CSP, including blob media previews.
+
+**Remaining release gates:** live API/storage/email checks, real browser session/sign-out validation and publication of HARVEST through its approved flow. Staging and production remain gated.

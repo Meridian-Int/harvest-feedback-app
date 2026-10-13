@@ -111,6 +111,9 @@ export async function restoreSharedHarvestSession(
   const tokens = await getUsableHarvestTokens(storage);
   const claims = idClaims(tokens.idToken);
   const viewer = await fetchHarvestViewer(tokens.accessToken);
+  if (readHarvestTokens(storage)?.refreshToken !== tokens.refreshToken) {
+    throw new Error('Your HARVEST session changed. Open Feedback again from HARVEST.');
+  }
   const organizationKey = `harvest:organization:${viewer.person.id}`;
   const selection = selectedOrgId ?? storage.getItem(organizationKey) ?? undefined;
   const user = harvestAccount(viewer, claims.sub, viewer.feedbackAdmin === true ? ['feedback-admins'] : [], selection);

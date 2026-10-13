@@ -3,7 +3,8 @@ import { Icon } from '../../components/icons';
 import { Button, Dialog, Pill, ProgressTrack, Select } from '../../components/ui';
 import { adminUpdate, getAttachmentUrl } from '../../lib/feedback';
 import { displayId, formatDateTime } from '../../lib/format';
-import { ASSIGNEES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { useAssignees } from './useAssignees';
 import type { Feedback, Status } from '../../lib/types';
 import { initialReviewAssignee } from './logic/review';
 
@@ -41,6 +42,7 @@ function AttachmentPreview({ report }: { report: Feedback }) {
 }
 
 export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; onClose: () => void; onSaved: (report: Feedback) => void }) {
+  const owners = useAssignees();
   const [status, setStatus] = useState<Status>(report.status);
   const [assignee, setAssignee] = useState(initialReviewAssignee(report));
   const [saving, setSaving] = useState(false);
@@ -61,7 +63,7 @@ export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; o
 
   return <Dialog open onClose={onClose} title={<span className="admin-detail-id">{displayId(report.id)} · {formatDateTime(report.createdAt)}</span>} footer={<>
     <label className="admin-detail-control">Status<Select aria-label="Report status" value={status} onChange={event => setStatus(event.target.value as Status)}>{STATUS_ORDER.map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</Select></label>
-    <label className="admin-detail-control">Owner<Select aria-label="Report owner" value={assignee} onChange={event => setAssignee(event.target.value)}>{ASSIGNEES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></label>
+    <label className="admin-detail-control">Owner<Select aria-label="Report owner" value={assignee} onChange={event => setAssignee(event.target.value)}>{assignee && !owners.options.some(item => item.value === assignee) && <option value={assignee}>Previous owner</option>}{owners.options.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></label>
     <Button variant="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</Button>
   </>}>
     <div className="admin-detail-content"><h2>{report.title}</h2><div className="admin-detail-badges"><Pill value={report.priority} /><Pill value={report.severity} /></div>
@@ -69,6 +71,7 @@ export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; o
       <span className="admin-detail-label">Description</span><p className="admin-detail-copy">{report.description}</p>
       <AttachmentPreview report={report} />
       {error && <p className="error" role="alert">{error}</p>}
+      {owners.error && <p className="error" role="alert">{owners.error}</p>}
     </div>
   </Dialog>;
 }

@@ -1,4 +1,7 @@
 import { parseHarvestViewer, type HarvestViewer } from '../src/lib/harvest-membership';
+import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+
+const cognito = new CognitoIdentityProviderClient({ region: 'us-east-2' });
 
 export interface Actor { sub: string; viewer: HarvestViewer; admin: boolean }
 export interface Event {
@@ -23,6 +26,11 @@ export async function authorize(
       identity.claims?.token_use !== 'access' || identity.claims.client_id !== client) {
     throw new Error('Unauthorized');
   }
+  // JWT signature validation alone does not observe Cognito token revocation.
+  try {
+    const user = await cognito.send(new GetUserCommand({ AccessToken: token }));
+    if (user.UserAttributes?.find(attribute => attribute.Name === 'sub')?.Value !== identity.sub) throw new Error('Unauthorized');
+  } catch { throw new Error('Unauthorized'); }
   const base = new URL(process.env.HARVEST_API_BASE_URL ?? '');
   if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Unauthorized');
   const response = await request(new URL('/api/me', base), {
@@ -53,7 +61,7 @@ export function requireReport(actor: Actor, report: { owner?: string; organizati
   if (!report || !canRead(actor, report)) throw new Error('Report unavailable.');
 }
 
-export function updateFields(actor: Actor, report: { owner?: string; organizationId?: string; status: string; updateRequestedAt?: string; adminActivityAt?: string }, input: Record<string, unknown>, now: number) {
+export function updateFields(actor: Actor, report: { owner?: string; organizationId?: string; status: string; updateRequestedAt?: string; adminActivityAt?: string }, input: Record<string, unknown>, now: number, selectedOwners: string[] = []) {
   requireReport(actor, report);
   const keys = Object.keys(input).filter(k => k !== 'id');
   const allowed = actor.admin ? ['status', 'assignee', 'adminActivityAt'] : ['updateRequestedAt'];
@@ -65,7 +73,7 @@ export function updateFields(actor: Actor, report: { owner?: string; organizatio
   }
   if (!['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'].includes(String(input.status))) throw new Error('Choose a valid status.');
   // The preserved Admin option names the queue; it is never an email recipient.
-  if (input.assignee != null && input.assignee !== '' && input.assignee !== 'admin@example.com') throw new Error('Choose a valid owner.');
+  if (input.assignee != null && input.assignee !== '' && input.assignee !== 'admin@example.com' && !selectedOwners.includes(String(input.assignee))) throw new Error('Choose a valid owner.');
   return {
     status: input.status, assignee: input.assignee || null,
     adminActivityAt: new Date(Math.max(now, Date.parse(report.updateRequestedAt ?? '1970-01-01') + 1)).toISOString(),

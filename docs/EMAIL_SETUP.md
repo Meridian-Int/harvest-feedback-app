@@ -1,5 +1,11 @@
 # Standalone feedback email setup
 
+## Integrated dev worker (12 October 2026)
+
+`integration-backend/email-worker.ts` preserves the latest renderer, brand and event rules, with same-domain `/feedback/mine` and `/feedback/admin/reviews` links. It resolves only enabled selected administrators with live Operator memberships and confirmed, enabled HARVEST Cognito accounts. The separately owned directory uses column-scoped database credentials, read-only transactions and RDS certificate verification. There is no legacy-pool recipient fallback and no blanket Operator grant.
+
+The worker starts disabled. Enable it only after the directory login is provisioned, its live lookup succeeds, SES is checked and the selected recipients are ready. Delivery receipts use conditional leases and seven-day retention; SES acceptance followed by a receipt failure can still duplicate mail. The failed-event queue retains exhausted retries for investigation. The copied feature's existing five-event behavior remains in place; the explicit-response-only client policy described below still needs a separate approved change.
+
 The email worker and an earlier screenshot-based template were deployed to the existing shared sandbox on 12 October 2026. A labelled test report exercised the stream-to-SES pipeline. The latest compact layout, category-specific wording and organization-only admin messages have been verified locally and sent as previews, but are not yet deployed. Preview delivery does not prove the latest event rules are active.
 
 ## Sender configuration

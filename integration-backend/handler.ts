@@ -5,6 +5,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, Delete
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { authorize, organization, canRead, requireReport, updateFields, type Event } from './authorization';
 import { PRODUCT_AREAS, MAX_ATTACHMENT_BYTES } from '../src/lib/options';
+import { selectedAdministrators } from './administrators';
 
 const db = new DynamoDBClient({});
 const s3 = new S3Client({});
@@ -24,6 +25,10 @@ export async function handler(event: Event) {
   const args = event.arguments;
   const operation = event.info.fieldName;
   if (operation === 'harvestViewer') return { ...actor.viewer, feedbackAdmin: actor.admin };
+  if (operation === 'feedbackAdministrators') {
+    if (!actor.admin) throw new Error('Admin access required.');
+    return selectedAdministrators();
+  }
   if (operation === 'sentryIssues') {
     if (!actor.admin) throw new Error('Admin access required.');
     return { configured: false, issues: [] };
@@ -66,7 +71,9 @@ export async function handler(event: Event) {
     const id = safeId(args.input.id);
     const report = await get('REPORTS_TABLE', id);
     requireReport(actor, report);
-    const changes = updateFields(actor, report as any, args.input, Date.now());
+    const owners = actor.admin && args.input.assignee && args.input.assignee !== 'admin@example.com'
+      ? (await selectedAdministrators()).map(admin => admin.sub) : [];
+    const changes = updateFields(actor, report as any, args.input, Date.now(), owners);
     if (!Object.keys(changes).length) return report;
     const update = { ...changes, updatedAt: timestamp(), revision: Number(report!.revision ?? 0) + 1 };
     const entries = Object.entries(update);
