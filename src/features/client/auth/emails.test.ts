@@ -115,7 +115,6 @@ it.each([
   expect(email.text).toContain('MERIDIAN · #042');
   for(const row of ['Priority:','Account type:','Status:','Report:','Report ID:']) expect(email.text).not.toContain(row);
 });
-
 it('permits only explicit loopback Feedback demo links while keeping ordinary mail HTTPS', () => {
   const reportUrl = 'http://localhost:5173/feedback/mine?report=report-1234';
   expect(() => feedbackEmail({ ...report, kind: 'client-submitted', reportUrl })).toThrow('HTTPS');

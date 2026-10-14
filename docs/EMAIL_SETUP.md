@@ -69,6 +69,6 @@ The screenshot-based template and explicit client submission Report ID line were
 
 The compact template preserves the screenshot palette, inline logo, replyable senders, and permanent UUID-based report links. Blocker/Bug receipts acknowledge the report without resolution promises; Improvement thanks the client for feedback. Admin alerts identify the full stored organization name and Company/Partner persona, rather than the individual reporter or short reference handle. Preview recipients/senders used for review do not override production recipient routing.
 
-`referenceHandle`/`referenceNumber` are optional renderer inputs demonstrated as MERIDIAN · #042 in previews. The worker still falls back to FB-XXXX because no live allocator/schema is wired.
+`referenceHandle`/`referenceNumber` are optional renderer inputs demonstrated as MERIDIAN · #042 in previews. The worker still falls back to FB-XXXX because no live allocator/schema is wired. See REPORT_REFERENCES_REVIEW.md for the isolated transaction draft and integration requirements.
 
 The dedicated HARVEST integration implements the final requested client email policy: submission, an explicit response to an update request, and closure only. The transitional standalone sandbox has not been redeployed as part of this integration; its historical event behavior above is not evidence of the dedicated worker's current policy. The authentication flow and analytics connector settings are outside this template change.
