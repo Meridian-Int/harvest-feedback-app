@@ -1,5 +1,7 @@
 # Environments, branches and deploys
 
+The integrated, same-domain HARVEST Feedback `dev` release has its own AWS stack. HARVEST's existing GitLab CI/CD publishes the HARVEST frontend; it does not update the separate Feedback backend or UI. The standalone Amplify flow described below is legacy and does not publish HARVEST `/feedback`. An integrated Feedback release requires a separately reviewed, approved update to the existing Feedback dev stack and private UI.
+
 ## The picture
 
 | Environment | Branch | Site | Who uses it | Goes live when |

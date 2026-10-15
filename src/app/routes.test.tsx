@@ -6,7 +6,7 @@ vi.mock('../lib/auth', async importOriginal => ({
 }));
 vi.mock('../lib/feedback', () => ({ listAllFeedback: vi.fn().mockResolvedValue([]), observeAllFeedback: vi.fn(() => () => {}), listMyFeedback: vi.fn().mockResolvedValue([]), subscribeMyFeedback: vi.fn(() => () => {}), getFeedback: vi.fn().mockResolvedValue(null) }));
 vi.mock('../lib/notifications', () => ({ subscribeNotificationReads: vi.fn(() => () => {}), markNotificationsRead: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../lib/insights', () => ({ getSentryIssues: vi.fn().mockResolvedValue({ configured: false, issues: [] }), getLookerEmbedUrl: vi.fn().mockReturnValue(null) }));
+vi.mock('../lib/insights', () => ({ getSentryIssues: vi.fn().mockResolvedValue({ configured: false, issues: [] }), getTrafficInsights: vi.fn().mockResolvedValue({ configured: false, users: 0, sessions: 0, pageViews: 0, days: [], pages: [] }), getLookerEmbedUrl: vi.fn().mockReturnValue(null) }));
 import { screen } from '@testing-library/react';
 import { AppRoutes } from './routes';
 import { renderWithProviders } from '../test/render';

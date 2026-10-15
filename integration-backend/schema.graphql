@@ -19,6 +19,9 @@ input CreateNotificationReadInput { id: ID!, eventId: String! }
 type AttachmentAccess { key: String!, url: String, size: Int, contentType: String }
 type SentryIssue { id: String!, title: String!, culprit: String!, project: String!, level: String!, count: Int!, userCount: Int!, lastSeen: String!, permalink: String!, trend: [Int!]! }
 type SentryIssuesResult { configured: Boolean!, issues: [SentryIssue!]! }
+type TrafficDay { day: String!, users: Int! }
+type TrafficPage { name: String!, views: Int! }
+type TrafficInsights { configured: Boolean!, users: Int!, sessions: Int!, pageViews: Int!, days: [TrafficDay!]!, pages: [TrafficPage!]! }
 type FeedbackAdministrator { sub: String!, email: String!, name: String }
 type Query {
   harvestViewer: AWSJSON!
@@ -29,6 +32,7 @@ type Query {
   getNotificationRead(id: ID!): NotificationRead
   attachmentAccess(key: String!, operation: String!): AttachmentAccess!
   sentryIssues: SentryIssuesResult!
+  trafficInsights: TrafficInsights!
 }
 type Mutation {
   submitFeedback(description: String!, productArea: String!, customArea: String, priority: Priority!, severity: Severity!, organizationId: String, attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int, sentryIssueId: String): Feedback!

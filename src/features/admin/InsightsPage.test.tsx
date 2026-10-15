@@ -5,8 +5,8 @@ import { makeAdminUser, makeFeedback, makeSentryIssue } from '../../test/factori
 import { renderWithProviders } from '../../test/render';
 import { InsightsPage } from './InsightsPage';
 
-const api = vi.hoisted(() => ({ getSentryIssues: vi.fn(), listAllFeedback: vi.fn(), createFeedback: vi.fn() }));
-vi.mock('../../lib/insights', () => ({ getSentryIssues: api.getSentryIssues }));
+const api = vi.hoisted(() => ({ getSentryIssues: vi.fn(), getTrafficInsights: vi.fn(), listAllFeedback: vi.fn(), createFeedback: vi.fn() }));
+vi.mock('../../lib/insights', () => ({ getSentryIssues: api.getSentryIssues, getTrafficInsights: api.getTrafficInsights }));
 vi.mock('../../lib/feedback', () => ({ listAllFeedback: api.listAllFeedback, createFeedback: api.createFeedback }));
 
 const first = makeSentryIssue();
@@ -16,6 +16,7 @@ function LocationProbe() { const location = useLocation(); return <output data-t
 beforeEach(() => {
   vi.clearAllMocks();
   api.getSentryIssues.mockResolvedValue({ configured: true, issues: [first, second] });
+  api.getTrafficInsights.mockResolvedValue({ configured: false, users: 0, sessions: 0, pageViews: 0, days: [], pages: [] });
   api.listAllFeedback.mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -30,6 +31,13 @@ it('shows live issues and recalculates metrics for the chosen project', async ()
   expect(screen.getByText(second.title)).toBeInTheDocument();
   expect(screen.getByText('20')).toBeInTheDocument();
   expect(screen.getAllByText('1')).toHaveLength(2);
+});
+
+it('offers the actual Sentry project slug returned by HARVEST', async () => {
+  api.getSentryIssues.mockResolvedValue({ configured: true, issues: [makeSentryIssue({ project: 'javascript-react' })] });
+  renderWithProviders(<InsightsPage />, { route: '/admin/insights', user: makeAdminUser() });
+  expect(await screen.findByRole('option', { name: 'javascript-react' })).toBeInTheDocument();
+  expect(screen.queryByRole('option', { name: 'feedback-app' })).not.toBeInTheDocument();
 });
 
 it('shows labelled prototype issues without writing to AWS when Sentry is not configured', async () => {
@@ -66,19 +74,27 @@ it('opens an already linked report without creating another', async () => {
   expect(api.createFeedback).not.toHaveBeenCalled();
 });
 
-it('keeps the live Looker iframe and shows prototype traffic when it is unconfigured', async () => {
-  vi.stubEnv('VITE_LOOKER_EMBED_URL', 'https://lookerstudio.google.com/embed/reporting/123');
-  const { unmount } = renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
+it('keeps the Looker iframe and shows prototype traffic when GA4 is unconfigured', async () => {
+  const { unmount } = renderWithProviders(<InsightsPage lookerUrl="https://lookerstudio.google.com/embed/reporting/123" />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
   expect(screen.getByTitle('HARVEST traffic report')).toHaveAttribute('src', 'https://lookerstudio.google.com/embed/reporting/123');
   expect(api.getSentryIssues).not.toHaveBeenCalled();
   unmount();
-  vi.stubEnv('VITE_LOOKER_EMBED_URL', '');
-  renderWithProviders(<InsightsPage />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
+  renderWithProviders(<InsightsPage lookerUrl="" />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
   expect(screen.queryByTitle('HARVEST traffic report')).not.toBeInTheDocument();
-  expect(screen.getByText('287')).toBeInTheDocument();
+  expect(await screen.findByText('287')).toBeInTheDocument();
   expect(screen.getByText('364')).toBeInTheDocument();
   expect(screen.getByText('Users over time')).toBeInTheDocument();
   expect(screen.getByText('Top pages')).toBeInTheDocument();
   expect(screen.getByText(/Sample values; no live accounts connected/)).toBeInTheDocument();
   expect(api.getSentryIssues).not.toHaveBeenCalled();
+});
+
+it('shows live HARVEST GA4 totals and pages without a sample label', async () => {
+  api.getTrafficInsights.mockResolvedValue({ configured: true, users: 42, sessions: 60, pageViews: 120, days: [{ day: '20261014', users: 12 }], pages: [{ name: '/data-room', views: 34 }] });
+  renderWithProviders(<InsightsPage lookerUrl="" />, { route: '/admin/insights?tab=traffic', user: makeAdminUser() });
+  expect(await screen.findByText('42')).toBeInTheDocument();
+  expect(screen.getByText('120')).toBeInTheDocument();
+  expect(screen.getByText('/data-room')).toBeInTheDocument();
+  expect(screen.queryByText(/sample data/)).not.toBeInTheDocument();
+  expect(screen.getByText(/HARVEST prestaging Google Analytics/)).toBeInTheDocument();
 });

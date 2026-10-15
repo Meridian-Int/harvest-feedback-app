@@ -6,6 +6,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { authorize, organization, canRead, requireReport, updateFields, type Event } from './authorization';
 import { PRODUCT_AREAS, MAX_ATTACHMENT_BYTES } from '../src/lib/options';
 import { selectedAdministrators } from './administrators';
+import { readConfiguredSentryIssues } from './sentry-issues';
+import { readConfiguredGa4Traffic } from './ga4-traffic';
 
 const db = new DynamoDBClient({});
 const s3 = new S3Client({});
@@ -31,7 +33,11 @@ export async function handler(event: Event) {
   }
   if (operation === 'sentryIssues') {
     if (!actor.admin) throw new Error('Admin access required.');
-    return { configured: false, issues: [] };
+    return readConfiguredSentryIssues();
+  }
+  if (operation === 'trafficInsights') {
+    if (!actor.admin) throw new Error('Admin access required.');
+    return readConfiguredGa4Traffic();
   }
   if (operation === 'listFeedbacks' || operation === 'listNotificationReads') {
     const reports = operation === 'listFeedbacks';

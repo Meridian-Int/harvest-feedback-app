@@ -47,7 +47,7 @@ An internal Meridian Intelligence app to capture bugs and improvements in HARVES
 | Files | Amplify Storage (S3) |
 | Hosting | Integrated Feedback opens on HARVEST's existing domain at `/feedback`, in a new tab; no separate public Feedback URL is needed. Feedback backend resources may remain separately deployed. Follow the environment boundaries in §10 and `docs/ENVIRONMENTS.md`. |
 | Errors | Sentry `@sentry/react`; an Amplify function reads Sentry issues for the admin side |
-| Analytics | GA4 tag; Looker Studio report iframe on the admin side |
+| Analytics | GA4 tag; integrated admin Traffic can read HARVEST GA4 through the guarded Feedback backend. The Looker Studio iframe remains optional. |
 | Tests | Vitest, React Testing Library, user-event, jest-dom, v8 coverage. See `docs/TESTING.md` |
 | Icons | Copy the SVG symbols embedded in the prototype into React components. Don't swap in an icon library. |
 
@@ -213,7 +213,7 @@ Build each one to the geometry in spec §3.
   2. A **status and owner control** in the admin detail dialog footer: Status `Select`, Owner `Select`, Save. Saving sets `adminActivityAt` and toasts.
 - **Product insights:** title, Errors/Traffic segmented switch, the three metric cards.
   - **Errors:** live Sentry issues from the `sentry-issues` function; the project filter; "Make a report" / "View report", which creates a report with `sentryIssueId`. When Sentry is unconfigured, show labelled presentation samples with report creation disabled.
-  - **Traffic:** embed Google Analytics through **Looker Studio** when configured. With no Looker URL, show labelled presentation sample metrics and charts. Samples never write to AWS.
+  - **Traffic:** in the integrated app, read HARVEST's existing GA4 property through the admin-guarded Feedback backend when configured. The optional Looker Studio iframe remains available. Without a live connection, show labelled presentation sample metrics and charts. Samples never write to AWS.
 
 ## 10. Integrations
 
@@ -235,7 +235,7 @@ Build each one to the geometry in spec §3.
 
 **GA4 and Looker**
 - GA4 tag via `VITE_GA_MEASUREMENT_ID`, with page views on route change. Never send emails or feedback text.
-- The Looker iframe uses `VITE_LOOKER_EMBED_URL`, which must be the `/embed/` URL. The report owner turns on File → Embed report and uses owner's data credentials.
+- The integrated admin Traffic query uses HARVEST's existing non-production GA4 service-account secret and numeric prestaging property ID, with a read grant limited to the Feedback resolver. Clients cannot request the data. The original Looker iframe remains optional; its `VITE_LOOKER_EMBED_URL` must be a `/embed/` URL.
 
 ## 11. Environment variables
 
@@ -258,7 +258,7 @@ Server-side, per branch in the Amplify console:
 - [ ] A client can't read others' reports or change `status`/`assignee`, checked through the API
 - [ ] Request update shows as pending, and clears after an admin saves a change
 - [ ] An admin filters by product area, priority (metric toggles), persona, severity, status and owner; opens a report; views or downloads the attachment; changes status and owner
-- [ ] Errors lists real Sentry issues, or clearly labelled presentation samples when unconfigured; Traffic shows the Looker report, or clearly labelled samples when unconfigured
+- [ ] Errors lists real Sentry issues, or clearly labelled presentation samples when unconfigured; Traffic shows live HARVEST GA4 data or clearly labelled samples when unconfigured
 - [ ] Live Sentry, GA4 and Looker status is verified in non-production; configured-looking values and sample charts are not counted as proof of ingestion
 - [ ] The combined HARVEST and Feedback flow passes in prestaging before staging, including real session restoration, permissions and uploads; production remains untouched
 - [ ] Dark and light match the prototype at 1440, 1024, 768 and 390 px; keyboard focus and dialogs work; reduced motion is respected

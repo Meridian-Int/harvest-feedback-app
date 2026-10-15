@@ -32,6 +32,22 @@ export function integrationStack(app, settings) {
   // Retain metadata until explicitly cleaned up; linked attachments never expire.
   const bucket = new Bucket(stack, 'Media', { blockPublicAccess: BlockPublicAccess.BLOCK_ALL, encryption: BucketEncryption.S3_MANAGED, enforceSSL: true, versioned: true, removalPolicy: RemovalPolicy.RETAIN, cors: [{ allowedOrigins: origins, allowedMethods: [HttpMethods.PUT, HttpMethods.GET, HttpMethods.HEAD], allowedHeaders: ['*'], exposedHeaders: ['ETag'], maxAge: 60 }] });
   const resolver = new NodejsFunction(stack, 'Resolver', { entry: path.join(root, 'handler.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(30), memorySize: 512, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: { HARVEST_USER_POOL_ID: poolId, HARVEST_APP_CLIENT_ID: clientId, HARVEST_API_BASE_URL: apiUrl, REPORTS_TABLE: reports.tableName, READS_TABLE: reads.tableName, ADMINS_TABLE: admins.tableName, ATTACHMENTS_TABLE: attachments.tableName, MEDIA_BUCKET: bucket.bucketName } });
+  resolver.addEnvironment('SENTRY_ORG', 'meridian-zt');
+  resolver.addEnvironment('SENTRY_PROJECT', 'javascript-react');
+  resolver.addEnvironment('SENTRY_ENVIRONMENT', target === 'dev' ? 'prestaging' : 'staging');
+  if (settings.sentryTokenSecretArn) {
+    if (!/^arn:aws:secretsmanager:us-east-2:938463256739:secret:[A-Za-z0-9/_+=.@-]+$/.test(settings.sentryTokenSecretArn)) throw new Error('Sentry token must be an existing secret in the approved non-production AWS account.');
+    const sentryToken = Secret.fromSecretCompleteArn(stack, 'SentryReadToken', settings.sentryTokenSecretArn);
+    sentryToken.grantRead(resolver);
+    resolver.addEnvironment('SENTRY_TOKEN_SECRET_ARN', settings.sentryTokenSecretArn);
+  }
+  if (settings.ga4SecretArn || settings.ga4PropertyId) {
+    if (!/^arn:aws:secretsmanager:us-east-2:938463256739:secret:harvest-refresh\/staging\/google-analytics-[A-Za-z0-9]{6}$/.test(settings.ga4SecretArn ?? '') || !/^\d+$/.test(settings.ga4PropertyId ?? '')) throw new Error('GA4 must use the verified HARVEST staging credential secret and numeric property ID.');
+    const ga4Secret = Secret.fromSecretCompleteArn(stack, 'HarvestGa4Read', settings.ga4SecretArn);
+    ga4Secret.grantRead(resolver);
+    resolver.addEnvironment('GA4_SECRET_ARN', settings.ga4SecretArn);
+    resolver.addEnvironment('GA4_PROPERTY_ID', settings.ga4PropertyId);
+  }
   reports.grantReadWriteData(resolver); reads.grantReadWriteData(resolver); attachments.grantReadWriteData(resolver); admins.grantReadData(resolver);
   bucket.grantReadWrite(resolver);
   const pool = UserPool.fromUserPoolId(stack, 'HarvestPool', poolId);
@@ -42,7 +58,7 @@ export function integrationStack(app, settings) {
   const stagingGroup = SecurityGroup.fromSecurityGroupId(stack, 'StagingDirectoryNetwork', 'sg-090fc2286105d42e5', { mutable: false });
   const directory = new NodejsFunction(stack, 'HarvestDirectory', { functionName: `harvest-feedback-${target}-directory`, entry: path.join(root, 'directory.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(20), memorySize: 256,
     vpc: stagingVpc, securityGroups: [stagingGroup], environment: { FEEDBACK_TARGET: target, DIRECTORY_SECRET_ARN: directorySecret.secretArn }, bundling: { minify: true, sourceMap: false, externalModules: [], commandHooks: {
-      beforeBundling: () => [], beforeInstall: () => [], afterBundling: (_input, output) => [`cp '${root.replace(/'/g, "'\\''")}/rds-ca.pem' '${output.replace(/'/g, "'\\''")}/rds-ca.pem'`],
+      beforeBundling: () => [], beforeInstall: () => [], afterBundling: (_input, output) => [`node -e "require('node:fs').copyFileSync(process.argv[1], process.argv[2])" "${path.join(root, 'rds-ca.pem')}" "${path.join(output, 'rds-ca.pem')}"`],
     } },
   });
   directorySecret.grantRead(directory);
@@ -51,7 +67,7 @@ export function integrationStack(app, settings) {
   resolver.addToRolePolicy(new PolicyStatement({ actions: ['cognito-idp:AdminGetUser'], resources: [pool.userPoolArn] }));
   const api = new GraphqlApi(stack, 'Api', { name: `harvest-feedback-integration-${target}`, definition: Definition.fromFile(path.join(root, 'schema.graphql')), authorizationConfig: { defaultAuthorization: { authorizationType: AuthorizationType.USER_POOL, userPoolConfig: { userPool: pool, appIdClientRegex: `^${clientId}$` } } } });
   const source = api.addLambdaDataSource('Operations', resolver);
-  for (const [typeName, fields] of Object.entries({ Query: ['harvestViewer', 'feedbackAdministrators', 'listFeedbacks', 'getFeedback', 'listNotificationReads', 'getNotificationRead', 'attachmentAccess', 'sentryIssues'], Mutation: ['submitFeedback', 'updateFeedback', 'createNotificationRead', 'prepareAttachment', 'removeAttachment'] })) {
+  for (const [typeName, fields] of Object.entries({ Query: ['harvestViewer', 'feedbackAdministrators', 'listFeedbacks', 'getFeedback', 'listNotificationReads', 'getNotificationRead', 'attachmentAccess', 'sentryIssues', 'trafficInsights'], Mutation: ['submitFeedback', 'updateFeedback', 'createNotificationRead', 'prepareAttachment', 'removeAttachment'] })) {
     for (const fieldName of fields) source.createResolver(`${typeName}${fieldName}`, { typeName, fieldName, requestMappingTemplate: MappingTemplate.lambdaRequest(), responseMappingTemplate: MappingTemplate.fromString('#if($ctx.error)\n$util.error($ctx.error.message, $ctx.error.type)\n#end\n$util.toJson($ctx.result)') });
   }
   const receipts = new Table(stack, 'EmailDelivery', { partitionKey: { name: 'id', type: AttributeType.STRING }, billingMode: BillingMode.PAY_PER_REQUEST, timeToLiveAttribute: 'expiresAt', removalPolicy: RemovalPolicy.RETAIN });

@@ -1,5 +1,5 @@
 import { beforeEach, vi } from 'vitest';
-import { getSentryIssues } from './insights';
+import { getSentryIssues, getTrafficInsights } from './insights';
 import { makeAdminUser, makeClientUser, makeSentryIssue } from '../test/factories';
 
 const state = vi.hoisted(() => ({ user: null as ReturnType<typeof makeAdminUser> | null }));
@@ -25,5 +25,10 @@ it('passes through unconfigured state and reports query errors', async () => {
 it('rejects a non-admin before calling the query', async () => {
   state.user = makeClientUser();
   await expect(getSentryIssues()).rejects.toThrow('Admin access required.');
+  expect(query).not.toHaveBeenCalled();
+});
+
+it('keeps the old standalone app in labelled traffic sample mode', async () => {
+  await expect(getTrafficInsights()).resolves.toMatchObject({ configured: false });
   expect(query).not.toHaveBeenCalled();
 });

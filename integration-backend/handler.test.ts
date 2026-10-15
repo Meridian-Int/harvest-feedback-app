@@ -2,11 +2,15 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { handler } from './handler';
 import { authorize } from './authorization';
+import { readConfiguredSentryIssues } from './sentry-issues';
+import { readConfiguredGa4Traffic } from './ga4-traffic';
 const sdk = vi.hoisted(() => ({ db: vi.fn(), s3: vi.fn(), sign: vi.fn() }));
 vi.mock('@aws-sdk/client-dynamodb', async original => ({ ...await original<object>(), DynamoDBClient: class { send = sdk.db } }));
 vi.mock('@aws-sdk/client-s3', async original => ({ ...await original<object>(), S3Client: class { send = sdk.s3 } }));
 vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: sdk.sign }));
 vi.mock('./authorization', async original => ({ ...await original<object>(), authorize: vi.fn() }));
+vi.mock('./sentry-issues', () => ({ readConfiguredSentryIssues: vi.fn() }));
+vi.mock('./ga4-traffic', () => ({ readConfiguredGa4Traffic: vi.fn() }));
 const actor = { sub: 'sub', admin: false, viewer: { person: { id: 'person', name: 'Trusted Name', email: 'trusted@example.com' }, memberships: [{ orgId: 'org', orgKind: 'company' as const, orgName: 'Trusted Company', role: 'user' as const }] } };
 const call = (fieldName: string, args: Record<string, unknown>) => handler({ info: { fieldName }, arguments: args });
 beforeEach(() => {
@@ -51,4 +55,20 @@ it('propagates membership revocation before storage or database access', async (
   vi.mocked(authorize).mockRejectedValue(new Error('Unauthorized'));
   await expect(call('attachmentAccess', { key: 'key', operation: 'GET' })).rejects.toThrow('Unauthorized');
   expect(sdk.db).not.toHaveBeenCalled(); expect(sdk.s3).not.toHaveBeenCalled();
+});
+it('only lets a verified current admin read Sentry issues', async () => {
+  await expect(call('sentryIssues', {})).rejects.toThrow('Admin access required.');
+  expect(readConfiguredSentryIssues).not.toHaveBeenCalled();
+  vi.mocked(authorize).mockResolvedValue({ ...actor, admin: true });
+  vi.mocked(readConfiguredSentryIssues).mockResolvedValue({ configured: true, issues: [] });
+  await expect(call('sentryIssues', {})).resolves.toEqual({ configured: true, issues: [] });
+  expect(readConfiguredSentryIssues).toHaveBeenCalledOnce();
+});
+it('only lets a verified current admin read HARVEST GA4 traffic', async () => {
+  await expect(call('trafficInsights', {})).rejects.toThrow('Admin access required.');
+  expect(readConfiguredGa4Traffic).not.toHaveBeenCalled();
+  vi.mocked(authorize).mockResolvedValue({ ...actor, admin: true });
+  vi.mocked(readConfiguredGa4Traffic).mockResolvedValue({ configured: true, users: 0, sessions: 0, pageViews: 0, days: [], pages: [] });
+  await expect(call('trafficInsights', {})).resolves.toMatchObject({ configured: true, users: 0 });
+  expect(readConfiguredGa4Traffic).toHaveBeenCalledOnce();
 });

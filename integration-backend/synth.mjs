@@ -1,17 +1,17 @@
 import { App } from 'aws-cdk-lib';
-import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { integrationStack } from './app.mjs';
+import { synthSettings } from './synth-settings.mjs';
 
-// Only public configuration is read. AWS credentials remain in the AWS profile.
-const local = Object.fromEntries(readFileSync('.env.integration.local', 'utf8').split('\n')
-  .filter(line => /^[A-Z_]+=/.test(line)).map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; }));
+// Only public configuration is read here. The ignored local file or explicit environment supplies it.
+const settings = synthSettings();
 const app = new App({ outdir: 'cdk.out' });
 const stack = integrationStack(app, {
   target: process.env.FEEDBACK_TARGET ?? 'dev', account: '938463256739', region: 'us-east-2',
-  poolId: local.HARVEST_STAGING_USER_POOL_ID, clientId: local.HARVEST_STAGING_APP_CLIENT_ID,
-  apiUrl: local.HARVEST_API_BASE_URL, origins: ['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173'],
+  poolId: settings.poolId, clientId: settings.clientId,
+  apiUrl: settings.apiUrl, origins: ['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173'],
   emailEnabled: process.env.FEEDBACK_EMAIL_ENABLED === 'true', appBaseUrl: process.env.FEEDBACK_APP_BASE_URL,
+  sentryTokenSecretArn: settings.sentryTokenSecretArn, ga4SecretArn: settings.ga4SecretArn, ga4PropertyId: settings.ga4PropertyId,
 });
 const assembly = app.synth();
 const template = assembly.getStackArtifact(stack.artifactId).template;
@@ -19,8 +19,19 @@ const resources = Object.values(template.Resources);
 assert.equal(resources.filter(resource => resource.Type.startsWith('AWS::Cognito::')).length, 0);
 assert.equal(resources.filter(resource => resource.Type === 'AWS::DynamoDB::Table').length, 5);
 const api = resources.find(resource => resource.Type === 'AWS::AppSync::GraphQLApi');
-assert.equal(api.Properties.UserPoolConfig.UserPoolId, local.HARVEST_STAGING_USER_POOL_ID);
+assert.equal(api.Properties.UserPoolConfig.UserPoolId, settings.poolId);
 assert.equal(api.Properties.AdditionalAuthenticationProviders, undefined);
-assert.equal(resources.filter(resource => resource.Type === 'AWS::AppSync::Resolver').length, 13);
+assert.equal(resources.filter(resource => resource.Type === 'AWS::AppSync::Resolver').length, 14);
 assert.equal(JSON.stringify(template).includes('harvest-refresh-backend-production'), false);
-console.log(`Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 13 guarded operations; email enabled: ${process.env.FEEDBACK_EMAIL_ENABLED === 'true'}.`);
+const resolver = resources.find(resource => resource.Type === 'AWS::Lambda::Function' && resource.Properties.Environment?.Variables.REPORTS_TABLE);
+const hasSecretGrant = arn => resources.some(resource => resource.Type === 'AWS::IAM::Policy' && JSON.stringify(resource.Properties.PolicyDocument).includes(arn));
+if (settings.sentryTokenSecretArn) {
+  assert.equal(resolver?.Properties.Environment.Variables.SENTRY_TOKEN_SECRET_ARN, settings.sentryTokenSecretArn);
+  assert.ok(hasSecretGrant(settings.sentryTokenSecretArn), 'Missing Sentry secret read grant.');
+}
+if (settings.ga4SecretArn) {
+  assert.equal(resolver?.Properties.Environment.Variables.GA4_SECRET_ARN, settings.ga4SecretArn);
+  assert.equal(resolver?.Properties.Environment.Variables.GA4_PROPERTY_ID, settings.ga4PropertyId);
+  assert.ok(hasSecretGrant(settings.ga4SecretArn), 'Missing GA4 secret read grant.');
+}
+console.log(`Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 14 guarded operations; email enabled: ${process.env.FEEDBACK_EMAIL_ENABLED === 'true'}.`);

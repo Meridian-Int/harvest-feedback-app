@@ -7,8 +7,8 @@ import { releaseSettings } from './release-settings.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const settings = releaseSettings(JSON.parse(readFileSync(process.argv[2] ?? '.integration-outputs.json', 'utf8')));
 // This prepares files only. Deployment is a separate reviewed action.
-execFileSync('npm', ['run', 'build', '--', '--mode', 'integration'], {
-  cwd: root, stdio: 'inherit', env: {
+execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build', '--', '--mode', 'integration'], {
+  cwd: root, stdio: 'inherit', shell: process.platform === 'win32', env: {
     ...process.env, VITE_HARVEST_AUTH_MODE: 'shared', VITE_FEEDBACK_LOCAL_PREVIEW: 'false',
     VITE_COGNITO_USER_POOL_ID: settings.UserPoolId, VITE_COGNITO_USER_POOL_CLIENT_ID: settings.UserPoolClientId,
     VITE_FEEDBACK_GRAPHQL_URL: settings.GraphqlUrl,

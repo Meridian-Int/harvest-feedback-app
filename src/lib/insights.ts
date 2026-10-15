@@ -12,6 +12,26 @@ export interface SentryIssuesResult {
   issues: SentryIssue[];
 }
 
+export interface TrafficInsightsResult {
+  configured: boolean;
+  users: number;
+  sessions: number;
+  pageViews: number;
+  days: { day: string; users: number }[];
+  pages: { name: string; views: number }[];
+}
+
+export async function getTrafficInsights(): Promise<TrafficInsightsResult> {
+  requireAmplify();
+  if (!isAdmin(requireUser())) throw new Error('Admin access required.');
+  if (!isHarvestSharedSessionMode()) return { configured: false, users: 0, sessions: 0, pageViews: 0, days: [], pages: [] };
+  const response = await sharedRequest<{ trafficInsights?: TrafficInsightsResult }>(
+    `query TrafficInsights { trafficInsights { configured users sessions pageViews days { day users } pages { name views } } }`, {},
+  );
+  if (!response.trafficInsights) throw new Error('Could not load GA4 traffic.');
+  return response.trafficInsights;
+}
+
 export async function getSentryIssues(): Promise<SentryIssuesResult> {
   requireAmplify();
   if (!isAdmin(requireUser())) throw new Error('Admin access required.');
