@@ -1,21 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import * as Sentry from '@sentry/react';
+import { initFeedbackSentry } from './lib/sentry';
 import { App } from './app/App';
 import './styles/global.css';
 
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
-if (sentryDsn) {
-  const host = window.location.hostname;
-  const environment = host.endsWith('.amplifyapp.com') ? host.split('.')[0] : import.meta.env.PROD ? 'main' : 'development';
-  Sentry.init({ dsn: sentryDsn, environment });
-}
+initFeedbackSentry(import.meta.env, window.location.hostname);
 
 const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
 if (measurementId) {
-  const analytics = window as Window & { dataLayer?: unknown[][]; gtag?: (...args: unknown[]) => void };
+  const analytics = window as Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
   analytics.dataLayer ??= [];
-  analytics.gtag = (...args: unknown[]) => { analytics.dataLayer!.push(args); };
+  // Google's tag consumes Arguments objects, rather than arrays of parameters.
+  analytics.gtag = function () { analytics.dataLayer!.push(arguments); };
   analytics.gtag('js', new Date());
   analytics.gtag('config', measurementId, { send_page_view: false });
   const script = document.createElement('script');
