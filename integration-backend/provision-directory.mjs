@@ -5,11 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 if (!process.argv.includes('--apply')) throw new Error('Pass --apply only after reviewing the non-production directory grant.');
+const profileIndex = process.argv.indexOf('--profile');
+const profile = profileIndex === -1 ? 'manasa' : process.argv[profileIndex + 1];
+if (!/^[A-Za-z0-9_-]+$/.test(profile ?? '')) throw new Error('Choose a valid AWS profile.');
 const outputs = JSON.parse(readFileSync(process.argv[2] ?? '.integration-outputs.json', 'utf8'));
 const names = Object.keys(outputs);
 if (names.length !== 1 || !/^harvest-feedback-integration-(dev|test)$/.test(names[0])) throw new Error('A single Feedback dev/test stack is required.');
 const target = names[0].split('-').at(-1), settings = outputs[names[0]];
-const aws = args => JSON.parse(execFileSync('aws', [...args, '--profile', 'manasa', '--region', 'us-east-2', '--output', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) || '{}');
+const aws = args => JSON.parse(execFileSync('aws', [...args, '--profile', profile, '--region', 'us-east-2', '--output', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) || '{}');
 if (aws(['sts', 'get-caller-identity']).Account !== '938463256739') throw new Error('Wrong AWS account.');
 if (!settings.DirectorySecretArn?.startsWith(`arn:aws:secretsmanager:us-east-2:938463256739:secret:harvest-feedback/integration/${target}/directory-`)) throw new Error('Wrong directory secret.');
 const secret = JSON.parse(aws(['secretsmanager', 'get-secret-value', '--secret-id', settings.DirectorySecretArn]).SecretString);

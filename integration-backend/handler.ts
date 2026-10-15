@@ -21,7 +21,7 @@ const TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'vi
 
 export async function handler(event: Event) {
   // No privileged operation exists before this fresh, fail-closed membership lookup.
-  const actor = await authorize(event, async sub => get('ADMINS_TABLE', sub));
+  const actor = await authorize(event);
   const args = event.arguments;
   const operation = event.info.fieldName;
   if (operation === 'harvestViewer') return { ...actor.viewer, feedbackAdmin: actor.admin };

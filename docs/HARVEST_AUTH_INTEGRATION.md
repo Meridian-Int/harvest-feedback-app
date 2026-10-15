@@ -1,6 +1,14 @@
 # HARVEST account integration
 
-## Current feature-branch implementation (12 October 2026)
+## Local role-based access proposal (14 October 2026; not deployed)
+
+Sahil chose every active HARVEST Operator member for Feedback admin access, including Operator `user`. Company/Partner membership alone leaves the user on the client side, regardless of email domain. The local backend changes derive this decision from HARVEST's live `/api/me` response on every request and derive admin email recipients/owner choices from a read-only directory query with the same live Operator filter. The deployed dev backend still uses the selected-admin assignment until this change receives separate AWS deployment approval.
+
+The existing Feedback AdminAssignments table is retained without deletion, but the proposed rule no longer reads it. The directory query does not need `SELECT` on `memberships.role`; confirm its existing column grants before deployment. The 14 October staging access map records `sahil+admin@withmeridian.ai` as an active Operator `user`, so the proposed rule keeps his Feedback admin access. The same map includes Company and Partner test accounts with `@withmeridian.ai` addresses; email domain is never an admin criterion. The map does not cover production identities.
+
+The sections below record the earlier selected-admin implementation and historical integration work.
+
+## Deployed selected-admin baseline (12 October 2026; superseded by local proposal)
 
 The dedicated `integration-backend/` supersedes the Amplify plan for new integrated dev/test deployments. It imports the verified HARVEST staging pool and creates no Cognito pool, app client or identity pool. The legacy Amplify sandbox stays intact. Shared mode uses access tokens for every operation and does not fall back to legacy generated configuration.
 
@@ -32,14 +40,14 @@ HARVEST prestaging and staging frontends currently share one staging backend. Th
 
 1. In HARVEST prestaging, use the existing HARVEST staging session and web app client. Do not create a second sign-in or edit the production pool.
 2. Read HARVEST membership from a trusted backend path. Validate the Cognito token, resolve live memberships, and reject users with no active HARVEST person or membership. Use the same server-side decision for ticket authorization and trusted reporter fields; a frontend-only role check is insufficient.
-3. Map company and partner memberships to the client workspace. **Only selected operators are Feedback admins**, per Sahil's decision; an operator membership alone must never grant admin access. Maintain a Feedback-specific server-side admin assignment and check that the user still has an active HARVEST operator membership. Users with several memberships must select the organization for a report; never silently choose one.
+3. Map company and partner memberships to the client workspace. The current local proposal grants Feedback admin to any active Operator member, including Operator `user`; Company/Partner membership alone remains client access. Users with several memberships must select the organization for a report; never silently choose one.
 4. Connect HARVEST prestaging to Feedback `dev` first. Keep Feedback's own AppSync, DynamoDB table, S3 bucket, and notification records. Back up existing reports and handle ownership changes from Feedback's old Cognito subjects before retiring its pool. Verify a client cannot read another client's report or edit admin fields through the API.
 5. Repeat with HARVEST staging and Feedback `test`, using its separate data and storage but the same HARVEST staging pool. Check company, partner, operator/admin, multi-organization, removed-membership, password-reset, upload, notification, and sign-out cases.
 6. Prepare production configuration separately. Do not point any branch at HARVEST production Cognito or deploy to Feedback `main` until approved.
 
-## Open coordination
+## Historical coordination notes for the selected-admin baseline
 
-- Record selected Feedback admins by stable HARVEST user ID and agree who maintains that assignment. The first requested account is `sahil+admin@withmeridian.ai`, pending Charan's HARVEST staging account setup. A removed HARVEST operator membership must revoke Feedback admin access.
+- The selected-admin baseline recorded `sahil+admin@withmeridian.ai` by stable HARVEST user ID. The local proposal replaces that manual assignment with live Operator membership; a removed Operator membership must revoke Feedback admin access.
 - The `harvestViewer` resolver forwards the caller's Cognito access token from the GraphQL Authorization header to HARVEST's `/api/me`; the token is not sent as a GraphQL argument. The report mutation uses the same live membership check and derives reporter fields on the server. Admin model operations still rely on Cognito group membership. Review AppSync request logging so bearer tokens are never recorded.
 - Confirm the Feedback dev/test URLs, app client callback settings if needed, and which team owns the staging Cognito app client. These are configuration changes only in staging.
 

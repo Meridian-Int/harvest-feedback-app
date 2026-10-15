@@ -53,15 +53,33 @@ it('does not accept a workspace missing from live HARVEST memberships', async ()
   expect(values.setItem).not.toHaveBeenCalled();
 });
 
-it('routes only an assigned HARVEST operator to Feedback admin', async () => {
-  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, feedbackAdmin: true, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'admin' }] } as never);
+it('routes a server-verified Operations user to Feedback admin', async () => {
+  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, feedbackAdmin: true, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' }] } as never);
   const values = storage({ accessToken: 'access', idToken: token(['feedback-admins']), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
   const user = await restoreSharedHarvestSession(values, 'operator-1');
   expect(user).toMatchObject({ persona: 'Operator', groups: ['feedback-admins'] });
   expect(isAdmin(user)).toBe(true);
-  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'admin' }] } as never);
+  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' }] } as never);
   const unassigned = storage({ accessToken: 'access', idToken: token(), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
   expect(isAdmin(await restoreSharedHarvestSession(unassigned, 'operator-1'))).toBe(false);
+});
+
+it('keeps a multi-membership Operations user on the admin side even when Company is selected', async () => {
+  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, feedbackAdmin: true, memberships: [
+    { orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' },
+    { orgId: 'company-1', orgKind: 'company', orgName: 'Company One', role: 'owner' },
+  ] } as never);
+  const values = storage({ accessToken: 'access', idToken: token(), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
+  const user = await restoreSharedHarvestSession(values, 'company-1');
+  expect(isAdmin(user)).toBe(true);
+});
+
+it('keeps Company users with Meridian email addresses on the client side', async () => {
+  vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, person: { ...viewer.person, email: 'manasa+clienta@withmeridian.ai' }, memberships: [
+    { orgId: 'company-1', orgKind: 'company', orgName: 'Company One', role: 'owner' },
+  ] } as never);
+  const values = storage({ accessToken: 'access', idToken: token(['feedback-admins']), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
+  expect(isAdmin(await restoreSharedHarvestSession(values, 'company-1'))).toBe(false);
 });
 
 it('does not launch a second login for a missing or expired HARVEST session', async () => {

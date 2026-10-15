@@ -23,22 +23,22 @@ it('uses only a live selected organization and ignores a removed selection', () 
   expect(harvestAccount(viewer, 'sub-1', [], 'removed-org').harvest?.organizationRequired).toBe(true);
 });
 
-it('requires a Feedback admin assignment as well as a selected live operator membership', () => {
-  const operator: HarvestViewer = { ...viewer, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'admin' }] };
+it('requires a server-verified admin response and a live Operations membership', () => {
+  const operator: HarvestViewer = { ...viewer, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' }] };
   const user = harvestAccount(operator, 'sub-1', ['feedback-admins']);
   expect(user.harvest?.selectedOrganizationId).toBe('operator-1');
   expect(isAdmin(user)).toBe(true);
   expect(isAdmin(harvestAccount(operator, 'sub-1', []))).toBe(false);
 });
 
-it('uses the selected HARVEST workspace when a feedback admin also belongs to a company', () => {
+it('keeps global admin access when an Operations member selects a Company workspace', () => {
   const mixed: HarvestViewer = { ...viewer, memberships: [
-    { orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'admin' },
+    { orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' },
     viewer.memberships[0],
   ] };
   const companyUser = harvestAccount(mixed, 'sub-1', ['feedback-admins'], 'company-1');
   expect(companyUser.persona).toBe('Company');
-  expect(isAdmin(companyUser)).toBe(false);
+  expect(isAdmin(companyUser)).toBe(true);
   const adminUser = harvestAccount(mixed, 'sub-1', ['feedback-admins'], 'operator-1');
   expect(adminUser.persona).toBe('Operator');
   expect(isAdmin(adminUser)).toBe(true);

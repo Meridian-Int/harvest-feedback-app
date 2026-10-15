@@ -10,30 +10,47 @@ const actor: Actor = { sub: 'sub', viewer, admin: false };
 const report = { owner: 'sub', organizationId: 'org', status: 'NEW' };
 const event = (): Event => ({ arguments: {}, info: { fieldName: 'getFeedback' }, identity: { sub: 'sub', issuer: 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_pool', claims: { token_use: 'access', client_id: 'client', 'cognito:groups': ['feedback-admins'] } }, request: { headers: { authorization: 'access' } } });
 beforeEach(() => { cognito.send.mockReset().mockResolvedValue({ UserAttributes: [{ Name: 'sub', Value: 'sub' }] }); vi.stubEnv('HARVEST_USER_POOL_ID', 'us-east-2_pool'); vi.stubEnv('HARVEST_APP_CLIENT_ID', 'client'); vi.stubEnv('HARVEST_API_BASE_URL', 'https://staging.example.com'); });
-it('requires both server assignment and live Operator membership', async () => {
-  const client = () => Promise.resolve(new Response(JSON.stringify(viewer)));
-  expect((await authorize(event(), async () => ({ enabled: true }), client)).admin).toBe(false);
-  const operator = () => Promise.resolve(new Response(JSON.stringify({ ...viewer, memberships: [{ ...viewer.memberships[0], orgKind: 'operator' }] })));
-  expect((await authorize(event(), async () => null, operator)).admin).toBe(false);
-  expect((await authorize(event(), async () => ({ enabled: true }), operator)).admin).toBe(true);
-  expect((await authorize(event(), async () => ({ enabled: false }), operator)).admin).toBe(false);
+it.each([
+  ['operator', 'owner', true], ['operator', 'admin', true], ['operator', 'user', true],
+  ['company', 'owner', false], ['company', 'admin', false],
+  ['partner', 'owner', false], ['partner', 'admin', false],
+] as const)('derives Feedback admin from live %s %s membership', async (orgKind, role, expected) => {
+  const request = () => Promise.resolve(new Response(JSON.stringify({ ...viewer, memberships: [{ ...viewer.memberships[0], orgKind, role }] })));
+  expect((await authorize(event(), request)).admin).toBe(expected);
+});
+it('rechecks removal from Operations using the same token', async () => {
+  const operator = { ...viewer.memberships[0], orgKind: 'operator', role: 'user' };
+  const request = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ ...viewer, memberships: [operator] })))
+    .mockResolvedValueOnce(new Response(JSON.stringify(viewer)));
+  expect((await authorize(event(), request)).admin).toBe(true);
+  expect((await authorize(event(), request)).admin).toBe(false);
+});
+it.each(['company', 'partner'] as const)('does not grant admin from a Meridian email with only %s membership', async orgKind => {
+  const request = () => Promise.resolve(new Response(JSON.stringify({ ...viewer, person: { ...viewer.person, email: 'manasa+clienta@withmeridian.ai' }, memberships: [{ ...viewer.memberships[0], orgKind }] })));
+  expect((await authorize(event(), request)).admin).toBe(false);
+});
+it('grants admin from an Operations membership even when Company is also present', async () => {
+  const request = () => Promise.resolve(new Response(JSON.stringify({ ...viewer, memberships: [
+    viewer.memberships[0], { ...viewer.memberships[0], orgId: 'operations', orgKind: 'operator', role: 'user' },
+  ] })));
+  expect((await authorize(event(), request)).admin).toBe(true);
 });
 it('rechecks revocation using the same token', async () => {
   const request = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(viewer))).mockResolvedValueOnce(new Response(JSON.stringify({ ...viewer, memberships: [] })));
-  await authorize(event(), async () => null, request);
-  await expect(authorize(event(), async () => null, request)).rejects.toThrow('no active organization');
+  await authorize(event(), request);
+  await expect(authorize(event(), request)).rejects.toThrow('no active organization');
 });
 it.each([{ token_use: 'id', client_id: 'client' }, { token_use: 'access', client_id: 'other' }])('denies wrong token use/client', async claims => {
   const candidate = event(); candidate.identity!.claims = claims;
   await expect(authorize(candidate, vi.fn())).rejects.toThrow('Unauthorized');
 });
 it('fails closed when HARVEST denies the token', async () => {
-  await expect(authorize(event(), async () => ({ enabled: true }), async () => new Response('', { status: 401 }))).rejects.toThrow('Unauthorized');
+  await expect(authorize(event(), async () => new Response('', { status: 401 }))).rejects.toThrow('Unauthorized');
 });
 it('rejects a Cognito-revoked token before fetching membership', async () => {
   cognito.send.mockRejectedValue(new Error('NotAuthorizedException'));
   const request = vi.fn();
-  await expect(authorize(event(), async () => null, request)).rejects.toThrow('Unauthorized');
+  await expect(authorize(event(), request)).rejects.toThrow('Unauthorized');
   expect(request).not.toHaveBeenCalled();
 });
 it('isolates subjects and revoked organizations', () => {

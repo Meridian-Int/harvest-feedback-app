@@ -14,7 +14,6 @@ export interface Event {
 /** AppSync verifies the signature; HARVEST independently verifies this access token. */
 export async function authorize(
   event: Event,
-  assignment: (sub: string) => Promise<{ enabled?: boolean } | null>,
   request: typeof fetch = fetch,
 ): Promise<Actor> {
   const pool = process.env.HARVEST_USER_POOL_ID;
@@ -39,10 +38,9 @@ export async function authorize(
   });
   if (!response.ok) throw new Error('Unauthorized');
   const viewer = parseHarvestViewer(await response.json());
-  const selected = await assignment(identity.sub);
   return {
     sub: identity.sub, viewer,
-    admin: selected?.enabled === true && viewer.memberships.some(m => m.orgKind === 'operator'),
+    admin: viewer.memberships.some(m => m.orgKind === 'operator'),
   };
 }
 

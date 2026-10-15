@@ -28,8 +28,7 @@ export function getCurrentUser(): AuthUser | null {
 
 export function isAdmin(user: AuthUser | null): boolean {
   return Boolean(user && (user.harvest
-    ? user.groups.includes('feedback-admins') && user.harvest.memberships.some(item =>
-      item.orgId === user.harvest?.selectedOrganizationId && item.orgKind === 'operator')
+    ? user.groups.includes('feedback-admins') && user.harvest.memberships.some(item => item.orgKind === 'operator')
     : user.groups.includes('admins')));
 }
 

@@ -6,11 +6,10 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 const secrets = new SecretsManagerClient({});
 let pool: pg.Pool | undefined;
 
-export function directorySubjects(event: unknown): string[] {
+export function validDirectoryRequest(event: unknown): void {
   if (!event || typeof event !== 'object' || Array.isArray(event)) throw new Error('Invalid directory request.');
   const value = event as Record<string, unknown>;
-  if (value.operation !== 'harvest-feedback-admin-directory' || Object.keys(value).some(key => !['operation', 'subjects'].includes(key)) || !Array.isArray(value.subjects) || value.subjects.length > 100 || value.subjects.some(sub => typeof sub !== 'string' || !/^[a-f0-9-]{36}$/i.test(sub))) throw new Error('Invalid directory request.');
-  return [...new Set(value.subjects as string[])];
+  if (value.operation !== 'harvest-feedback-admin-directory' || Object.keys(value).length !== 1) throw new Error('Invalid directory request.');
 }
 
 async function database() {
@@ -32,8 +31,7 @@ async function database() {
 
 /** IAM-only function with a dedicated column-scoped database login; no master secret. */
 export async function handler(event: unknown) {
-  const subjects = directorySubjects(event);
-  if (!subjects.length) return [];
+  validDirectoryRequest(event);
   let client: pg.PoolClient | undefined;
   try {
     client = await (await database()).connect();
@@ -42,9 +40,10 @@ export async function handler(event: unknown) {
       `SELECT DISTINCT p.idp_subject AS sub, p.email, p.name
          FROM people p JOIN memberships m ON m.person_id = p.id
          JOIN organisations o ON o.id = m.organisation_id
-        WHERE p.idp_subject = ANY($1::text[])
-          AND m.removed_at IS NULL AND o.kind = 'operator'`, [subjects],
+        WHERE m.removed_at IS NULL AND o.kind = 'operator'
+        LIMIT 101`,
     );
+    if (result.rows.length > 100) throw new Error('Administrator directory exceeds its configured bound.');
     await client.query('COMMIT');
     return result.rows;
   } catch {
