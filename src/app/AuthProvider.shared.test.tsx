@@ -8,6 +8,20 @@ vi.mock('../lib/harvest-shared-session', () => ({ HARVEST_SESSION_KEY: 'harvest-
 function Viewer() { const { user } = useAuth(); return <span>{user?.email}</span>; }
 const user = { id: 'sub', email: 'company@example.com', name: 'Company', persona: 'Company', company: 'Company', groups: [] };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(restoreSession).mockResolvedValue(user as never); });
+it('shows the Feedback loading card until the HARVEST session is restored', async () => {
+  let finish: (value: Awaited<ReturnType<typeof restoreSession>>) => void = () => {};
+  vi.mocked(restoreSession).mockImplementationOnce(() => new Promise<Awaited<ReturnType<typeof restoreSession>>>(resolve => { finish = resolve; }));
+
+  render(<AuthProvider><Viewer /></AuthProvider>);
+  expect(screen.getByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Opening HARVEST Feedback');
+  expect(screen.getByText('Loading your workspace…')).toBeInTheDocument();
+  expect(screen.queryByText('company@example.com')).not.toBeInTheDocument();
+
+  await act(async () => { finish(user as never); });
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.getByText('company@example.com')).toBeInTheDocument();
+});
 it('drops the Feedback workspace after HARVEST signs out in another tab', async () => {
   render(<AuthProvider><Viewer /></AuthProvider>);
   await screen.findByText('company@example.com');
