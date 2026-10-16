@@ -1,37 +1,38 @@
 # Environments, branches and deploys
 
-The integrated, same-domain HARVEST Feedback `dev` release has its own AWS stack. HARVEST's existing GitLab CI/CD publishes the HARVEST frontend; it does not update the separate Feedback backend or UI. The standalone Amplify flow described below is legacy and does not publish HARVEST `/feedback`. An integrated Feedback release requires a separately reviewed, approved update to the existing Feedback dev stack and private UI.
+The Feedback repository keeps two remote branches: `dev` for ordinary work and `main` for production. The former `test` branch has been retired. The integrated, same-domain HARVEST Feedback `dev` release has its own AWS stack. HARVEST's existing GitLab CI/CD publishes the HARVEST frontend; it does not update the separate Feedback backend or UI. The standalone Amplify flow described below is legacy and does not publish HARVEST `/feedback`. An integrated Feedback release requires a separately reviewed, approved update to the existing Feedback dev stack and private UI.
 
 ## The picture
 
 | Environment | Branch | Site | Who uses it | Goes live when |
 |---|---|---|---|---|
-| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` | Sahil and Manasa | A commit is pushed to `dev`, when deployment is configured |
-| **test** | `test` | `https://test.<appId>.amplifyapp.com` | Vaish and testers | `dev` is merged into `test` |
-| **production** | `main` | `https://main.<appId>.amplifyapp.com` (custom domain later) | Real users | `test` is merged into `main` **and Vaish approves** |
+| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` (legacy standalone URL) | Sahil and Manasa | The standalone deploy runs only when configured; the integrated backend and UI release separately |
+| **production** | `main` | `https://main.<appId>.amplifyapp.com` (legacy standalone URL) | Real users | A reviewed `dev` → `main` PR is merged and Vaish approves deployment |
 
-- Each Feedback environment has its own website, report database, and S3 bucket. During the HARVEST account integration, Feedback `dev` and `test` will share HARVEST's staging Cognito user pool while keeping their ticket data separate. Feedback production will later use HARVEST's production pool after approval. See [HARVEST account integration](HARVEST_AUTH_INTEGRATION.md).
+- Feedback `dev` has its own report database and storage, separate from production. The integrated dev release uses HARVEST staging identities. Feedback production needs separate approval and configuration before using HARVEST production identities. See [HARVEST account integration](HARVEST_AUTH_INTEGRATION.md).
 - Each developer also has a private **sandbox** (`npx ampx sandbox`), a personal backend for working on a laptop.
-- **Deploys go through GitHub Actions** (`.github/workflows/deploy.yml`). A push to a deployed branch tells Amplify to build it, waits for the result, and records it in GitHub. The repo's **Deployments** box then shows `dev`, `test` and `production` with green ticks, like HARVEST's.
-- **Production waits for Vaish:** the job pauses until she clicks *Approve* in GitHub.
+- **Legacy standalone deploys go through GitHub Actions** (`.github/workflows/deploy.yml`) only when `AMPLIFY_APP_ID` is configured. A push to a configured branch tells Amplify to build it and records the result in GitHub. This workflow does not release the integrated Feedback backend or HARVEST `/feedback` UI.
+- **Production approval:** when the GitHub production environment has a required reviewer, the legacy deploy job pauses for Vaish's approval.
 - **Every pull request runs Checks** (`.github/workflows/checks.yml`): typecheck, unit tests with coverage, and build. A direct push to `dev` does not get this PR check, so run the same checks locally first.
 
 ## Flow of a change
 
 ```
-Sahil and Manasa ─▶ dev ─▶ PR ─▶ test ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
+Sahil and Manasa ─▶ dev ─▶ PR ─▶ main ─▶ (Vaish approves) ─▶ production
 ```
 
 1. Sahil and Manasa both pull and work directly on `dev`. Coordinate before editing shared files.
-2. Work against your sandbox, pull the latest `dev`, and run the local checks before pushing. A normal `dev` push deploys when Amplify is configured.
-3. When dev is good, open a PR `dev → test`. Test deploys. Vaish checks the test site.
-4. When test is approved, open a PR `test → main`. Vaish approves the deployment. Production deploys.
+2. Work against your sandbox, pull the latest `dev`, and run the local checks before pushing. A normal `dev` push starts only the legacy standalone Amplify deploy when configured. Release the integrated backend and private UI separately after review.
+3. Validate the integrated flow on HARVEST prestaging, then staging, before proposing a production release.
+4. When approved, open a PR `dev → main`. Vaish reviews the production deployment.
 
-Never push straight to `test` or `main`. Branch protection blocks it anyway.
+Never push straight to `main`.
 
 ---
 
-# One-time setup checklist (do it in this order)
+# Legacy standalone Amplify setup checklist
+
+This checklist describes the standalone Amplify deployment. It does not configure the integrated Feedback backend or the HARVEST `/feedback` route. Complete only the parts still relevant to an approved standalone deployment.
 
 `[you]` means Sahil. `[AWS admin]` means whoever has admin access to Meridian's AWS account; ask Vaish who that is.
 
@@ -45,19 +46,13 @@ Never push straight to `test` or `main`. Branch protection blocks it anyway.
 
 ## B. GitHub repository
 
-- [ ] **[you]** Create the repo: private, in the agreed org. Add Manasa (write) and Vaish (admin or maintain).
-- [ ] **[you]** Clone it. Copy this package into the root, including the hidden `.github/` folder. Commit and push to `main`.
-- [ ] **[you]** Create the other branches:
-  ```
-  git checkout -b test && git push -u origin test
-  git checkout -b dev  && git push -u origin dev
-  ```
+- [ ] **[you]** Confirm the existing repository is private and the intended collaborators have access.
+- [ ] **[you]** Keep the existing `dev` and `main` branches. Do not recreate the retired `test` branch.
 - [ ] **[you]** Settings → General → **Default branch = `dev`**.
-- [ ] **[you]** Settings → **Environments** → create three: `dev`, `test`, `production`.
+- [ ] **[you]** Settings → **Environments** → create `dev` and `production`.
   - `production`: tick **Required reviewers**, add **Vaish**. Under *Deployment branches*, choose **Selected branches** and allow only `main`.
-  - `test`: deployment branches → only `test`.
   - `dev`: deployment branches → only `dev`.
-- [ ] **[you]** Settings → **Branches** (or Rules → Rulesets) → protect `main` and `test`:
+- [ ] **[you]** Settings → **Branches** (or Rules → Rulesets) → protect `main`:
   - Require a pull request before merging.
   - Require the status check **"Typecheck, test and build"**. It appears in the list after the first PR has run Checks; add it then.
   - Block force pushes and deletions.
@@ -65,14 +60,14 @@ Never push straight to `test` or `main`. Branch protection blocks it anyway.
 
 ## C. Phase 0 code (your Codex, `docs/ADMIN_TASK.md`)
 
-- [ ] **[you]** Branch `setup/foundation` off `dev`. Run Phase 0, open a PR into `dev`, wait for Checks to pass, merge.
+- [ ] **[you]** If Phase 0 needs further work, coordinate and push it to `dev` after local checks.
 - [ ] **[you]** Confirm a fresh clone runs: `npm install`, `npx ampx sandbox`, `npm run dev`.
 
 ## D. Amplify app and deploy role (once Phase 0 is on `dev`)
 
 - [ ] **[you]** AWS Console → **Amplify** → *Create new app* → GitHub → this repo → branch **`dev`** → deploy. Let the first build finish.
-- [ ] **[you]** Same app → *Add branch* → **`test`**, then **`main`**.
-- [ ] **[you]** For **each** of `dev`, `test` and `main`: Branch settings → **turn OFF "Auto build"**. GitHub Actions starts builds now; leaving it on would build twice.
+- [ ] **[you]** Same app → *Add branch* → **`main`**.
+- [ ] **[you]** For **each** of `dev` and `main`: Branch settings → **turn OFF "Auto build"**. GitHub Actions starts builds now; leaving it on would build twice.
 - [ ] **[you]** Note the **App ID** (looks like `d1a2b3c4d5e6f7`) from the app's General settings.
 - [ ] **[AWS admin]** IAM → Identity providers → *Add provider* → OpenID Connect:
   - URL `https://token.actions.githubusercontent.com`
@@ -91,28 +86,27 @@ Never push straight to `test` or `main`. Branch protection blocks it anyway.
 
 ## E. App settings per environment (Amplify console)
 
-- [ ] **[you]** For **each** branch (`dev`, `test`, `main`), set environment variables: `VITE_SENTRY_DSN`, `VITE_GA_MEASUREMENT_ID`, `VITE_LOOKER_EMBED_URL`, `SENTRY_ORG`, `SENTRY_PROJECTS`. Empty is fine until you have them; the app shows setup messages.
+- [ ] **[you]** For **each** branch (`dev`, `main`), set environment variables: `VITE_SENTRY_DSN`, `VITE_GA_MEASUREMENT_ID`, `VITE_LOOKER_EMBED_URL`, `SENTRY_ORG`, `SENTRY_PROJECTS`. Empty is fine until you have them; the app shows setup messages.
 - [ ] **[you]** For **each** branch: secret `SENTRY_AUTH_TOKEN`, once you have one.
-- [ ] **[you]** Optional: Access control → password-protect `dev` and `test`.
+- [ ] **[you]** Optional: Access control → password-protect `dev`.
 
 ## F. Prove it works
 
-- [ ] **[you]** Make a tiny PR into `dev` (e.g. a README line) and merge it. Then check:
+- [ ] **[you]** After the legacy standalone Amplify deploy is configured, push a checked change to `dev`. Then check:
   - Actions shows **Deploy dev** running.
   - Amplify shows a build that GitHub started.
   - The repo page shows **Deployments → dev** with a green tick and a link.
-- [ ] **[you]** PR `dev → test`, merge. **Deployments → test** appears.
-- [ ] **[you]** PR `test → main`, merge. The production job **waits** until Vaish clicks *Review deployments → Approve*. Then **Deployments → production** appears.
+- [ ] **[you]** With production release approval, PR `dev → main` and merge. If Vaish is configured as a required reviewer, the production job waits for her approval before **Deployments → production** appears.
 
 ## G. Users
 
 - [ ] **[you]** In each environment's Cognito user pool (Amplify console → the branch → Authentication), create users with their email, `name`, `custom:persona` and `custom:company`. Put admins in the `admins` group.
-  - dev and test: fake test users only.
+  - dev: fake test users only.
   - production: real people, created when Vaish says.
 
 ## H. Tell Manasa to start
 
-- [ ] Send her the repo link and `docs/CLIENT_TASK.md`. She clones, runs `npm install`, `npx ampx sandbox` (her AWS login) and `npm run dev`, then branches `client/new-feedback` off `dev`.
+- [ ] Send her the repo link and `docs/CLIENT_TASK.md`. She clones, runs `npm install`, `npx ampx sandbox` (her AWS login) and `npm run dev`, then coordinates changes on `dev`.
 
 ---
 

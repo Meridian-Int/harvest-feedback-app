@@ -163,7 +163,7 @@ Test files sit next to the code: `format.ts` → `format.test.ts`, `NewFeedbackP
   - "Make a report" calls `createFeedback` with `sentryIssueId`
   - Traffic shows the iframe with the URL, or the setup message without it
 
-## Not covered by unit tests (check by hand before each test → main release)
+## Not covered by unit tests (check by hand before each dev → main release)
 
 - **Authorization in AWS:** signed in as a client, try to read another client's report and to change `status`. Both must fail. Do it in the dev environment.
 - Real email-code sign-in, real uploads, the real screen-recording picker, the live Sentry and Looker embeds.

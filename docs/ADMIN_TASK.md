@@ -66,7 +66,7 @@ With tests for the Errors and Traffic states, using a mocked `sentry-issues` res
 
 ## Phase 3: environments
 
-Follow `docs/ENVIRONMENTS.md` sections D–G: the Amplify app, the deploy role, GitHub variables, per-branch settings, a test deploy through dev → test → production, and the users.
+Follow `docs/ENVIRONMENTS.md` for the current `dev` → `main` release path. The standalone Amplify deployment checklist is legacy; integrated Feedback releases use the separate Feedback backend and HARVEST's protected `/feedback` route.
 
 ## Then
 

@@ -273,5 +273,5 @@ Server-side, per branch in the Amplify console:
 - Stay in the owner's folders. Ask before changing shared code, the data model or `options.ts`.
 - Colours only from tokens, copy only from the spec or this file, options only from `options.ts`.
 - Never commit secrets or `.env.local`. Never deploy, delete AWS resources or edit Cognito users unless asked.
-- Never push to `test` or `main` directly, and never edit `.github/workflows/` without asking; see `docs/ENVIRONMENTS.md`.
+- Never push to `main` directly, and never edit `.github/workflows/` without asking; see `docs/ENVIRONMENTS.md`.
 - If the spec, the prototype and this file disagree, say so; don't silently pick one.

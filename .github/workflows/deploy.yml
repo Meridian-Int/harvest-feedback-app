@@ -1,18 +1,18 @@
-# Deploys dev, test and main (production) through AWS Amplify Hosting and records each
-# deployment in GitHub, so the repo's "Deployments" box shows dev / test / production.
+# Deploys dev and main (production) through AWS Amplify Hosting and records each
+# deployment in GitHub, so the repo's "Deployments" box shows dev / production.
 #
-# How it works: a push to dev/test/main starts this job in the matching GitHub environment.
+# How it works: a push to dev/main starts this job in the matching GitHub environment.
 # Production waits for its required reviewer (Vaish) before running. The job asks Amplify to
 # build that branch, waits for the result, and passes or fails with it.
 #
 # Needs (see docs/ENVIRONMENTS.md): repository variables AMPLIFY_APP_ID, AWS_REGION,
-# AWS_DEPLOY_ROLE_ARN; GitHub environments dev, test, production; auto-build OFF in Amplify.
+# AWS_DEPLOY_ROLE_ARN; GitHub environments dev and production; auto-build OFF in Amplify.
 
 name: Deploy
 
 on:
   push:
-    branches: [dev, test, main]
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:

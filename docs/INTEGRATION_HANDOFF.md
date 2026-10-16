@@ -4,7 +4,7 @@ The app code and environment variable names are in place. Complete this checklis
 
 ## Shared development baseline
 
-`dev` contains the current admin and client implementations. Sahil and Manasa both pull and work directly on `dev`. Pull the latest `dev` before each new task and before pushing, run the local checks, and coordinate edits to shared files. Do not push directly to `test` or `main`. A normal push to `dev` starts the Amplify deploy workflow when `AMPLIFY_APP_ID` is configured; coordinate before pushing while deployment is paused.
+`dev` contains the current admin and client implementations. Sahil and Manasa both pull and work directly on `dev`. Pull the latest `dev` before each new task and before pushing, run the local checks, and coordinate edits to shared files. Keep `main` for reviewed production releases. A normal push to `dev` starts the legacy standalone Amplify deploy workflow only when `AMPLIFY_APP_ID` is configured; integrated Feedback requires a separate backend and private UI release.
 
 | Service | Obtain from account owner | Configure | Verify |
 |---|---|---|---|
@@ -16,7 +16,7 @@ The app code and environment variable names are in place. Complete this checklis
 
 ## Before requesting credentials
 
-- Confirm which AWS account and Amplify app/branch will host `dev`, `test`, and `main`.
+- Confirm which AWS account and Feedback backend will host `dev`, and keep production `main` isolated until approved.
 - Confirm the Sentry organization and actual project slugs. The current defaults are `harvest-ui`, `harvest-api`, and `feedback-app`.
 - Confirm who owns the GA4 property and Looker Studio report, and that the report uses owner credentials for the embed.
 - Confirm the real admin users and assignee names before replacing the prototype assignee list.

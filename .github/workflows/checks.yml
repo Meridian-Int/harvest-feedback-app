@@ -1,4 +1,4 @@
-# Runs on every pull request into dev, test or main: typecheck, unit tests with coverage, build.
+# Runs on every pull request into dev or main: typecheck, unit tests with coverage, build.
 # Branch protection requires this to pass before merging.
 # Skips cleanly until Phase 0 has added package.json.
 
@@ -6,7 +6,7 @@ name: Checks
 
 on:
   pull_request:
-    branches: [dev, test, main]
+    branches: [dev, main]
 
 permissions:
   contents: read
