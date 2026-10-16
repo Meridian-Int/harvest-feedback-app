@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- The Harvest gem: circle, diamond, axis, stubs, the one mark. -->
+  <g fill="none" stroke="#B45340" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="50" r="44"/>
+    <path d="M50 6 L74 50 L50 94 L26 50 Z"/>
+    <path d="M50 6 V94"/>
+    <path d="M6 50 H26 M74 50 H94"/>
+  </g>
+</svg>
