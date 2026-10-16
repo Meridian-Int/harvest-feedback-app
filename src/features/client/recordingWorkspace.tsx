@@ -4,14 +4,22 @@ import type { ClientControls } from './contract';
 import { ScreenRecorderDialog } from './ScreenRecorderDialog';
 
 // Capture belongs to the client workspace, not to a route's form component.
-const files = new Map<string, File>();
+const files = new Map<string, readonly File[]>();
+const NONE: readonly File[] = [];
 const listeners = new Set<() => void>();
 const mounts = new Map<string, number>();
 let host: { scope: string; root: Root; element: HTMLDivElement } | null = null;
 const notify = () => listeners.forEach(listener => listener());
-export function setWorkspaceAttachment(scope: string, file: File | null) {
-  if (file) files.set(scope, file); else files.delete(scope);
+export function setWorkspaceAttachments(scope: string, next: readonly File[]) {
+  if (next.length) files.set(scope, next); else files.delete(scope);
   notify();
+}
+/** Adds a file unless the report already has `limit` files; returns whether it was added. */
+export function addWorkspaceAttachment(scope: string, file: File, limit: number): boolean {
+  const current = files.get(scope) ?? NONE;
+  if (current.length >= limit) return false;
+  setWorkspaceAttachments(scope, [...current, file]);
+  return true;
 }
 function closeHost() {
   const previous = host;
@@ -22,7 +30,7 @@ function closeHost() {
 export function resetRecordingWorkspace() {
   closeHost(); files.clear(); notify();
 }
-export function openWorkspaceRecorder(scope: string, controls: ClientControls) {
+export function openWorkspaceRecorder(scope: string, controls: ClientControls, limit: number) {
   if (host?.scope === scope) return;
   closeHost();
   const element = document.createElement('div');
@@ -31,13 +39,13 @@ export function openWorkspaceRecorder(scope: string, controls: ClientControls) {
   document.body.appendChild(element);
   const root = createRoot(element);
   host = { scope, root, element };
-  root.render(<ScreenRecorderDialog controls={controls} replacing={files.has(scope)}
-    onAttach={file => setWorkspaceAttachment(scope, file)} onClose={closeHost} />);
+  root.render(<ScreenRecorderDialog controls={controls} full={(files.get(scope)?.length ?? 0) >= limit}
+    onAttach={file => addWorkspaceAttachment(scope, file, limit)} onClose={closeHost} />);
 }
 export function useRecordingWorkspace(scope?: string) {
   const file = useSyncExternalStore(listener => {
     listeners.add(listener); return () => { listeners.delete(listener); };
-  }, () => scope ? files.get(scope) ?? null : null);
+  }, () => scope ? files.get(scope) ?? NONE : NONE);
   useEffect(() => {
     if (!scope) return;
     mounts.set(scope, (mounts.get(scope) ?? 0) + 1);

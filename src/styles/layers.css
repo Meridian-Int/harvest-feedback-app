@@ -1,0 +1,3 @@
+/* Cascade layer order, loaded before any other CSS: Feedback's own styles ("legacy") sit above
+   Tailwind's reset and below its utilities, so Align UI component classes win. */
+@layer theme, base, legacy, components, utilities;

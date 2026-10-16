@@ -4,7 +4,7 @@ import { Icon } from '../../components/icons';
 import { listAllFeedback, observeAllFeedback } from '../../lib/feedback';
 import { formatDate } from '../../lib/format';
 import { paginate } from '../../lib/list';
-import { PERSONAS, PRODUCT_AREAS, SEVERITIES, STATUSES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
+import { PERSONAS, PRODUCT_AREAS, STATUSES, STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
 import { useAssignees } from './useAssignees';
 import { isUpdatePending, statusStep } from '../../lib/status';
 import type { Feedback } from '../../lib/types';
@@ -29,7 +29,7 @@ function ReportRow({ report, onOpen }: { report: Feedback; onOpen: () => void })
         </span>;
       })}</span>
     </span>
-    <span className="admin-report-badges"><Pill value={report.priority} /><Pill value={report.severity} /></span>
+    <span className="admin-report-badges"><Pill value={report.priority} />{report.priority === 'BLOCKER' && <Pill value="CRITICAL" />}</span>
     <span className="admin-report-arrow" aria-hidden="true" />
   </button>;
 }
@@ -81,7 +81,7 @@ export function ReviewPage() {
   function closeReport() { const next = new URLSearchParams(params); next.delete('report'); setParams(next); }
 
   return <section className="report-page" id="view-admin">
-    <div className="pagehead"><div><h1>Feedback review</h1><p>Review, assign and respond to client reports.</p></div></div>
+    <div className="pagehead admin-pagehead"><span className="admin-page-mark" aria-hidden="true"><Icon name="check-circle" /></span><div><span className="admin-eyebrow">Admin</span><h1>Feedback review</h1><p>Review, assign and respond to client reports.</p></div></div>
     <div className="admin-stats">
       {([
         ['OPEN', 'Open', metrics.open, 'Across every product area'],
@@ -94,7 +94,6 @@ export function ReviewPage() {
       <div className="admin-filters">
         <Input type="search" aria-label="Search reports" placeholder="Search reports" value={filters.query} onChange={event => updateFilter('q', event.target.value)} />
         <Select aria-label="Filter status" value={filters.status} onChange={event => updateFilter('status', event.target.value)}><option value="">All statuses</option>{STATUS_ORDER.map((value, index) => <option key={value} value={value}>{STATUSES[index]}</option>)}</Select>
-        <Select aria-label="Filter severity" value={filters.severity} onChange={event => updateFilter('severity', event.target.value)}><option value="">All severities</option>{(['CRITICAL', 'MEDIUM', 'LOW'] as const).map((value, index) => <option key={value} value={value}>{SEVERITIES[index]}</option>)}</Select>
         <Select aria-label="Filter product area" value={filters.productArea} onChange={event => updateFilter('area', event.target.value)}><option value="">All product areas</option>{PRODUCT_AREAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
         <Select aria-label="Filter persona" value={filters.persona} onChange={event => updateFilter('persona', event.target.value)}><option value="">All personas</option>{PERSONAS.map(value => <option key={value} value={value}>{value}</option>)}</Select>
         <Select aria-label="Filter owner" value={filters.owner} onChange={event => updateFilter('owner', event.target.value)}><option value="">All owners</option><option value="unassigned">Unassigned</option>{assignees.options.filter(item => item.value).map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select>

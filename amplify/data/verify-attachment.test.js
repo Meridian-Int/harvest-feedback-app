@@ -22,3 +22,13 @@ it('only stores the exact verified attachment key and blocks failures', () => {
     expect(() => response({ ...ctx, stash: {}, ...patch })).toThrow('Attachment unavailable.');
   }
 });
+it('verifies every file in the attachments list together with the legacy fields', () => {
+  const first = { attachmentKey: 'a', attachmentName: 'a.png', attachmentType: 'image/png', attachmentSize: 1 };
+  const second = { attachmentKey: 'b', attachmentName: 'b.png', attachmentType: 'image/png', attachmentSize: 2 };
+  const ctx = { identity: { sub: 'client-a' }, request: { headers: { authorization: 'id-token' } }, args: { ...first, attachments: JSON.stringify([second]) } };
+  expect(request(ctx).payload.attachments).toEqual([first, second]);
+  const verified = { args: ctx.args, result: { attachmentKey: 'a', attachmentKeys: ['a', 'b'] }, stash: {} };
+  response(verified); expect(verified.stash.verifiedAttachmentKeys).toEqual(['a', 'b']);
+  expect(() => response({ ...verified, stash: {}, result: { attachmentKeys: ['a'] } })).toThrow('Attachment unavailable.');
+  expect(() => request({ ...ctx, args: { attachments: Array.from({ length: 6 }, () => second) } })).toThrow('Attachment unavailable.');
+});

@@ -2,43 +2,50 @@ import { useEffect, useState } from 'react';
 import { Icon } from '../../components/icons';
 import { Button, Dialog, Pill, ProgressTrack, Select } from '../../components/ui';
 import { adminUpdate, getAttachmentUrl } from '../../lib/feedback';
-import { displayId, formatDateTime } from '../../lib/format';
+import { displayId, formatDateTime, formatFileSize } from '../../lib/format';
+import { reportAttachments } from '../../lib/attachments';
 import { STATUS_LABELS, STATUS_ORDER } from '../../lib/options';
 import { useAssignees } from './useAssignees';
-import type { Feedback, Status } from '../../lib/types';
+import type { Attachment, Feedback, Status } from '../../lib/types';
 import { isUpdatePending } from '../../lib/status';
 import { initialReviewAssignee } from './logic/review';
 
-function AttachmentPreview({ report }: { report: Feedback }) {
+function AttachmentPreview({ attachment, single }: { attachment: Attachment; single: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
-  const [state, setState] = useState<'none' | 'loading' | 'ready' | 'unavailable'>('none');
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   useEffect(() => {
     let active = true;
     let resolvedUrl: string | null = null;
     setUrl(null);
-    if (!report.attachmentKey) {
-      setState(report.attachmentName ? 'unavailable' : 'none');
-      return;
-    }
+    if (!attachment.attachmentKey) { setState('unavailable'); return; }
     setState('loading');
-    getAttachmentUrl(report.attachmentKey).then(value => {
+    getAttachmentUrl(attachment.attachmentKey).then(value => {
       resolvedUrl = value;
       if (active) { setUrl(value); setState('ready'); }
       else if (value.startsWith('blob:')) URL.revokeObjectURL(value);
     }).catch(() => { if (active) setState('unavailable'); });
     return () => { active = false; if (resolvedUrl?.startsWith('blob:')) URL.revokeObjectURL(resolvedUrl); };
-  }, [report.attachmentKey, report.attachmentName]);
+  }, [attachment.attachmentKey]);
 
-  return <section className="admin-attachment"><h3>Attachments</h3>
-    {state === 'none' && <p className="helper">No attachments on this report.</p>}
+  return <li className="admin-attachment-item">
     {state === 'loading' && <p className="helper">Loading attachment…</p>}
     {state === 'unavailable' && <p className="helper">Attachment is unavailable.</p>}
     {state === 'ready' && url && <div className="admin-attachment-media">
-      {report.attachmentType?.startsWith('image/') ? <img src={url} alt="Attached screenshot" /> :
-        report.attachmentType?.startsWith('video/') ? <video src={url} controls preload="metadata" aria-label="Attached recording" /> : <p className="helper">Preview is unavailable.</p>}
-      <a className="btn btn-quiet" href={url} download={report.attachmentName || 'attachment'}><Icon name="download" />Download attachment</a>
+      {attachment.attachmentType?.startsWith('image/') ? <img src={url} alt={single ? 'Attached screenshot' : `Attached screenshot ${attachment.attachmentName}`} /> :
+        attachment.attachmentType?.startsWith('video/') ? <video src={url} controls preload="metadata" aria-label={single ? 'Attached recording' : `Attached recording ${attachment.attachmentName}`} /> : <p className="helper">Preview is unavailable.</p>}
     </div>}
-    {report.attachmentName && <p className="helper admin-attachment-name">{report.attachmentName}</p>}
+    <div className="admin-attachment-meta">
+      <span className="admin-attachment-name">{attachment.attachmentName}{attachment.attachmentSize > 0 && <small className="helper"> · {formatFileSize(attachment.attachmentSize)}</small>}</span>
+      {state === 'ready' && url && <a className="btn btn-quiet" href={url} download={attachment.attachmentName || 'attachment'} aria-label={single ? undefined : `Download ${attachment.attachmentName}`}><Icon name="download" />Download attachment</a>}
+    </div>
+  </li>;
+}
+
+function AttachmentGallery({ report }: { report: Feedback }) {
+  const attachments = reportAttachments(report);
+  return <section className="admin-attachment"><h3>Attachments{attachments.length > 1 && <span className="helper"> · {attachments.length} files</span>}</h3>
+    {!attachments.length && <p className="helper">No attachments on this report.</p>}
+    {!!attachments.length && <ul className="admin-attachment-list" data-count={attachments.length}>{attachments.map((attachment, index) => <AttachmentPreview key={attachment.attachmentKey || index} attachment={attachment} single={attachments.length === 1} />)}</ul>}
   </section>;
 }
 
@@ -67,10 +74,10 @@ export function ReviewDetail({ report, onClose, onSaved }: { report: Feedback; o
     <label className="admin-detail-control">Owner<Select aria-label="Report owner" value={assignee} onChange={event => setAssignee(event.target.value)}>{assignee && !owners.options.some(item => item.value === assignee) && <option value={assignee}>Previous owner</option>}{owners.options.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></label>
     <Button variant="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : isUpdatePending(report) ? 'Send update' : 'Save'}</Button>
   </>}>
-    <div className="admin-detail-content"><h2>{report.title}</h2><div className="admin-detail-badges"><Pill value={report.priority} /><Pill value={report.severity} /></div>
+    <div className="admin-detail-content"><h2>{report.title}</h2><div className="admin-detail-badges"><Pill value={report.priority} />{report.priority === 'BLOCKER' && <Pill value="CRITICAL" />}</div>
       <ProgressTrack status={report.status} />
       <span className="admin-detail-label">Description</span><p className="admin-detail-copy">{report.description}</p>
-      <AttachmentPreview report={report} />
+      <AttachmentGallery report={report} />
       {error && <p className="error" role="alert">{error}</p>}
       {owners.error && <p className="error" role="alert">{owners.error}</p>}
     </div>

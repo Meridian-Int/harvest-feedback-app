@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { validateAttachment, type AttachmentRequest } from './validation';
+import { validateAttachment, validateAttachments, type AttachmentRequest } from './validation';
 
 const provider = 'cognito-idp.us-east-2.amazonaws.com/pool';
 const dependencies = {
@@ -64,4 +64,12 @@ it('accepts recording codec parameters and fails closed when identity resolution
   await expect(validateAttachment(event, dependencies)).rejects.toThrow('unavailable');
   dependencies.resolveIdentity.mockRejectedValueOnce(new Error('Identity service failed'));
   await expect(validateAttachment(event, dependencies)).rejects.toThrow();
+});
+
+it('verifies each listed attachment and rejects repeats or more than five', async () => {
+  const second = { ...event.attachment, attachmentKey: 'feedback-media/identity-a/second.png' };
+  await expect(validateAttachments({ ...event, attachments: [event.attachment, second] }, dependencies)).resolves.toEqual({ attachmentKey: event.attachment.attachmentKey, attachmentKeys: [event.attachment.attachmentKey, second.attachmentKey] });
+  await expect(validateAttachments({ ...event, attachments: [event.attachment, event.attachment] }, dependencies)).rejects.toThrow('unavailable');
+  await expect(validateAttachments({ ...event, attachments: Array.from({ length: 6 }, (_, i) => ({ ...second, attachmentKey: `${second.attachmentKey}${i}` })) }, dependencies)).rejects.toThrow('unavailable');
+  await expect(validateAttachments({ ...event, attachments: [event.attachment, { ...second, attachmentKey: 'feedback-media/identity-b/x' }] }, dependencies)).rejects.toThrow('unavailable');
 });

@@ -93,8 +93,9 @@ The approved entry point is Feedback in each HARVEST role sidebar (admin, compan
 | `priority` | enum `BLOCKER`, `BUG`, `IMPROVEMENT`, required | |
 | `severity` | enum `CRITICAL`, `MEDIUM`, `LOW`, required | Client submission derives it from priority: Blocker → Critical, Bug → Medium, Improvement → Low. Existing records retain their stored severity. |
 | `reporterName`, `reporterEmail`, `persona`, `company` | string, required | Derived from trusted HARVEST identity and membership data on create, never typed |
-| `attachmentKey` | string, optional | One file (upload or screen recording) |
+| `attachmentKey` | string, optional | The first file (upload or screen recording); mirrors `attachments[0]` so older clients keep working |
 | `attachmentName`, `attachmentType`, `attachmentSize` | optional | For the preview, download and "unavailable" states |
+| `attachments` | list, optional | Every file on the report (`attachmentKey`, `attachmentName`, `attachmentType`, `attachmentSize`), up to `MAX_ATTACHMENTS` (5). JSON text in the standalone Amplify model; a typed list in the integrated API. Reports created before this field show their single legacy file. |
 | `status` | enum `NEW`, `ASSIGNED`, `IN_PROGRESS`, `CLOSED`, default `NEW` | Admin-write only |
 | `assignee` | string, optional | Admin-write only. New reports default to Admin; an admin may later choose Unassigned or another owner. Don't name it `owner`; Amplify uses `owner`. |
 | `updateRequestedAt` | datetime, optional | Set by the reporter's "Request update" |
@@ -118,7 +119,7 @@ Storage, `amplify/storage/resource.ts`:
 - Feedback uses its own S3 bucket and DynamoDB tables, separate from HARVEST's unrelated files and data. Verify the dedicated bucket's permissions with HARVEST identities.
 - Path `feedback-media/{entity_id}/*`.
 - The verified reporter can read, write and delete their own file; verified Feedback admins can read it. Recheck this with HARVEST identities rather than assuming the current `admins` group and identity IDs match.
-- **One file per report.** PNG, JPG, WebP, MP4, WebM or MOV, max **50 MiB**, checked in the browser before upload (same as the prototype).
+- **Up to 5 files per report** (uploads and screen recordings together). PNG, JPG, WebP, MP4, WebM or MOV, max **50 MiB** each, checked in the browser before upload and again on the server. Every file is claimed in the same transaction as the report.
 
 Not in v1, matching the prototype: comments, activity timeline, persona or reporter selectors on the form, title field, expected/steps fields. The form's "Email updates included · demo only" line is **removed**. The later demo decision adds admin email alerts for new reports; it does not promise client update emails.
 
@@ -150,12 +151,13 @@ Key rules from the spec (§3, §5, §6 there):
   - Headings use IBM Plex Sans Variable at weight 400; the HARVEST Feedback brand uses Inter Variable.
   - Report titles use Inter Variable at weight 550; figures use IBM Plex Mono with tabular numerals.
   - Keep the existing `@fontsource` packages and font imports. Do not restore the prototype's Georgia/system font stack.
+- **HARVEST platform alignment (Oct 2026):** the visual layer uses the values of HARVEST's own design system (`ui/src/styles/globals.css` and `ui/src/components/ui` in the HARVEST repo: Align UI token names with Geist values). That means a warm off-white light theme and a near-black dark theme, a monochrome primary (near-black in light, near-white in dark), Align UI's success/warning/error/information colours, 8px controls, 12px drop zones, 16px cards, flat surfaces with a hairline ring, stroke status badges with a coloured dot, and a monochrome focus ring. HARVEST's terracotta is the brand colour only (favicon), not a UI accent. Where the Glass, Pills and Progress track notes below differ, this alignment wins; fonts are unchanged and already match HARVEST.
 - **Glass:** panels, rail, top bar, dialogs and the sign-in card use an 18px backdrop blur, the `--surface` fill, a 1px `--line` border and the per-theme shadows in the spec. The body has two radial haze gradients per theme. Admin panels add `--admin-haze`.
 - **Pills:** neutral (`--input` fill, `--line` border, `--text`) with a 7px dot:
   - Bug `#b58a59`, Improvement `#8095ab`
   - Blocker, Medium and Low: `--dim`
   - Critical: `--red` dot and text
-- **Progress track:** New → Assigned → In progress → Done. Completed steps are a green fill with a check; the current step has a neutral ring.
+- **Progress track:** New → Assigned → In progress → Done, as HARVEST's horizontal stepper: chevrons between steps, completed steps a green fill with a check, the current step the primary colour with its number. Grid cards use HARVEST's dot stepper (four 8px dots) with a status badge; phone-width dialogs stack the steps one per row.
 - **Shell:**
   - Rail 224px with the HARVEST / BY MERIDIAN INTELLIGENCE brand and role navigation. A centered compact icon-and-text Sign out button sits below the profile in the rail footer for the standalone app. The 52px top bar holds the breadcrumb, notification bell and theme toggle. In the integrated page, sign-out must follow HARVEST's session behavior. This placement is Sahil's approved change from the prototype.
   - Content max 1400px.

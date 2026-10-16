@@ -10,6 +10,23 @@ const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 // Keep in sync with DEFAULT_ASSIGNEE in src/lib/options.ts until HARVEST users are connected.
 const DEFAULT_ASSIGNEE = 'admin@example.com';
 
+const MAX_ATTACHMENTS = 5;
+
+/** Legacy single-file arguments plus the `attachments` list, as one array. */
+// Keep in sync with verify-attachment.js; resolver files are deployed separately.
+function submittedAttachments(args) {
+  const list = typeof args.attachments === 'string' ? JSON.parse(args.attachments) : args.attachments;
+  if (list != null && !Array.isArray(list)) util.error('Attachment unavailable.', 'InvalidInput');
+  const legacy = args.attachmentKey || args.attachmentName || args.attachmentType || args.attachmentSize != null
+    ? [{ attachmentKey: args.attachmentKey, attachmentName: args.attachmentName, attachmentType: args.attachmentType, attachmentSize: args.attachmentSize }] : [];
+  const all = legacy.concat((list ?? []).map(entry => ({
+    attachmentKey: entry?.attachmentKey, attachmentName: entry?.attachmentName,
+    attachmentType: entry?.attachmentType, attachmentSize: entry?.attachmentSize,
+  })));
+  if (all.length > MAX_ATTACHMENTS) util.error('Attachment unavailable.', 'InvalidInput');
+  return all;
+}
+
 export function request(ctx) {
   const identity = ctx.identity;
   const claims = identity?.claims ?? {};
@@ -49,12 +66,19 @@ export function request(ctx) {
     util.error('Admin access required.', 'Unauthorized');
   }
 
-  const hasAttachment = !!(args.attachmentKey || args.attachmentName || args.attachmentType || args.attachmentSize != null);
-  if (hasAttachment && (ctx.stash?.verifiedAttachmentKey !== args.attachmentKey || !args.attachmentKey?.startsWith('feedback-media/') || !args.attachmentName ||
-      FILE_TYPES.indexOf(args.attachmentType?.split(';')[0]) < 0 || args.attachmentSize == null ||
-      args.attachmentSize <= 0 || args.attachmentSize > MAX_ATTACHMENT_BYTES)) {
+  const attachments = submittedAttachments(args);
+  const verifiedKeys = ctx.stash?.verifiedAttachmentKeys ?? (ctx.stash?.verifiedAttachmentKey ? [ctx.stash.verifiedAttachmentKey] : []);
+  if (attachments.length !== (attachments.length ? verifiedKeys.length : 0)) {
     util.error('Attachment unavailable.', 'InvalidInput');
   }
+  attachments.forEach((attachment, index) => {
+    if (verifiedKeys[index] !== attachment.attachmentKey || !attachment.attachmentKey?.startsWith('feedback-media/') || !attachment.attachmentName ||
+        FILE_TYPES.indexOf(attachment.attachmentType?.split(';')[0]) < 0 || attachment.attachmentSize == null ||
+        attachment.attachmentSize <= 0 || attachment.attachmentSize > MAX_ATTACHMENT_BYTES) {
+      util.error('Attachment unavailable.', 'InvalidInput');
+    }
+  });
+  const hasAttachment = attachments.length > 0;
 
   const now = util.time.nowISO8601();
   const id = util.autoId();
@@ -75,11 +99,13 @@ export function request(ctx) {
     createdAt: now,
     updatedAt: now,
     ...(args.productArea === 'Other — add an area' ? { customArea } : {}),
+    // The single fields mirror the first file for older clients.
     ...(hasAttachment ? {
-      attachmentKey: args.attachmentKey,
-      attachmentName: args.attachmentName,
-      attachmentType: args.attachmentType,
-      attachmentSize: args.attachmentSize,
+      attachmentKey: attachments[0].attachmentKey,
+      attachmentName: attachments[0].attachmentName,
+      attachmentType: attachments[0].attachmentType,
+      attachmentSize: attachments[0].attachmentSize,
+      attachments: JSON.stringify(attachments),
     } : {}),
     ...(args.sentryIssueId ? { sentryIssueId: args.sentryIssueId } : {}),
   };

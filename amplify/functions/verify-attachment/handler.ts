@@ -1,6 +1,6 @@
 import { CognitoIdentityClient, GetIdCommand } from '@aws-sdk/client-cognito-identity';
 import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { validateAttachment, type AttachmentRequest } from './validation';
+import { validateAttachments, type AttachmentRequest } from './validation';
 
 const identity = new CognitoIdentityClient({});
 const storage = new S3Client({});
@@ -10,7 +10,7 @@ export async function handler(event: AttachmentRequest) {
     const stagingProvider = process.env.HARVEST_USER_POOL_PROVIDER;
     const provider = stagingProvider && event.identity?.claims?.iss === `https://${stagingProvider}`
       ? stagingProvider : process.env.USER_POOL_PROVIDER!;
-    return await validateAttachment(event, {
+    return await validateAttachments(event, {
       provider,
       resolveIdentity: async token => (await identity.send(new GetIdCommand({
         IdentityPoolId: process.env.IDENTITY_POOL_ID,

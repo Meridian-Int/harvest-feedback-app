@@ -25,9 +25,9 @@ function browser() {
   vi.stubGlobal('MediaRecorder', Recorder);
   return { stop, ended, getDisplayMedia, Recorder };
 }
-function mount(replacing = false) {
+function mount(full = false) {
   const onAttach = vi.fn(), onClose = vi.fn();
-  const view = render(<ScreenRecorderDialog controls={controls} replacing={replacing} onAttach={onAttach} onClose={onClose} />);
+  const view = render(<ScreenRecorderDialog controls={controls} full={full} onAttach={onAttach} onClose={onClose} />);
   return { ...view, onAttach, onClose, user: userEvent.setup() };
 }
 it('reports unavailable API and unavailable MIME', async () => {
@@ -39,12 +39,12 @@ it('reports permission denial without attaching', async () => {
   const { getDisplayMedia } = browser(); getDisplayMedia.mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
   const { user, onAttach } = mount(); await user.click(screen.getByRole('button', { name: 'Start recording' })); expect(await screen.findByRole('alert')).toHaveTextContent('permission was not granted'); expect(onAttach).not.toHaveBeenCalled();
 });
-it('requests no microphone, stops tracks and attaches only after replacement confirmation', async () => {
+it('requests no microphone, stops tracks and refuses to attach when the report already has five files', async () => {
   const { getDisplayMedia, stop } = browser(); const { user, onAttach } = mount(true);
   await user.click(screen.getByRole('button', { name: 'Start recording' })); expect(getDisplayMedia).toHaveBeenCalledWith({ video: { frameRate: 15 }, audio: false });
   await user.click(screen.getByRole('button', { name: 'Stop recording' })); expect(stop).toHaveBeenCalled(); expect(onAttach).not.toHaveBeenCalled();
-  await user.click(screen.getByRole('button', { name: 'Attach recording' })); expect(onAttach).not.toHaveBeenCalled();
-  await user.click(screen.getByRole('button', { name: 'Replace attachment' })); expect(onAttach).toHaveBeenCalledWith(expect.objectContaining({ type: 'video/webm' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('already has 5 files');
+  expect(screen.getByRole('button', { name: 'Attach recording' })).toBeDisabled(); expect(onAttach).not.toHaveBeenCalled();
 });
 it('stops at 180 seconds and on track ending', async () => {
   const { Recorder, ended } = browser(); mount(); vi.useFakeTimers();
@@ -76,7 +76,7 @@ it('ends an active recording when its browser track ends', async () => {
   const { ended, Recorder } = browser(); const { user } = mount(); await user.click(screen.getByRole('button', { name: 'Start recording' }));
   act(() => ended.dispatchEvent(new Event('ended'))); expect(Recorder.latest.state).toBe('inactive'); expect(screen.getByRole('button', { name: 'Attach recording' })).toBeInTheDocument();
 });
-it('attaches without replacement and closes active recording without attaching', async () => {
+it('attaches a recording and closes active recording without attaching', async () => {
   browser(); const first = mount(); await first.user.click(screen.getByRole('button', { name: 'Start recording' })); await first.user.click(screen.getByRole('button', { name: 'Stop recording' }));
   await first.user.click(screen.getByRole('button', { name: 'Attach recording' })); expect(first.onAttach).toHaveBeenCalledTimes(1); first.unmount();
   const { stop } = browser(); const next = mount(); await next.user.click(screen.getByRole('button', { name: 'Start recording' }));
@@ -90,7 +90,7 @@ it('stops and reports recorder errors; pagehide cleans up', async () => {
 });
 it('works when StrictMode replays effect cleanup', async () => {
   browser(); const onAttach = vi.fn();
-  render(<StrictMode><ScreenRecorderDialog controls={controls} replacing={false} onAttach={onAttach} onClose={vi.fn()} /></StrictMode>);
+  render(<StrictMode><ScreenRecorderDialog controls={controls} onAttach={onAttach} onClose={vi.fn()} /></StrictMode>);
   const user = userEvent.setup(); await user.click(screen.getByRole('button', { name: 'Start recording' }));
   await user.click(screen.getByRole('button', { name: 'Stop recording' })); await user.click(screen.getByRole('button', { name: 'Attach recording' })); expect(onAttach).toHaveBeenCalledTimes(1);
 });

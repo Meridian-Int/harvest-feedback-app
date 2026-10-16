@@ -27,4 +27,6 @@ export const STATUS_LABELS: Record<Status, typeof STATUSES[number]> = {
 export const STATUS_ORDER: readonly Status[] = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'];
 export const REPORT_PAGE_SIZE = 6;
 export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+/** Files per report: uploads and screen recordings together. */
+export const MAX_ATTACHMENTS = 5;
 export const ATTACHMENT_ACCEPT = '.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov';

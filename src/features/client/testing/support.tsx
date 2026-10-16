@@ -7,7 +7,7 @@ export const choices: Choices = {
   productAreas: [{ value: 'Data room', label: 'Data room' }, { value: 'Other', label: 'Other — add an area' }],
   priorities: ['BLOCKER', 'BUG', 'IMPROVEMENT'].map(value => ({ value, label: value[0] + value.slice(1).toLowerCase() })),
   severities: ['CRITICAL', 'MEDIUM', 'LOW'].map(value => ({ value, label: value[0] + value.slice(1).toLowerCase() })),
-  otherArea: 'Other', maxAttachmentBytes: 50 * 1024 * 1024,
+  otherArea: 'Other', maxAttachmentBytes: 50 * 1024 * 1024, maxAttachments: 5,
 };
 export const controls: ClientControls = {
   Panel: props => <div {...props} />, Button: props => <button {...props} />, Input: props => <input {...props} />, Select: props => <select {...props} />, Textarea: props => <textarea {...props} />,

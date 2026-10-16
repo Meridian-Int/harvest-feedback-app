@@ -94,6 +94,19 @@ it('rejects an attachment unless the server verified this exact key', () => {
   expect(helpers.put).not.toHaveBeenCalled();
 });
 
+it('stores every verified attachment and mirrors the first into the single fields', () => {
+  const ctx = context();
+  const first = { attachmentKey: 'feedback-media/identity-1/a', attachmentName: 'a.png', attachmentType: 'image/png', attachmentSize: 5 };
+  const second = { attachmentKey: 'feedback-media/identity-1/b', attachmentName: 'b.mp4', attachmentType: 'video/mp4', attachmentSize: 9 };
+  ctx.args.attachments = [first, second];
+  ctx.stash = { verifiedAttachmentKeys: [first.attachmentKey, second.attachmentKey] };
+  const item = request(ctx).item;
+  expect(item).toMatchObject({ attachmentKey: first.attachmentKey, attachmentName: 'a.png' });
+  expect(JSON.parse(item.attachments)).toEqual([first, second]);
+  ctx.stash = { verifiedAttachmentKeys: [first.attachmentKey] };
+  expect(() => request(ctx)).toThrow('Attachment unavailable.');
+});
+
 it('passes a successful DynamoDB result through and surfaces write errors', () => {
   const ctx = { result: { id: 'generated-id' }, stash: {} };
   expect(response(ctx)).toEqual({ id: 'generated-id' });

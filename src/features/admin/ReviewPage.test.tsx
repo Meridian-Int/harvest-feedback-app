@@ -121,3 +121,26 @@ it('makes sending a requested update explicit in the admin dialog', async () => 
   await user.click(within(dialog).getByRole('button', { name: 'Send update' }));
   expect(api.adminUpdate).toHaveBeenCalledWith('report-a001', { status: pending.status, assignee: 'admin@example.com' });
 });
+it('previews and downloads each of several attachments', async () => {
+  const file = (name: string, type: string) => ({ attachmentKey: `feedback-media/identity/${name}`, attachmentName: name, attachmentType: type, attachmentSize: 2048 });
+  const attachments = [file('first.png', 'image/png'), file('second.webm', 'video/webm')];
+  api.listAllFeedback.mockResolvedValue([{ ...reports[0], ...attachments[0], attachments }]);
+  api.getAttachmentUrl.mockImplementation(async (key: string) => `https://example.com/${key.split('/').at(-1)}`);
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews', user: makeAdminUser() });
+  await user.click(await screen.findByRole('button', { name: 'View description: Payment failed' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('· 2 files')).toBeInTheDocument();
+  expect(await within(dialog).findByRole('img', { name: 'Attached screenshot first.png' })).toHaveAttribute('src', 'https://example.com/first.png');
+  expect(within(dialog).getByLabelText('Attached recording second.webm')).toHaveAttribute('src', 'https://example.com/second.webm');
+  expect(within(dialog).getByRole('link', { name: 'Download second.webm' })).toHaveAttribute('download', 'second.webm');
+});
+
+it('shows one priority tag per report, with Critical only on Blockers and no severity filter', async () => {
+  renderWithProviders(<ReviewPage />, { route: '/admin/reviews', user: makeAdminUser() });
+  const blocker = await screen.findByRole('button', { name: 'View description: Payment failed' });
+  expect(within(blocker).getByText('Critical')).toBeInTheDocument();
+  const bug = screen.getByRole('button', { name: 'View description: Upload stalled' });
+  expect(within(bug).getByText('Bug')).toBeInTheDocument();
+  expect(within(bug).queryByText('Medium')).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: 'Filter severity' })).not.toBeInTheDocument();
+});

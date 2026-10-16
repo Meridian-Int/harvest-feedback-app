@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { renderWithProviders } from '../../test/render';
 import { Button, Dialog, DropZone, EmptyState, Field, Input, MetricToggle, Pagination, Panel, Pill, ProgressTrack, SegmentedControl, Select, Tag, Textarea, ThemeToggle, Toast } from './index';
 
-it('renders neutral priority/severity pills with their semantic dot values', () => {
+it('renders neutral priority/severity pills, with a mark on Critical only', () => {
   renderWithProviders(<><Pill value="BUG" /><Pill value="IMPROVEMENT" /><Pill value="BLOCKER" /><Pill value="CRITICAL" /><Pill value="MEDIUM" /><Pill value="LOW" /></>);
   for (const [text, value] of [['Bug', 'BUG'], ['Improvement', 'IMPROVEMENT'], ['Blocker', 'BLOCKER'], ['Critical', 'CRITICAL'], ['Medium', 'MEDIUM'], ['Low', 'LOW']]) {
-    expect(screen.getByText(text)).toHaveAttribute('data-value', value); expect(screen.getByText(text).querySelector('.dot')).toBeInTheDocument();
+    expect(screen.getByText(text)).toHaveAttribute('data-value', value); expect(Boolean(screen.getByText(text).querySelector('svg'))).toBe(value === 'CRITICAL');
   }
 });
 it('marks completed, current and future progress steps accessibly', () => {

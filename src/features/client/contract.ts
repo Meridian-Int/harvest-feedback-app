@@ -29,6 +29,8 @@ export interface Choices {
   severities: readonly { value: string; label: string }[];
   otherArea: string;
   maxAttachmentBytes: number;
+  /** Files per report, uploads and recordings together. */
+  maxAttachments: number;
 }
 export interface Attachment {
   attachmentKey: string;
@@ -40,9 +42,9 @@ export interface ClientApi {
   listMyFeedback(): Promise<Feedback[]>;
   getFeedback(id: string): Promise<Feedback | null>;
   // Adapter authenticates reporter attributes and defaults status on the server.
-  createFeedback(input: Draft & { title: string } & Partial<Attachment>): Promise<Feedback>;
+  createFeedback(input: Draft & { title: string } & { attachments?: Attachment[] }): Promise<Feedback>;
   uploadAttachment(file: File): Promise<Attachment>;
-  // Required compensation if create fails after an upload succeeds.
+  // Required compensation for every uploaded file if create fails.
   removeAttachment(key: string): Promise<void>;
   requestUpdate(id: string): Promise<void>;
   // Adapter subscribes to an owner-authorized query, not the whole table.
@@ -50,7 +52,7 @@ export interface ClientApi {
 }
 export interface ClientControls {
   Panel: ComponentType<HTMLAttributes<HTMLElement>>;
-  Button: ComponentType<ButtonHTMLAttributes<HTMLButtonElement>>;
+  Button: ComponentType<ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'default' | 'primary' | 'quiet' }>;
   Input: ComponentType<InputHTMLAttributes<HTMLInputElement>>;
   Select: ComponentType<SelectHTMLAttributes<HTMLSelectElement>>;
   Textarea: ComponentType<TextareaHTMLAttributes<HTMLTextAreaElement>>;

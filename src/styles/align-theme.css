@@ -1,0 +1,81 @@
+/* Align UI theme for Tailwind v4.
+   Align UI's token names (bg-white-0, text-strong-950, stroke-soft-200, primary-base, label-sm,
+   rounded-10, shadow-regular-xs, ...) mapped to HARVEST's values in tokens.css, so the Align UI
+   components in src/components/align render as HARVEST does, in light and dark. */
+@theme inline {
+  --color-bg-strong-950: var(--text);
+  --color-bg-surface-800: color-mix(in srgb, var(--text) 88%, var(--bg));
+  --color-bg-sub-300: var(--line-sub);
+  --color-bg-soft-200: var(--track);
+  --color-bg-weak-50: var(--raised);
+  --color-bg-white-0: var(--surface);
+  --color-text-strong-950: var(--text);
+  --color-text-sub-600: var(--muted);
+  --color-text-soft-400: var(--dim);
+  --color-text-disabled-300: var(--disabled);
+  --color-text-white-0: var(--accentink);
+  --color-stroke-strong-950: var(--text);
+  --color-stroke-sub-300: var(--line-sub);
+  --color-stroke-soft-200: var(--line);
+  --color-stroke-white-0: var(--surface);
+  --color-static-white: #ffffff;
+  --color-overlay: var(--overlay);
+  --color-static-black: #000000;
+  /* HARVEST's primary is monochrome. */
+  --color-primary-base: var(--accent);
+  --color-primary-dark: var(--accent-hover);
+  --color-primary-darker: var(--accent-hover);
+  --color-primary-alpha-10: var(--focus-soft);
+  --color-primary-alpha-16: var(--focus-soft);
+  --color-primary-alpha-24: var(--focus-soft);
+  --color-neutral-alpha-16: var(--focus-soft);
+  --color-neutral-alpha-24: var(--focus-soft);
+  /* Status colours: green for done, red for errors and Critical; everything else stays grey. */
+  --color-success-base: var(--progress-green);
+  --color-success-dark: var(--progress-green);
+  --color-success-light: var(--success-soft);
+  --color-success-lighter: var(--success-soft);
+  --color-error-base: var(--red);
+  --color-error-dark: var(--red);
+  --color-error-light: var(--redsoft);
+  --color-error-lighter: var(--redsoft);
+  --color-red-700: var(--red);
+  --color-red-alpha-10: color-mix(in srgb, var(--red) 10%, transparent);
+  --color-red-alpha-16: color-mix(in srgb, var(--red) 16%, transparent);
+  --color-warning-base: var(--orange);
+  --color-warning-lighter: var(--orangesoft);
+  --color-information-base: var(--blue);
+  --color-information-lighter: var(--bluesoft);
+  --color-faded-base: var(--dim);
+  --color-faded-dark: var(--muted);
+  --color-faded-light: var(--track);
+  --color-faded-lighter: var(--raised);
+  --color-away-base: var(--dim);
+  --color-feature-base: var(--dim);
+  --color-verified-base: var(--dim);
+  --color-highlighted-base: var(--dim);
+  --color-stable-base: var(--dim);
+
+  --text-title-h6: 1.25rem; --text-title-h6--line-height: 1.75rem; --text-title-h6--font-weight: 500;
+  --text-title-h5: 1.5rem; --text-title-h5--line-height: 2rem; --text-title-h5--font-weight: 500;
+  --text-label-lg: 1.125rem; --text-label-lg--line-height: 1.5rem; --text-label-lg--letter-spacing: -0.015em; --text-label-lg--font-weight: 500;
+  --text-label-md: 1rem; --text-label-md--line-height: 1.5rem; --text-label-md--letter-spacing: -0.011em; --text-label-md--font-weight: 500;
+  --text-label-sm: .875rem; --text-label-sm--line-height: 1.25rem; --text-label-sm--letter-spacing: -0.006em; --text-label-sm--font-weight: 500;
+  --text-label-xs: .75rem; --text-label-xs--line-height: 1rem; --text-label-xs--font-weight: 500;
+  --text-paragraph-md: 1rem; --text-paragraph-md--line-height: 1.5rem; --text-paragraph-md--letter-spacing: -0.011em; --text-paragraph-md--font-weight: 400;
+  --text-paragraph-sm: .875rem; --text-paragraph-sm--line-height: 1.25rem; --text-paragraph-sm--letter-spacing: -0.006em; --text-paragraph-sm--font-weight: 400;
+  --text-paragraph-xs: .75rem; --text-paragraph-xs--line-height: 1rem; --text-paragraph-xs--font-weight: 400;
+  --text-subheading-xs: .75rem; --text-subheading-xs--line-height: 1rem; --text-subheading-xs--letter-spacing: 0.04em; --text-subheading-xs--font-weight: 500;
+  --text-subheading-2xs: .6875rem; --text-subheading-2xs--line-height: .75rem; --text-subheading-2xs--letter-spacing: 0.02em; --text-subheading-2xs--font-weight: 500;
+
+  --radius-10: .625rem;
+  --radius-20: 1.25rem;
+
+  --shadow-regular-xs: 0 1px 2px 0 rgba(10, 13, 20, .03);
+  --shadow-regular-sm: 0 2px 4px rgba(27, 28, 29, .04);
+  --shadow-regular-md: 0 16px 32px -12px rgba(14, 18, 27, .1);
+  --shadow-button-primary-focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
+  --shadow-button-important-focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
+  --shadow-button-error-focus: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--red) 24%, transparent);
+  --shadow-tooltip: 0 12px 24px 0 rgba(14, 18, 27, .06), 0 1px 2px 0 rgba(14, 18, 27, .03);
+}

@@ -10,7 +10,7 @@ export { Pill } from './Pill';
 export { Tag } from './Tag';
 export { SegmentedControl } from './SegmentedControl';
 export { MetricToggle } from './MetricToggle';
-export { ProgressTrack } from './ProgressTrack';
+export { ProgressTrack, StatusBadge } from './ProgressTrack';
 export { Pagination } from './Pagination';
 export { Dialog } from './Dialog';
 export { Toast } from './Toast';

@@ -4,12 +4,11 @@ import { ClientDialog } from './ClientDialog';
 import { RecordingPreview } from './RecordingPreview';
 import { chooseRecordingMime, recordingClock, shouldStopRecording, validRecordingSize } from './logic/recorder';
 
-export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }: { controls: ClientControls; replacing: boolean; onAttach: (file: File) => void; onClose: () => void }) {
+export function ScreenRecorderDialog({ controls, full = false, onAttach, onClose }: { controls: ClientControls; full?: boolean; onAttach: (file: File) => void; onClose: () => void }) {
   const [phase, setPhase] = useState<'ready' | 'choosing' | 'recording' | 'preview' | 'error'>('ready');
   const [message, setMessage] = useState('Choose a tab, window or screen in your browser’s sharing picker.');
   const [url, setUrl] = useState('');
   const [recordedSeconds, setRecordedSeconds] = useState(0);
-  const [confirmReplace, setConfirmReplace] = useState(false);
   const session = useRef({ cancelled: false, stream: null as MediaStream | null, recorder: null as MediaRecorder | null, timer: undefined as ReturnType<typeof setInterval> | undefined, url: '', file: null as File | null });
   const busy = useRef(false);
   const stop = () => {
@@ -76,8 +75,7 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
     } finally { busy.current = false; }
   }
   function attach() {
-    if (!session.current.file) return;
-    if (replacing && !confirmReplace) { setConfirmReplace(true); return; }
+    if (!session.current.file || full) return;
     onAttach(session.current.file); discard();
   }
   const { Button } = controls;
@@ -92,10 +90,10 @@ export function ScreenRecorderDialog({ controls, replacing, onAttach, onClose }:
     <div className="client-detail-body">
       <p role={phase === 'error' ? 'alert' : 'status'}>{message}</p>
       {url && <RecordingPreview src={url} recordedSeconds={recordedSeconds} />}
-      {confirmReplace && <p role="alert">Replace the current attachment with this recording?</p>}
+      {full && <p role="alert">This report already has 5 files. Remove one from the form to attach this recording.</p>}
       <div className="client-capture-controls">
         {phase === 'ready' && <Button onClick={start}>Start recording</Button>}
-        {phase === 'preview' && <Button onClick={attach}>{confirmReplace ? 'Replace attachment' : 'Attach recording'}</Button>}
+        {phase === 'preview' && <Button onClick={attach} disabled={full}>Attach recording</Button>}
         <Button onClick={discard}>{phase === 'preview' ? 'Discard' : 'Cancel'}</Button>
       </div>
       <p className="client-helper">Your browser asks which screen to share. Review the recording before attaching it. Nothing is uploaded.</p>
