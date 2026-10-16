@@ -6,13 +6,14 @@ import type { Schema } from '../../amplify/data/resource';
 import { isHarvestPasswordMode, isHarvestSharedSessionMode, isLocalFeedbackPreview, requireAmplify } from './amplify';
 import { isAdmin, requireUser } from './auth';
 import { sortFeedback } from './list';
-import { ASSIGNEES, MAX_ATTACHMENT_BYTES, PRODUCT_AREAS, PRIORITY_LABELS, SEVERITY_LABELS, STATUS_ORDER } from './options';
+import { ASSIGNEES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS, PRODUCT_AREAS, PRIORITY_LABELS, SEVERITY_LABELS, STATUS_ORDER } from './options';
 import { isUpdatePending } from './status';
 import type { AdminUpdateInput, Attachment, AuthUser, CreateFeedbackInput, Feedback, Priority, Severity, Status } from './types';
 import { getUsableHarvestTokens } from './harvest-shared-session';
 import { getSharedFeedback, listSharedFeedback, submitSharedFeedback, updateSharedFeedback } from './shared-feedback-api';
 import { getSharedAttachmentProperties, getSharedAttachmentUrl, removeSharedAttachment, sharedAttachmentIdentityId, uploadSharedAttachment } from './shared-storage';
 import { feedbackAssignees } from './administrators';
+import { parseAttachments, reportAttachments } from './attachments';
 
 export type { AdminUpdateInput, Attachment, CreateFeedbackInput, Feedback } from './types';
 
@@ -45,16 +46,16 @@ async function submitWithHarvestTokens(
     $description: String!, $productArea: String!, $customArea: String,
     $priority: Priority!, $severity: Severity!, $attachmentKey: String,
     $attachmentName: String, $attachmentType: String, $attachmentSize: Int,
-    $sentryIssueId: String, $organizationId: String
+    $attachments: String, $sentryIssueId: String, $organizationId: String
   ) { submitFeedback(
     description: $description, productArea: $productArea, customArea: $customArea,
     priority: $priority, severity: $severity, attachmentKey: $attachmentKey,
     attachmentName: $attachmentName, attachmentType: $attachmentType,
-    attachmentSize: $attachmentSize, sentryIssueId: $sentryIssueId,
+    attachmentSize: $attachmentSize, attachments: $attachments, sentryIssueId: $sentryIssueId,
     organizationId: $organizationId
   ) { id title description productArea customArea priority severity reporterName
     reporterEmail persona company attachmentKey attachmentName attachmentType
-    attachmentSize status assignee updateRequestedAt adminActivityAt sentryIssueId
+    attachmentSize attachments status assignee updateRequestedAt adminActivityAt sentryIssueId
     owner createdAt updatedAt } }`;
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -68,7 +69,11 @@ async function submitWithHarvestTokens(
   return body.data.submitFeedback;
 }
 
-function toFeedback(row: FeedbackRecord | SubmittedFeedbackRecord): Feedback {
+// Amplify returns the attachment list as JSON text; the integrated API returns objects.
+type ApiFeedbackRecord = Omit<FeedbackRecord | SubmittedFeedbackRecord, 'attachments'> & { attachments?: unknown };
+
+function toFeedback(row: ApiFeedbackRecord): Feedback {
+  const attachments = parseAttachments(row.attachments);
   return {
     id: row.id,
     title: row.title,
@@ -93,6 +98,7 @@ function toFeedback(row: FeedbackRecord | SubmittedFeedbackRecord): Feedback {
     ...(row.attachmentName ? { attachmentName: row.attachmentName } : {}),
     ...(row.attachmentType ? { attachmentType: row.attachmentType } : {}),
     ...(row.attachmentSize != null ? { attachmentSize: row.attachmentSize } : {}),
+    ...(attachments.length ? { attachments } : {}),
   };
 }
 
@@ -101,7 +107,7 @@ function ownedBy(report: Feedback, user: AuthUser): boolean {
 }
 
 async function listFeedback(): Promise<Feedback[]> {
-  if (isHarvestSharedSessionMode()) return sortFeedback((await listSharedFeedback()).map(row => toFeedback(row as unknown as FeedbackRecord)));
+  if (isHarvestSharedSessionMode()) return sortFeedback((await listSharedFeedback()).map(row => toFeedback(row as unknown as ApiFeedbackRecord)));
   const rows: Feedback[] = [];
   let nextToken: string | null | undefined;
   do {
@@ -123,22 +129,25 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
   if (!Object.hasOwn(PRIORITY_LABELS, input.priority) || !Object.hasOwn(SEVERITY_LABELS, input.severity)) throw new Error('Please choose a priority and severity.');
   if (input.sentryIssueId) requireAdmin(user);
 
-  let attachment: Attachment | undefined;
-  if (input.attachmentKey) {
+  // The first file travels in the single-file fields, so one-file reports stay compatible
+  // with backends that predate multiple attachments; the rest follow as a list.
+  const requested = [...(input.attachmentKey ? [{ attachmentKey: input.attachmentKey, attachmentName: input.attachmentName ?? '', attachmentType: input.attachmentType ?? '', attachmentSize: input.attachmentSize ?? 0 }] : []), ...(input.attachments ?? [])];
+  if (requested.length > MAX_ATTACHMENTS || new Set(requested.map(file => file.attachmentKey)).size !== requested.length) throw new Error('Attachment unavailable.');
+  const attachments: Attachment[] = [];
+  if (requested.length) {
     const identityId = isHarvestSharedSessionMode() ? await sharedAttachmentIdentityId() : (await fetchAuthSession()).identityId;
-    if (!identityId || !input.attachmentKey.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
-    const properties = isHarvestSharedSessionMode()
-      ? await getSharedAttachmentProperties(input.attachmentKey)
-      : await getProperties({ path: input.attachmentKey });
-    if (!input.attachmentName || !input.attachmentType || properties.size == null || properties.size > MAX_ATTACHMENT_BYTES) throw new Error('Attachment unavailable.');
-    if ((await listMyFeedback()).some(report => report.attachmentKey === input.attachmentKey)) throw new Error('Attachment unavailable.');
-    attachment = {
-      attachmentKey: input.attachmentKey,
-      attachmentName: input.attachmentName,
-      attachmentType: input.attachmentType,
-      attachmentSize: properties.size,
-    };
+    const claimed = new Set((await listMyFeedback()).flatMap(report => reportAttachments(report).map(file => file.attachmentKey)));
+    for (const file of requested) {
+      if (!identityId || !file.attachmentKey.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
+      const properties = isHarvestSharedSessionMode()
+        ? await getSharedAttachmentProperties(file.attachmentKey)
+        : await getProperties({ path: file.attachmentKey });
+      if (!file.attachmentName || !file.attachmentType || properties.size == null || properties.size > MAX_ATTACHMENT_BYTES) throw new Error('Attachment unavailable.');
+      if (claimed.has(file.attachmentKey)) throw new Error('Attachment unavailable.');
+      attachments.push({ ...file, attachmentSize: properties.size });
+    }
   }
+  const [attachment, ...additional] = attachments;
   const sharedTokens = isHarvestSharedSessionMode() ? await getUsableHarvestTokens() : null;
   const session = sharedTokens ? null : await fetchAuthSession();
   const idToken = sharedTokens?.idToken ?? session?.tokens?.idToken?.toString();
@@ -154,6 +163,9 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
     ...(input.sentryIssueId ? { sentryIssueId: input.sentryIssueId } : {}),
     ...(user.harvest?.selectedOrganizationId ? { organizationId: user.harvest.selectedOrganizationId } : {}),
     ...attachment,
+    ...(additional.length ? isHarvestSharedSessionMode()
+      ? { attachmentKeys: additional.map(file => file.attachmentKey) }
+      : { attachments: JSON.stringify(additional) } : {}),
   };
   const created = isHarvestSharedSessionMode()
     ? await submitSharedFeedback(submission)
@@ -215,7 +227,7 @@ export async function getFeedback(id: string): Promise<Feedback | null> {
   requireUser();
   if (isHarvestSharedSessionMode()) {
     const row = await getSharedFeedback(id);
-    return row ? toFeedback(row as unknown as FeedbackRecord) : null;
+    return row ? toFeedback(row as unknown as ApiFeedbackRecord) : null;
   }
   const row = resultOrThrow(await client.models.Feedback.get({ id }));
   return row ? toFeedback(row) : null;
@@ -301,7 +313,7 @@ export async function removeAttachment(key: string): Promise<void> {
   requireUser();
   const identityId = isHarvestSharedSessionMode() ? await sharedAttachmentIdentityId() : (await fetchAuthSession()).identityId;
   if (!identityId || !key.startsWith(`feedback-media/${identityId}/`)) throw new Error('Attachment unavailable.');
-  if ((await listMyFeedback()).some(report => report.attachmentKey === key)) throw new Error('Attachment is already attached to a report.');
+  if ((await listMyFeedback()).some(report => reportAttachments(report).some(file => file.attachmentKey === key))) throw new Error('Attachment is already attached to a report.');
   if (isHarvestSharedSessionMode()) await removeSharedAttachment(key);
   else await remove({ path: key });
 }

@@ -1,3 +1,4 @@
+import './styles/layers.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { initFeedbackSentry } from './lib/sentry';

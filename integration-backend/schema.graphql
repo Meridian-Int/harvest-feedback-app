@@ -3,11 +3,13 @@ scalar AWSDateTime
 enum Priority { BLOCKER BUG IMPROVEMENT }
 enum Severity { CRITICAL MEDIUM LOW }
 enum Status { NEW ASSIGNED IN_PROGRESS CLOSED }
+type FeedbackAttachment { attachmentKey: String!, attachmentName: String!, attachmentType: String!, attachmentSize: Int! }
 type Feedback {
   id: ID!, title: String!, description: String!, productArea: String!, customArea: String,
   priority: Priority!, severity: Severity!, reporterName: String!, reporterEmail: String!,
   persona: String!, company: String!, status: Status!, assignee: String,
   attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int,
+  attachments: [FeedbackAttachment!],
   updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime, sentryIssueId: String,
   owner: String!, createdAt: AWSDateTime!, updatedAt: AWSDateTime!
 }
@@ -35,7 +37,7 @@ type Query {
   trafficInsights: TrafficInsights!
 }
 type Mutation {
-  submitFeedback(description: String!, productArea: String!, customArea: String, priority: Priority!, severity: Severity!, organizationId: String, attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int, sentryIssueId: String): Feedback!
+  submitFeedback(description: String!, productArea: String!, customArea: String, priority: Priority!, severity: Severity!, organizationId: String, attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int, attachmentKeys: [String!], sentryIssueId: String): Feedback!
   updateFeedback(input: UpdateFeedbackInput!): Feedback!
   createNotificationRead(input: CreateNotificationReadInput!): NotificationRead!
   prepareAttachment(name: String!, contentType: String!, size: Int!, organizationId: String!): AttachmentAccess!

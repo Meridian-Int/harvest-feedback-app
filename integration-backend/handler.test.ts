@@ -44,6 +44,23 @@ it('claims an attachment atomically and pins its verified S3 version', async () 
   expect(transaction[1].Update.ConditionExpression).toContain('attribute_not_exists(reportId)');
   expect(transaction[1].Update.ExpressionAttributeValues[':version']).toEqual({ S: 'immutable-version' });
 });
+it('claims several attachments in one transaction and mirrors the first into the legacy fields', async () => {
+  const upload = (id: string, name: string) => ({ Item: marshall({ id, owner: 'sub', organizationId: 'org', size: 2, contentType: 'image/png', name, expiresAt: Math.floor(Date.now() / 1000) + 1000 }) });
+  sdk.db.mockResolvedValueOnce(upload('a', 'first.png')).mockResolvedValueOnce(upload('b', 'second.png'));
+  sdk.s3.mockResolvedValue({ ContentLength: 2, ContentType: 'image/png', VersionId: 'v' });
+  const report = await call('submitFeedback', { organizationId: 'org', description: 'Broken button', productArea: 'Data room', priority: 'BUG', attachmentKeys: ['a', 'b'] });
+  expect(report).toMatchObject({ attachmentKey: 'a', attachmentName: 'first.png', attachments: [{ attachmentKey: 'a' }, { attachmentKey: 'b', attachmentName: 'second.png' }] });
+  const transaction = sdk.db.mock.calls[2][0].input.TransactItems;
+  expect(transaction).toHaveLength(3);
+  expect(transaction.slice(1).every((write: any) => write.Update.ConditionExpression.includes('attribute_not_exists(reportId)'))).toBe(true);
+});
+it('rejects duplicate keys and more than five attachments before reading uploads', async () => {
+  const base = { organizationId: 'org', description: 'Broken button', productArea: 'Data room', priority: 'BUG' };
+  await expect(call('submitFeedback', { ...base, attachmentKey: 'a', attachmentKeys: ['a'] })).rejects.toThrow('Attachment unavailable');
+  await expect(call('submitFeedback', { ...base, attachmentKeys: ['1', '2', '3', '4', '5', '6'] })).rejects.toThrow('Attachment unavailable');
+  await expect(call('submitFeedback', { ...base, attachmentKeys: 'a' })).rejects.toThrow('Attachment unavailable');
+  expect(sdk.db).not.toHaveBeenCalled();
+});
 it('denies claimed-object deletion and oversized uploads', async () => {
   sdk.db.mockResolvedValueOnce({ Item: marshall({ id: 'key', reportId: 'r', owner: 'sub' }) })
     .mockResolvedValueOnce({ Item: marshall({ id: 'r', owner: 'sub', organizationId: 'org' }) });

@@ -29,7 +29,9 @@ export interface Attachment {
   attachmentSize: number;
 }
 
+/** Legacy single-file fields mirror the first entry of `attachments`. */
 export interface Feedback extends Partial<Attachment> {
+  attachments?: Attachment[];
   id: string;
   title: string;
   description: string;
@@ -53,6 +55,7 @@ export interface Feedback extends Partial<Attachment> {
 
 /** Reporter identity, title, ownership and timestamps are supplied by the API. */
 export interface CreateFeedbackInput extends Partial<Attachment> {
+  attachments?: Attachment[];
   description: string;
   productArea: string;
   customArea?: string;

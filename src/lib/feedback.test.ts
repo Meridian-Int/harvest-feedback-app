@@ -210,6 +210,17 @@ it('verifies an attachment belongs to the same storage identity before creating 
   expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ attachmentSize: 5 }), { authToken: 'verified-id-token' });
 });
 
+it('sends the first attachment in the single-file fields and the rest as a list', async () => {
+  const file = (name: string) => ({ attachmentKey: `feedback-media/identity-1/${name}`, attachmentName: name, attachmentType: 'image/png', attachmentSize: 5 });
+  await createFeedback({ ...input, attachments: [file('a.png'), file('b.png'), file('c.png')] });
+  const submitted = submitFeedback.mock.calls[0][0];
+  expect(submitted).toMatchObject({ attachmentKey: 'feedback-media/identity-1/a.png', attachmentSize: 5 });
+  expect(JSON.parse(submitted.attachments)).toEqual([file('b.png'), file('c.png')]);
+  await expect(createFeedback({ ...input, attachments: [file('a.png'), file('a.png')] })).rejects.toThrow('Attachment unavailable');
+  await expect(createFeedback({ ...input, attachments: ['1', '2', '3', '4', '5', '6'].map(file) })).rejects.toThrow('Attachment unavailable');
+  await expect(createFeedback({ ...input, attachments: [file('a.png'), { ...file('x.png'), attachmentKey: 'feedback-media/other/x.png' }] })).rejects.toThrow('Attachment unavailable');
+});
+
 it('surfaces data and storage errors without claiming success', async () => {
   submitFeedback.mockResolvedValueOnce({ data: null, errors: [{ message: 'Write failed' }] });
   await expect(createFeedback(input)).rejects.toThrow('Write failed');

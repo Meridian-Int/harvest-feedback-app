@@ -12,11 +12,9 @@
   width: min(100%, 472px);
   padding: 32px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--surface);
-  box-shadow: var(--panel-shadow);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
 }
 
 .brand {

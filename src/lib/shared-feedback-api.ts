@@ -4,6 +4,7 @@ import type { Feedback } from './types';
 
 const FIELDS = `id title description productArea customArea priority severity reporterName reporterEmail
   persona company status assignee attachmentKey attachmentName attachmentType attachmentSize
+  attachments { attachmentKey attachmentName attachmentType attachmentSize }
   updateRequestedAt adminActivityAt sentryIssueId owner createdAt updatedAt`;
 
 type RawFeedback = Feedback & { customArea?: string | null; assignee?: string | null };
@@ -80,12 +81,12 @@ export async function submitSharedFeedback(input: Record<string, unknown>): Prom
       $description: String!, $productArea: String!, $customArea: String,
       $priority: Priority!, $severity: Severity!, $attachmentKey: String,
       $attachmentName: String, $attachmentType: String, $attachmentSize: Int,
-      $sentryIssueId: String, $organizationId: String
+      $attachmentKeys: [String!], $sentryIssueId: String, $organizationId: String
     ) { submitFeedback(
       description: $description, productArea: $productArea, customArea: $customArea,
       priority: $priority, severity: $severity, attachmentKey: $attachmentKey,
       attachmentName: $attachmentName, attachmentType: $attachmentType,
-      attachmentSize: $attachmentSize, sentryIssueId: $sentryIssueId,
+      attachmentSize: $attachmentSize, attachmentKeys: $attachmentKeys, sentryIssueId: $sentryIssueId,
       organizationId: $organizationId
     ) { ${FIELDS} } }`, input, {}, fetch, accessToken,
   );

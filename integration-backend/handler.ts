@@ -4,7 +4,7 @@ import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { authorize, organization, canRead, requireReport, updateFields, type Event } from './authorization';
-import { PRODUCT_AREAS, MAX_ATTACHMENT_BYTES } from '../src/lib/options';
+import { PRODUCT_AREAS, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from '../src/lib/options';
 import { selectedAdministrators } from './administrators';
 import { readConfiguredSentryIssues } from './sentry-issues';
 import { readConfiguredGa4Traffic } from './ga4-traffic';
@@ -135,15 +135,23 @@ export async function handler(event: Event) {
     const now = timestamp();
     const report: Record<string, any> = { id: randomUUID(), title: description.split('\n')[0].slice(0, 110), description, productArea: args.productArea, ...(customArea ? { customArea } : {}), priority: args.priority, severity, reporterName: actor.viewer.person.name ?? actor.viewer.person.email, reporterEmail: actor.viewer.person.email, persona: org.orgKind === 'company' ? 'Company' : org.orgKind === 'partner' ? 'Partner' : 'Operator', company: org.orgName, organizationId: org.orgId, owner: actor.sub, status: 'NEW', assignee: 'admin@example.com', createdAt: now, updatedAt: now, revision: 0, ...(args.sentryIssueId ? { sentryIssueId: args.sentryIssueId } : {}) };
     const writes: any[] = [{ Put: { TableName: table('REPORTS_TABLE'), Item: item(report), ConditionExpression: 'attribute_not_exists(id)' } }];
-    if (args.attachmentKey) {
-      const key = safeId(args.attachmentKey);
+    // The legacy single key and the list are both accepted; every key is claimed in the same transaction.
+    if (args.attachmentKeys != null && !Array.isArray(args.attachmentKeys)) throw new Error('Attachment unavailable.');
+    const keys: string[] = [...(args.attachmentKey ? [args.attachmentKey] : []), ...(args.attachmentKeys ?? [])].map(safeId);
+    if (keys.length > MAX_ATTACHMENTS || new Set(keys).size !== keys.length) throw new Error('Attachment unavailable.');
+    const attachments: Record<string, any>[] = [];
+    for (const key of keys) {
       const upload = await get('ATTACHMENTS_TABLE', key);
       if (!upload || upload.owner !== actor.sub || upload.organizationId !== org.orgId || upload.reportId || upload.deleted || upload.expiresAt <= Date.now() / 1000) throw new Error('Attachment unavailable.');
       const head = await s3.send(new HeadObjectCommand({ Bucket: table('MEDIA_BUCKET'), Key: key }));
       if (head.ContentLength !== upload.size || head.ContentType !== upload.contentType || !head.VersionId) throw new Error('Attachment unavailable.');
-      Object.assign(report, { attachmentKey: key, attachmentName: upload.name, attachmentType: upload.contentType, attachmentSize: head.ContentLength });
-      writes[0].Put.Item = item(report);
+      attachments.push({ attachmentKey: key, attachmentName: upload.name, attachmentType: upload.contentType, attachmentSize: head.ContentLength });
       writes.push({ Update: { TableName: table('ATTACHMENTS_TABLE'), Key: item({ id: key }), UpdateExpression: 'SET reportId = :report, versionId = :version REMOVE expiresAt', ConditionExpression: 'attribute_not_exists(reportId) AND attribute_not_exists(deleted)', ExpressionAttributeValues: item({ ':report': report.id, ':version': head.VersionId }) } });
+    }
+    if (attachments.length) {
+      // Legacy fields mirror the first file so older clients and notifications keep working.
+      Object.assign(report, attachments[0], { attachments });
+      writes[0].Put.Item = item(report);
     }
     await db.send(new TransactWriteItemsCommand({ TransactItems: writes }));
     return report;

@@ -88,6 +88,13 @@ const schema = a.schema({
       allow.owner().to(['create', 'read']),
       allow.groups(['admins', 'feedback-admins']).to(['create', 'read']),
     ]),
+    // Every file on the report, as JSON text: [{ attachmentKey, attachmentName, attachmentType, attachmentSize }].
+    // The single fields above mirror the first entry for older clients. (a.json() here exceeds
+    // TypeScript's instantiation depth in the generated client types.)
+    attachments: a.string().authorization((allow) => [
+      allow.owner().to(['create', 'read']),
+      allow.groups(['admins', 'feedback-admins']).to(['create', 'read']),
+    ]),
     // Creation uses submitFeedback, which sets NEW and trusted identity fields
     // on the server. Direct model creation cannot fill these required fields.
     status: a.ref('Status').required().authorization((allow) => [
@@ -129,6 +136,8 @@ const schema = a.schema({
       attachmentName: a.string(),
       attachmentType: a.string(),
       attachmentSize: a.integer(),
+      // JSON text of the files after the first, which travels in the single fields.
+      attachments: a.string(),
       sentryIssueId: a.string(),
       organizationId: a.string(),
     })

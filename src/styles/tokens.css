@@ -3,88 +3,119 @@
    Copy to src/styles/tokens.css and import it once in src/main.tsx.
    Dark is the default theme. RGBA values must keep their opacity (glass). */
 
+/* HARVEST platform alignment (Oct 2026): the values of HARVEST's own design system
+   (harvest-refresh ui/src/styles/globals.css, Align UI token names with Geist values):
+   warm off-white light theme, near-black dark theme, a monochrome primary and
+   Align UI's status colours. Variable names are unchanged so every screen follows.
+   Mapping: --bg = bg-weak-25 (page), --rail = bg-rail, --surface = bg-white-0 (cards),
+   --raised = bg-weak-50, --active = bg-active, --text/--muted/--dim = text strong/sub/soft,
+   --line = stroke-soft-200, --line-sub = stroke-sub-300, --accent = primary-base. */
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #131211;
-  --rail: rgba(22,21,20,.8);
-  --surface: rgba(36,34,32,.72);
-  --raised: rgba(63,59,55,.48);
-  --input: rgba(17,16,15,.64);
-  --text: #eeeae5;
-  --muted: #b0aaa3;
-  --dim: #938c84;
-  --line: rgba(218,204,188,.14);
-  --accent: #e0e0e3;
-  --accentink: #111113;
-  --soft: #252528;
-  --red: #ff7f8a;
-  --redsoft: #381b24;
-  --orange: #edbe81;
-  --orangesoft: #372e22;
-  --blue: #b8b8c0;
-  --bluesoft: #29292f;
-  --shadow: 0 24px 80px #0005;
-  --bug: #efb473;
-  --bug-soft: #38291b;
-  --improvement: #91baff;
-  --improvement-soft: #202e46;
-  --normal: #edc66f;
-  --normal-soft: #352e1d;
-  --low: #aabbd0;
-  --low-soft: #252d38;
-  --admin-haze: rgba(198,111,45,.028);
-  --progress-green: #7eb58c;
-  --panel-shadow: 0 8px 28px rgba(0,0,0,.12), inset 0 1px 0 rgba(245,203,158,.055);
-  --body-bg:
-    radial-gradient(ellipse 65% 50% at 88% 0%, rgba(198,111,45,.045), transparent 72%),
-    radial-gradient(ellipse 48% 65% at 4% 90%, rgba(177,99,42,.022), transparent 75%),
-    var(--bg);
+  --bg: #121214;
+  --rail: #000000;
+  --surface: #1a1a1d;
+  --raised: #222225;
+  --active: #2a2a2e;
+  --track: #303036;         /* bg-soft-200 */
+  --input: #1a1a1d;
+  --text: #f2f2f2;
+  --muted: #c9c9c9;
+  --dim: #a6a6a6;
+  --disabled: #6f6f6f;
+  --line: rgba(255,255,255,.16);
+  --line-sub: #454545;
+  --line-strong: #878787;
+  --accent: #ededed;
+  --accent-hover: #ffffff;
+  --accentink: #000000;
+  --soft: rgba(255,255,255,.1);
+  --focus: #878787;
+  --focus-soft: rgba(255,255,255,.24);
+  --brand: #c46248;
+  --red: #f13242;
+  --redsoft: #44101a;
+  --orange: #ffb200;
+  --orangesoft: #3d2600;
+  --blue: #52a8ff;
+  --bluesoft: #0d2c5a;
+  --shadow: 0 16px 32px -12px rgba(14,18,27,.1);
+  --bug: #ffb200;
+  --bug-soft: #3d2600;
+  --improvement: #52a8ff;
+  --improvement-soft: #0d2c5a;
+  --normal: #ffb200;
+  --normal-soft: #3d2600;
+  --low: #8f8f8f;
+  --low-soft: #2a2a2e;
+  --admin-haze: transparent;
+  --progress-green: #00ab3e;
+  --success-soft: #003a14;
+  --dot-improvement: #52a8ff;
+  --overlay: rgba(0,0,0,.6);
+  --panel-shadow: 0 1px 2px rgba(10,13,20,.03);
+  --body-bg: var(--bg);
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #e7e2d8;
-  --rail: #e1dbcf;
-  --surface: #eee9df;
-  --raised: #e0d9cc;
-  --input: #e9e3d7;
-  --text: #302e28;
-  --muted: #555147;
-  --dim: #6b6559;
-  --line: #cdc5b7;
-  --accent: #36332c;
-  --accentink: #f1ece2;
-  --soft: #ddd5c7;
-  --red: #b7434c;
-  --redsoft: #f9e6e6;
-  --orange: #946020;
-  --orangesoft: #fff1da;
-  --blue: #5e5e69;
-  --bluesoft: #ededf0;
-  --shadow: 0 24px 80px #24344522;
-  --bug: #925617;
-  --bug-soft: #f9ead7;
-  --improvement: #3e6599;
-  --improvement-soft: #e6edf8;
-  --normal: #86600e;
-  --normal-soft: #fff3cf;
-  --low: #4e657e;
-  --low-soft: #eaf0f7;
-  --admin-haze: rgba(196,123,59,.035);
-  --progress-green: #287747;
-  --panel-shadow: 0 8px 30px rgba(118,88,57,.045), inset 0 1px 0 rgba(255,255,255,.85);
-  --body-bg:
-    radial-gradient(ellipse 65% 50% at 92% 0%, rgba(204,130,63,.065), transparent 72%),
-    radial-gradient(ellipse 50% 55% at 0% 100%, rgba(204,130,63,.03), transparent 75%),
-    var(--bg);
+  --bg: #f4f1ea;
+  --rail: #ece7dc;
+  --surface: #fdfbf7;
+  --raised: #ede9df;
+  --active: #fdfbf7;
+  --track: #e0dbcf;         /* bg-soft-200 */
+  --input: #fdfbf7;
+  --text: #16150f;
+  --muted: #36322a;
+  --dim: #5b564a;
+  --disabled: #aba498;
+  --line: rgba(20,18,12,.10);
+  --line-sub: #b4b0a7;
+  --line-strong: #78756d;
+  --accent: #16150f;
+  --accent-hover: #2b2921;
+  --accentink: #ffffff;
+  --soft: rgba(22,21,15,.08);
+  --focus: #16150f;
+  --focus-soft: rgba(0,0,0,.16);
+  --brand: #b45340;
+  --red: #fc0035;
+  --redsoft: #ffeef0;
+  --orange: #ffb200;
+  --orangesoft: #fff6e1;
+  --blue: #0070f7;
+  --bluesoft: #f0f7ff;
+  --shadow: 0 16px 32px -12px rgba(14,18,27,.1);
+  --bug: #ffb200;
+  --bug-soft: #fff6e1;
+  --improvement: #0070f7;
+  --improvement-soft: #f0f7ff;
+  --normal: #ffb200;
+  --normal-soft: #fff6e1;
+  --low: #8f8f8f;
+  --low-soft: #ebe9e3;
+  --admin-haze: transparent;
+  --progress-green: #28a948;
+  --success-soft: #ecfdec;
+  --dot-improvement: #0070f7;
+  --overlay: rgba(0,0,0,.4);
+  --panel-shadow: 0 1px 2px rgba(10,13,20,.03);
+  --body-bg: var(--bg);
 }
 
-/* Pill dots (spec §3). These literals are intentionally different from --bug / --improvement. */
+/* Pill dots: Align UI status colours (warning, information, success). */
 :root {
-  --dot-bug: #b58a59;
-  --dot-improvement: #8095ab;
-  --dot-neutral: var(--dim);   /* Blocker, Medium, Low */
+  --dot-bug: #ffb200;          /* warning-base */
+  --dot-success: var(--progress-green);
+  --radius: 8px;               /* HARVEST rounded-10 / rounded-lg: controls, buttons, nav items */
+  --radius-md: 12px;           /* rounded-xl: drop zone, file lists */
+  --radius-card: 16px;         /* rounded-2xl / rounded-20: cards, dialogs */
+  --shadow-xs: 0 1px 2px rgba(10,13,20,.03);
+  --shadow-toggle: 0 6px 10px rgba(14,18,27,.06), 0 2px 4px rgba(14,18,27,.03);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
+  --dot-neutral: var(--low);   /* Blocker, Medium, Low */
   --dot-critical: var(--red);  /* Critical: dot and text */
 
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -100,18 +131,17 @@ body { color: var(--text); }
 
 h1, h2, h3 { font-family: var(--font-serif); font-weight: 400; }
 
-/* Glass panel (spec §3 Panel, §5 Glass) */
+/* Panel: HARVEST's white card (bg-white-0, ring stroke-soft-200, shadow-regular-xs, rounded-2xl). */
 .glass {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   box-shadow: var(--panel-shadow);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
 }
-dialog::backdrop { background: #03090eb5; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+@layer legacy { dialog::backdrop { background: var(--overlay); backdrop-filter: blur(12px); } }
 
-:where(button, input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+/* HARVEST focus is monochrome: a 2px gap ring then the focus colour. */
+@layer legacy { :where(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 0; box-shadow: var(--focus-ring); } }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
@@ -137,14 +167,8 @@ dialog::backdrop { background: #03090eb5; -webkit-backdrop-filter: blur(4px); ba
   --font-serif: var(--font-serif);
 }
 
-/* Final Appendix B declarations supersede the prose in §1/§5 and Appendix A's
-   convenience shadow. Keep the supplied tokens above intact; name the final
-   cascade values explicitly so component CSS still uses tokens only. */
+/* Flat HARVEST surfaces: no glass gradients on panels or dialogs. */
 :root {
   --panel-background: var(--surface);
-  --dialog-shadow: 0 4px 22px rgba(0,0,0,.035), inset 0 1px 0 rgba(255,255,255,.15);
-}
-[data-theme="light"] {
-  --panel-shadow: 0 6px 22px rgba(79,53,29,.05), inset 0 1px 0 rgba(246,231,209,.16);
-  --panel-background: radial-gradient(ellipse at 100% 0%, rgba(207,136,76,.07), transparent 75%), var(--surface);
+  --dialog-shadow: var(--shadow);
 }
