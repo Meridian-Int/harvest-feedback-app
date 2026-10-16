@@ -86,6 +86,17 @@ export function integrationStack(app, settings) {
   email.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: [stack.formatArn({ service: 'ses', resource: 'identity', resourceName: 'withmeridian.ai' })], conditions: { StringEquals: { 'ses:FromAddress': ['sahil+feedback@withmeridian.ai', 'manasa+feedback@withmeridian.ai'] } } }));
   email.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, enabled: emailEnabled, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(failures) }));
 
+  // The same committed events feed HARVEST's existing operator bell. Delivery
+  // is independent of optional email and retries through its own dead-letter queue.
+  const notificationSecretName = 'harvest-refresh/staging/feedback-notifications';
+  const notificationSecret = Secret.fromSecretNameV2(stack, 'HarvestNotificationSecret', notificationSecretName);
+  const notificationFailures = new Queue(stack, 'FailedHarvestNotification', { retentionPeriod: Duration.days(14) });
+  const notificationWorker = new NodejsFunction(stack, 'HarvestNotificationWorker', { entry: path.join(root, 'harvest-notification-worker.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(30), memorySize: 256, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: {
+    HARVEST_API_BASE_URL: apiUrl, HARVEST_NOTIFICATION_SECRET_NAME: notificationSecretName,
+  } });
+  notificationSecret.grantRead(notificationWorker);
+  notificationWorker.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(notificationFailures) }));
+
   // This is a private static origin for HARVEST's reverse proxy, not a second login.
   const ui = new Bucket(stack, 'Ui', { blockPublicAccess: BlockPublicAccess.BLOCK_ALL, encryption: BucketEncryption.S3_MANAGED, enforceSSL: true, removalPolicy: RemovalPolicy.RETAIN });
   const routing = new EdgeFunction(stack, 'FeedbackRoutes', { code: FunctionCode.fromInline(`function handler(event) {
@@ -113,6 +124,7 @@ export function integrationStack(app, settings) {
   new CfnOutput(stack, 'FeedbackSiteOrigin', { value: `https://${site.distributionDomainName}` });
   new CfnOutput(stack, 'DistributionId', { value: site.distributionId });
   new CfnOutput(stack, 'EmailFailureQueue', { value: failures.queueUrl });
+  new CfnOutput(stack, 'HarvestNotificationFailureQueue', { value: notificationFailures.queueUrl });
   new CfnOutput(stack, 'DirectorySecretArn', { value: directorySecret.secretArn });
   new CfnOutput(stack, 'DirectoryFunction', { value: directory.functionName });
   return stack;
