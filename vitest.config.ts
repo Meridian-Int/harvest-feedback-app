@@ -3,6 +3,7 @@ import viteConfig from './vite.config';
 
 export default mergeConfig(viteConfig({ command: 'serve', mode: 'test', isSsrBuild: false, isPreview: false }), defineConfig({
   test: {
+    maxWorkers: 1,
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
