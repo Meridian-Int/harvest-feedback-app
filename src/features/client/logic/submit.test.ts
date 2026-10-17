@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { choices, makeApi } from '../testing/support';
 import { submitFeedback } from './submit';
 import { emptyDraft } from './form';
-const draft = { ...emptyDraft(), productArea: 'Data room', priority: 'BUG', severity: 'LOW', description: '  Something failed  ' };
+const draft = { ...emptyDraft(), title: 'Something failed', productArea: 'Data room', priority: 'BUG', severity: 'LOW', description: '  Something failed  ' };
 const png = (name = 'image.png') => new File(['x'], name, { type: 'image/png' });
 it('validates before any API call, including file checks and the file limit', async () => {
   const api = makeApi();

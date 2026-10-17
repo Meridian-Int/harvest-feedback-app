@@ -24,7 +24,7 @@ export function AppShell() {
   }, [reportsPage]);
   return <div className={`layout ${reportsPage ? 'layout-reports' : ''} ${admin ? 'admin-workspace' : ''}`}>
     <aside className="rail">
-      <div className="brand"><svg className="brandmark" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="46" /><path d="M50 4 L74 50 L50 96 L26 50 Z" /><path d="M50 4 V96" /><path d="M4 50 H26 M74 50 H96" /></svg><span>HARVEST</span></div><div className="brand-sub">BY MERIDIAN INTELLIGENCE</div>
+      <div className="brand"><svg className="brandmark" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="46" /><path d="M50 4 L74 50 L50 96 L26 50 Z" /><path d="M50 4 V96" /><path d="M4 50 H26 M74 50 H96" /></svg><span>FEEDBACK</span></div>
       <div className="nav-label eyebrow">Feedback workspace</div>
       <nav className="workspace-nav" aria-label="Workspace">{links.map(link => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'active' : ''}><Icon name={link.icon} />{link.text}</NavLink>)}</nav>
       <div className="rail-bottom">

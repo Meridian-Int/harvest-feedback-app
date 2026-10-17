@@ -13,12 +13,13 @@ function mount(api = makeApi()) {
 async function fill(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Category *'), 'Data room');
   await user.selectOptions(screen.getByLabelText('Priority *'), 'BUG');
+  await user.type(screen.getByLabelText('Title *'), 'Signed document download fails');
   await user.type(screen.getByLabelText('Description *'), 'Download fails for signed document');
 }
 it('focuses the first missing field and associates errors', async () => {
   const { user } = mount(); await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
-  expect(screen.getByLabelText('Description *')).toHaveFocus();
-  expect(screen.getByRole('alert')).toHaveTextContent('Please describe your feedback, choose a priority, choose or name a category.');
+  expect(screen.getByLabelText('Title *')).toHaveFocus();
+  expect(screen.getByRole('alert')).toHaveTextContent('Please add a title, describe your feedback, choose a priority, choose or name a category.');
   expect(screen.getByLabelText('Description *')).toHaveAttribute('aria-invalid', 'true');
 });
 it('requires Other name, autosaves, adds/removes several files, and clears only on success', async () => {
@@ -79,4 +80,20 @@ it('uses a single priority selector and derives severity for the existing API', 
   expect(screen.getByText('Blocker: you cannot continue.')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
   await waitFor(() => expect(api.createFeedback).toHaveBeenCalledWith(expect.objectContaining({ priority: 'BLOCKER', severity: 'CRITICAL' })));
+});
+
+
+it('lets the client type the title and keeps it in the saved draft', async () => {
+  const { user } = mount();
+  await user.type(screen.getByLabelText('Title *'), 'Export button does nothing');
+  expect(screen.getByLabelText('Title *')).toHaveValue('Export button does nothing');
+  expect(localStorage.getItem(draftKey('client-a'))).toContain('Export button does nothing');
+});
+
+it('counts title characters against the limit', async () => {
+  const { user } = mount();
+  expect(screen.getByText('0 / 60')).toBeInTheDocument();
+  await user.type(screen.getByLabelText('Title *'), 'Export fails');
+  expect(screen.getByText('12 / 60')).toBeInTheDocument();
+  expect(screen.getByLabelText('Title *')).toHaveAttribute('maxLength', '60');
 });

@@ -5,6 +5,9 @@ import { displayId, reportPage, STATUS_LABELS, updatePending } from './logic/rep
 import { ProgressTrack, ReportDetailDialog, ReportPills, StatusBadge } from './ReportDetailDialog';
 import { Toast } from '../../components/ui';
 import { Icon } from '../../components/icons';
+
+// mm/dd/yyyy with two-digit month and day, so dates line up from row to row.
+const formatShortDate = (value: string) => new Date(value).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 import './client.css';
 
 export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseReport, onNewFeedback, initialMessage = '', draftScope }: { api: ClientApi; controls: ClientControls; reportId: string | null; onOpenReport: (id: string) => void; onCloseReport: () => void; onNewFeedback: () => void; initialMessage?: string; draftScope?: string }) {
@@ -54,7 +57,7 @@ export function MyReportsView({ api, controls, reportId, onOpenReport, onCloseRe
         {state === 'error' && <div className="client-empty" role="alert">Could not load your reports. <Button onClick={() => void load()}>Try again</Button></div>}
         {state === 'ready' && !page.total && <p className="client-empty">{reports.length ? 'No reports match this status.' : 'No reports yet. Submit feedback to see it here.'}</p>}
         {state === 'ready' && page.rows.map(report => <article className="client-report" data-closed={report.status === 'CLOSED'} key={report.id}>
-          <div className="client-report-main"><div className="client-report-heading"><button className="client-report-title" onClick={() => onOpenReport(report.id)}>{report.title}</button><span className="client-helper">{displayId(report.id)} · {report.customArea || report.productArea} · {new Date(report.createdAt).toLocaleDateString()}</span></div><ProgressTrack status={report.status} variant={layout === 'grid' ? 'dots' : 'compact'} /></div>
+          <div className="client-report-main"><div className="client-report-heading"><button className="client-report-title" onClick={() => onOpenReport(report.id)}>{report.title}</button><span className="client-helper client-report-meta flex min-w-0 items-center gap-2 text-paragraph-xs text-text-soft-400"><span className="shrink-0 tabular-nums">{displayId(report.id)}</span><span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-stroke-sub-300" /><span className="min-w-0 truncate">{report.customArea || report.productArea.split(' — ')[0]}</span><span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-stroke-sub-300" /><span className="shrink-0 tabular-nums">{formatShortDate(report.createdAt)}</span></span></div><ProgressTrack status={report.status} variant={layout === 'grid' ? 'dots' : 'compact'} /></div>
           <div className="client-tag-column"><div className="client-badge-row">{layout === 'grid' && <StatusBadge status={report.status} />}<ReportPills report={report} /></div>{report.status !== 'CLOSED' && <Button className="client-update" disabled={updatePending(report) || busyIds.has(report.id)} onClick={() => void request(report)}>{updatePending(report) ? 'Update requested' : busyIds.has(report.id) ? 'Requesting…' : 'Request update'}</Button>}</div>
           <Button className="client-arrow" aria-label={`View description: ${report.title}`} onClick={() => onOpenReport(report.id)}><Icon name="chevron-right" /></Button>
         </article>)}

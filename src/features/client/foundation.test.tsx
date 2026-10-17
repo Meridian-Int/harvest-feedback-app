@@ -17,6 +17,7 @@ it('connects the authenticated form, shared options, API and success navigation'
   await user.selectOptions(screen.getByLabelText('Category *'), 'Other — add an area');
   await user.type(screen.getByLabelText('Name the category *'), 'Account settings');
   await user.selectOptions(screen.getByLabelText('Priority *'), 'BLOCKER');
+  await user.type(screen.getByLabelText('Title *'), 'Account settings will not open');
   fireEvent.change(screen.getByLabelText('Description *'), { target: { value: 'Cannot open account settings' } });
   await user.click(screen.getByRole('button', { name: 'Submit feedback' }));
   await screen.findByRole('heading', { name: 'My reports' });
