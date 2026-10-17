@@ -158,4 +158,10 @@
 #view-admin .admin-reports[data-view="grid"] .admin-row-main small { flex: none; }
 #view-admin .admin-reports[data-view="grid"] .admin-progress { margin-top: 4px; }
 #view-admin .admin-reports[data-view="grid"] .admin-report-badges { justify-content: start; }
+
+/* Rows keep HARVEST's comfortable spacing. */
+#view-admin .admin-reports[data-view="list"] .admin-report { min-height: 76px; padding: 16px 20px; gap: 16px; }
+#view-admin .admin-reports[data-view="list"] .admin-progress { margin-top: 8px; }
+#view-admin .admin-reports[data-view="grid"] { gap: 12px; }
+#view-admin .admin-reports[data-view="grid"] .admin-report { padding: 16px; gap: 12px; }
 }

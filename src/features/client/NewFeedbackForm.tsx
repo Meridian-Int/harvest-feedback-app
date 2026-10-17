@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClientProps, Draft, Feedback } from './contract';
-import { emptyDraft, validateDraft } from './logic/form';
+import { emptyDraft, TITLE_LIMIT, validateDraft } from './logic/form';
 import { clearDraft, readDraft, saveDraft } from './logic/draft';
 import { ACCEPT, checkFile } from './logic/file';
 import { findDuplicates } from './logic/duplicates';
@@ -13,7 +13,7 @@ import './client.css';
 
 export function NewFeedbackForm({ api, choices, controls, draftScope, onSubmitted, onOpenReport }: ClientProps & { onSubmitted: (report: Feedback) => void; onOpenReport: (id: string) => void }) {
   const [draft, setDraft] = useState(() => { try { return readDraft(localStorage, draftScope, choices); } catch { return emptyDraft(); } });
-  const [draftStatus, setDraftStatus] = useState(draft.description ? 'Saved draft restored' : 'Draft saves automatically');
+  const [draftStatus, setDraftStatus] = useState(draft.title || draft.description ? 'Saved draft restored' : 'Draft saves automatically');
   const files = useRecordingWorkspace(draftScope);
   const setFiles = (next: readonly File[]) => setWorkspaceAttachments(draftScope, next);
   const [error, setError] = useState('');
@@ -75,6 +75,7 @@ export function NewFeedbackForm({ api, choices, controls, draftScope, onSubmitte
           <p id="client-priority-help" className="client-helper client-priority-help" aria-live="polite">{priorityHelp[draft.priority] || 'Select a priority to see its description.'}</p>
           {!!duplicates.length && <aside className="client-duplicates" aria-live="polite"><h3>Similar reports already exist</h3><p className="client-helper">Check these before submitting, or continue with a new report.</p>{duplicates.map(report => <Button type="button" key={report.id} onClick={() => onOpenReport(report.id)}>{displayId(report.id)} · {report.title}</Button>)}</aside>}
           {duplicateError && <p className="client-helper">Similar reports could not be checked. You can still submit feedback.</p>}
+          <div className="client-field"><label htmlFor="title">Title *</label><Input id="title" name="title" maxLength={TITLE_LIMIT} placeholder="e.g. Export button does nothing on the data room page" value={draft.title} onChange={event => edit('title', event.target.value)} {...described('title')} /><div className="client-field-foot"><span className="client-helper">Name the issue in a few words.</span><span className="client-helper" aria-live="polite">{draft.title.length} / {TITLE_LIMIT}</span></div>{fieldError('title')}</div>
           <div className="client-field"><label htmlFor="description">Description *</label><Textarea name="description" id="description" maxLength={3000} placeholder="Describe the bug or the improvement you have in mind." value={draft.description} onChange={event => edit('description', event.target.value)} {...described('description')} /><div className="client-field-foot"><span className="client-helper">Keep it brief and specific.</span><span className="client-helper" aria-live="polite">{draft.description.length} / 3000</span></div>{fieldError('description')}</div>
           <div className="client-field"><label htmlFor="attachment">Screenshots or recordings <span className="client-helper">Optional</span></label>
             <div className="client-drop" data-attached={files.length > 0} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); selectFiles(Array.from(event.dataTransfer.files)); }}>

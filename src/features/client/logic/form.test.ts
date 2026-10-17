@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { emptyDraft, severityForPriority, submissionDraft, titleFromDescription, validateDraft } from './form';
 import { choices } from '../testing/support';
 
-const valid = { productArea: 'Data room', customArea: '', priority: 'BUG', severity: 'LOW', description: '  download failed\nsecond line  ' };
+const valid = { title: '  Download failed  ', productArea: 'Data room', customArea: '', priority: 'BUG', severity: 'LOW', description: '  download failed\nsecond line  ' };
 describe('form validation', () => {
   it('combines missing fields in prototype focus order', () => {
-    expect(validateDraft(emptyDraft(), choices)).toMatchObject({ first: 'description', message: 'Please describe your feedback, choose a priority, choose or name a category.' });
+    expect(validateDraft(emptyDraft(), choices)).toMatchObject({ first: 'title', message: 'Please add a title, describe your feedback, choose a priority, choose or name a category.' });
   });
   it('checks invalid options without guessing', () => {
     expect(validateDraft({ ...valid, priority: 'OTHER' }, choices).first).toBe('priority');
@@ -22,10 +22,14 @@ describe('form validation', () => {
     expect(validateDraft({ ...valid, description: 'x'.repeat(3000) }, choices).message).toBe('');
     expect(validateDraft({ ...valid, description: 'x'.repeat(3001) }, choices).first).toBe('description');
   });
-  it('extracts the first line and caps at 110; normalizes the payload', () => {
-    expect(titleFromDescription(valid.description)).toBe('download failed');
+  it('requires a typed title up to 60 characters', () => {
+    expect(validateDraft({ ...valid, title: '   ' }, choices).first).toBe('title');
+    expect(validateDraft({ ...valid, title: 'x'.repeat(61) }, choices).first).toBe('title');
+    expect(validateDraft({ ...valid, title: 'x'.repeat(60) }, choices).message).toBe('');
+  });
+  it('sends the typed title, not the description, and normalizes the payload', () => {
     expect(titleFromDescription('x'.repeat(111))).toHaveLength(110);
-    expect(submissionDraft({ ...valid, customArea: 'unused' }, choices)).toMatchObject({ title: 'download failed', customArea: '', description: 'download failed\nsecond line' });
+    expect(submissionDraft({ ...valid, customArea: 'unused' }, choices)).toMatchObject({ title: 'Download failed', customArea: '', description: 'download failed\nsecond line' });
     expect(submissionDraft({ ...valid, productArea: 'Other', customArea: '  alerts  ' }, choices).customArea).toBe('alerts');
   });
 });

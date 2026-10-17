@@ -17,6 +17,7 @@ export interface Feedback {
   adminActivityAt?: string | null;
 }
 export interface Draft {
+  title: string;
   productArea: string;
   customArea: string;
   priority: string;
