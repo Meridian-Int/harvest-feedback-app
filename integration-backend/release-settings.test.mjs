@@ -17,8 +17,10 @@ test('release manifest binds the checked dev stack to HARVEST prestaging setting
   });
 });
 
-test('test stack gets its own target and a production or mismatched identity is rejected', () => {
-  expect(releaseManifest({ 'harvest-feedback-integration-test': stack }).target).toBe('test');
-  expect(() => releaseManifest({ 'harvest-feedback-integration-production': stack })).toThrow(/non-production/);
-  expect(() => releaseManifest({ 'harvest-feedback-integration-dev': { ...stack, UserPoolId: 'production-pool' } })).toThrow(/staging pool/);
+test('each target gets its matching manifest and rejects the wrong identity', () => {
+  expect(releaseManifest({ 'harvest-feedback-integration-test': stack }, 'test').target).toBe('test');
+  const production = { ...stack, UserPoolId: 'us-east-2_oadf82ZLn', UserPoolClientId: '2igh4vncukumgslfn9u17ancuo' };
+  expect(releaseManifest({ 'harvest-feedback-integration-production': production }, 'production').target).toBe('production');
+  expect(() => releaseManifest({ 'harvest-feedback-integration-production': stack }, 'production')).toThrow(/HARVEST environment/);
+  expect(() => releaseManifest({ 'harvest-feedback-integration-dev': production })).toThrow(/HARVEST environment/);
 });

@@ -5,16 +5,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { releaseSettings } from './release-settings.mjs';
 
-const stackName = 'harvest-feedback-integration-dev';
+const target = process.env.FEEDBACK_TARGET ?? 'dev';
+if (!['dev', 'test', 'production'].includes(target)) throw new Error('Unsupported Feedback target.');
+const stackName = `harvest-feedback-integration-${target}`;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert.equal(process.env.FEEDBACK_TARGET, 'dev');
   const aws = process.env.AWS_CLI_PATH || 'aws';
   const response = JSON.parse(execFileSync(aws, ['cloudformation', 'describe-stacks', '--stack-name', stackName, '--region', 'us-east-2', '--output', 'json'], { encoding: 'utf8' }));
   const stack = response.Stacks?.[0];
-  assert.equal(stack?.StackStatus, 'UPDATE_COMPLETE');
+  assert.ok(['CREATE_COMPLETE', 'UPDATE_COMPLETE'].includes(stack?.StackStatus), 'Feedback stack must be complete.');
   const outputs = Object.fromEntries((stack.Outputs ?? []).map(output => [output.OutputKey, output.OutputValue]));
-  releaseSettings({ [stackName]: outputs });
-  writeFileSync('.integration-outputs.json', JSON.stringify({ [stackName]: outputs }, null, 2));
-  console.log('Saved verified public Feedback dev stack outputs for the UI build.');
+  releaseSettings({ [stackName]: outputs }, target);
+  writeFileSync(`.integration-outputs-${target}.json`, JSON.stringify({ [stackName]: outputs }, null, 2));
+  console.log(`Saved verified public Feedback ${target} stack outputs for the UI build.`);
 }

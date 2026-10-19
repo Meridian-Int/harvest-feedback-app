@@ -55,7 +55,7 @@ it('does not accept a workspace missing from live HARVEST memberships', async ()
 
 it('routes a server-verified Operations user to Feedback admin', async () => {
   vi.mocked(fetchHarvestViewer).mockResolvedValue({ ...viewer, feedbackAdmin: true, memberships: [{ orgId: 'operator-1', orgKind: 'operator', orgName: 'Meridian', role: 'user' }] } as never);
-  const values = storage({ accessToken: 'access', idToken: token(['feedback-admins']), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
+  const values = storage({ accessToken: 'access', idToken: token(), refreshToken: 'refresh', expiresAt: Date.now() + 60_000 });
   const user = await restoreSharedHarvestSession(values, 'operator-1');
   expect(user).toMatchObject({ persona: 'Operator', groups: ['feedback-admins'] });
   expect(isAdmin(user)).toBe(true);

@@ -11,6 +11,18 @@ const report = { owner: 'sub', organizationId: 'org', status: 'NEW' };
 const event = (): Event => ({ arguments: {}, info: { fieldName: 'getFeedback' }, identity: { sub: 'sub', issuer: 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_pool', claims: { token_use: 'access', client_id: 'client', 'cognito:groups': ['feedback-admins'] } }, request: { headers: { authorization: 'access' } } });
 beforeEach(() => { cognito.send.mockReset().mockResolvedValue({ UserAttributes: [{ Name: 'sub', Value: 'sub' }] }); vi.stubEnv('HARVEST_USER_POOL_ID', 'us-east-2_pool'); vi.stubEnv('HARVEST_APP_CLIENT_ID', 'client'); vi.stubEnv('HARVEST_API_BASE_URL', 'https://staging.example.com'); });
 it.each([
+  ['prestaging', 'us-east-2_9T9vblhIf', '1kgpn379o3obvefdfrms9pp6ho', 'https://hjyuhqzj1i.execute-api.us-east-2.amazonaws.com'],
+  ['production', 'us-east-2_oadf82ZLn', '2igh4vncukumgslfn9u17ancuo', 'https://5fbi1qzdl5.execute-api.us-east-2.amazonaws.com'],
+] as const)('uses live HARVEST %s membership for client and Operations admin access', async (_target, pool, client, api) => {
+  vi.stubEnv('HARVEST_USER_POOL_ID', pool); vi.stubEnv('HARVEST_APP_CLIENT_ID', client); vi.stubEnv('HARVEST_API_BASE_URL', api);
+  const candidate = event(); candidate.identity!.issuer = `https://cognito-idp.us-east-2.amazonaws.com/${pool}`; candidate.identity!.claims!.client_id = client;
+  const request = vi.fn(async (..._args: Parameters<typeof fetch>) => new Response(JSON.stringify(viewer)));
+  expect((await authorize(candidate, request)).admin).toBe(false);
+  expect(String(request.mock.calls[0][0])).toBe(`${api}/api/me`);
+  request.mockImplementation(async () => new Response(JSON.stringify({ ...viewer, memberships: [{ ...viewer.memberships[0], orgKind: 'operator', role: 'user' }] })));
+  expect((await authorize(candidate, request)).admin).toBe(true);
+});
+it.each([
   ['operator', 'owner', true], ['operator', 'admin', true], ['operator', 'user', true],
   ['company', 'owner', false], ['company', 'admin', false],
   ['partner', 'owner', false], ['partner', 'admin', false],

@@ -15,10 +15,11 @@ export function validDirectoryRequest(event: unknown): void {
 async function database() {
   if (pool) return pool;
   const target = process.env.FEEDBACK_TARGET;
-  if (!['dev', 'test'].includes(target ?? '')) throw new Error('Directory is restricted to non-production.');
+  if (!['dev', 'test', 'production'].includes(target ?? '')) throw new Error('Invalid Feedback directory target.');
   const result = await secrets.send(new GetSecretValueCommand({ SecretId: process.env.DIRECTORY_SECRET_ARN }));
   const credentials = JSON.parse(result.SecretString ?? '{}');
-  if (credentials.username !== `harvest_feedback_${target}_directory` || typeof credentials.password !== 'string' || credentials.host !== 'harvest-refresh-staging.cj6wauecoveq.us-east-2.rds.amazonaws.com' || credentials.dbname !== 'harvest_refresh') throw new Error('Invalid read-only directory configuration.');
+  const expectedHost = target === 'production' ? process.env.HARVEST_DIRECTORY_HOST : 'harvest-refresh-staging.cj6wauecoveq.us-east-2.rds.amazonaws.com';
+  if (!expectedHost || !new RegExp(`^harvest-refresh-${target === 'production' ? 'production' : 'staging'}\\.[a-z0-9]+\\.us-east-2\\.rds\\.amazonaws\\.com$`).test(expectedHost) || credentials.username !== `harvest_feedback_${target}_directory` || typeof credentials.password !== 'string' || credentials.host !== expectedHost || credentials.dbname !== 'harvest_refresh') throw new Error('Invalid read-only directory configuration.');
   const certificate = readFileSync(join(process.env.LAMBDA_TASK_ROOT ?? 'integration-backend', 'rds-ca.pem'), 'utf8');
   const roots = (certificate.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? []).filter(pem => {
     const value = new X509Certificate(pem);
