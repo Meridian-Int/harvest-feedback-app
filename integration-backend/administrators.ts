@@ -8,7 +8,7 @@ export interface Administrator { sub: string; email: string; name: string | null
 export async function selectedAdministrators(): Promise<Administrator[]> {
   const functionArn = process.env.HARVEST_DIRECTORY_FUNCTION_ARN;
   const pool = process.env.HARVEST_USER_POOL_ID;
-  if (!pool || !/^arn:aws:lambda:us-east-2:938463256739:function:harvest-feedback-(dev|test)-directory$/.test(functionArn ?? '')) throw new Error('Trusted administrator directory is not configured.');
+  if (!pool || !/^arn:aws:lambda:us-east-2:938463256739:function:harvest-feedback-(dev|test|production)-directory$/.test(functionArn ?? '') || (functionArn?.includes('-production-') !== (pool === 'us-east-2_oadf82ZLn'))) throw new Error('Trusted administrator directory is not configured.');
   const result = await lambda.send(new InvokeCommand({ FunctionName: functionArn, InvocationType: 'RequestResponse', Payload: Buffer.from(JSON.stringify({ operation: 'harvest-feedback-admin-directory' })) }));
   if (result.FunctionError || !result.Payload) throw new Error('HARVEST administrator lookup failed.');
   const rows: unknown = JSON.parse(Buffer.from(result.Payload).toString('utf8'));

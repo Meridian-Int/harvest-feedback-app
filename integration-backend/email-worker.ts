@@ -14,7 +14,8 @@ export async function handler(event: { Records: StreamRecord[] }) {
   const base = new URL(process.env.APP_BASE_URL ?? '');
   const table = process.env.EMAIL_DELIVERY_TABLE;
   const localDemo = ['dev', 'test'].includes(process.env.FEEDBACK_TARGET ?? '') && base.origin === 'http://localhost:5173';
-  if (!table || (!localDemo && !['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app'].includes(base.origin)) || base.pathname.replace(/\/$/, '') !== '/feedback' || base.username || base.password || base.search || base.hash) throw new Error('Feedback email configuration is incomplete.');
+    const allowedOrigins = process.env.FEEDBACK_TARGET === 'production' ? ['https://harvestbymeridian.ai'] : ['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app'];
+    if (!table || (!localDemo && !allowedOrigins.includes(base.origin)) || base.pathname.replace(/\/$/, '') !== '/feedback' || base.username || base.password || base.search || base.hash) throw new Error('Feedback email configuration is incomplete.');
   const failures: Array<{ itemIdentifier: string }> = [];
   for (const record of event.Records) {
     try {

@@ -1,4 +1,4 @@
-import { App, Stack, CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Stack, CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Table, AttributeType, BillingMode, ProjectionType, StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
 import { Bucket, BlockPublicAccess, BucketEncryption, HttpMethods } from 'aws-cdk-lib/aws-s3';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
@@ -18,10 +18,15 @@ import path from 'node:path';
 const root = path.dirname(fileURLToPath(import.meta.url));
 export function integrationStack(app, settings) {
   const { target, account, region, poolId, clientId, apiUrl, origins } = settings;
-  if (!['dev', 'test'].includes(target) || account !== '938463256739' || region !== 'us-east-2' || poolId !== 'us-east-2_9T9vblhIf' || !/^[a-z0-9]+$/.test(clientId)) throw new Error('Only the verified HARVEST staging identity is permitted.');
+  const production = target === 'production';
+  if (!['dev', 'test', 'production'].includes(target) || account !== '938463256739' || region !== 'us-east-2' || !/^[a-z0-9]+$/.test(clientId)) throw new Error('Unapproved Feedback environment.');
+  if (production ? poolId !== 'us-east-2_oadf82ZLn' || clientId !== '2igh4vncukumgslfn9u17ancuo' : poolId !== 'us-east-2_9T9vblhIf' || clientId !== '1kgpn379o3obvefdfrms9pp6ho') throw new Error('Feedback identity does not match its HARVEST environment.');
   const base = new URL(apiUrl);
-  if (base.origin !== 'https://hjyuhqzj1i.execute-api.us-east-2.amazonaws.com' || base.pathname !== '/') throw new Error('Only the verified HARVEST staging API is permitted.');
-  if (!origins.length || origins.some(origin => !['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app', 'http://localhost:5173'].includes(origin))) throw new Error('Unapproved browser origin.');
+  if (base.origin !== (production ? 'https://5fbi1qzdl5.execute-api.us-east-2.amazonaws.com' : 'https://hjyuhqzj1i.execute-api.us-east-2.amazonaws.com') || base.pathname !== '/' || base.search || base.hash) throw new Error('Feedback API does not match its HARVEST environment.');
+  const allowedOrigins = production ? ['https://harvestbymeridian.ai'] : target === 'dev' ? ['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app', 'http://localhost:5173'] : ['https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app'];
+  if (!origins.length || origins.some(origin => !allowedOrigins.includes(origin))) throw new Error('Unapproved browser origin.');
+  const directoryHost = settings.directoryHost;
+  if (!new RegExp(`^harvest-refresh-${production ? 'production' : 'staging'}\\.[a-z0-9]+\\.us-east-2\\.rds\\.amazonaws\\.com$`).test(directoryHost ?? '') || !/^vpc-[a-f0-9]+$/.test(settings.vpcId ?? '') || !Array.isArray(settings.subnetIds) || settings.subnetIds.length < 2 || settings.subnetIds.some(id => !/^subnet-[a-f0-9]+$/.test(id)) || !/^sg-[a-f0-9]+$/.test(settings.securityGroupId ?? '') || !Array.isArray(settings.availabilityZones) || settings.availabilityZones.length !== settings.subnetIds.length || settings.availabilityZones.some(zone => !/^us-east-2[a-c]$/.test(zone))) throw new Error('Feedback directory network does not match its HARVEST environment.');
   const stack = new Stack(app, `harvest-feedback-integration-${target}`, { env: { account, region } });
   const makeTable = (id, byOwner = false) => {
     const value = new Table(stack, id, { partitionKey: { name: 'id', type: AttributeType.STRING }, billingMode: BillingMode.PAY_PER_REQUEST, pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true }, removalPolicy: RemovalPolicy.RETAIN, stream: id === 'Reports' ? StreamViewType.NEW_AND_OLD_IMAGES : undefined });
@@ -34,15 +39,15 @@ export function integrationStack(app, settings) {
   const resolver = new NodejsFunction(stack, 'Resolver', { entry: path.join(root, 'handler.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(30), memorySize: 512, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: { HARVEST_USER_POOL_ID: poolId, HARVEST_APP_CLIENT_ID: clientId, HARVEST_API_BASE_URL: apiUrl, REPORTS_TABLE: reports.tableName, READS_TABLE: reads.tableName, ADMINS_TABLE: admins.tableName, ATTACHMENTS_TABLE: attachments.tableName, MEDIA_BUCKET: bucket.bucketName } });
   resolver.addEnvironment('SENTRY_ORG', 'meridian-zt');
   resolver.addEnvironment('SENTRY_PROJECT', 'javascript-react');
-  resolver.addEnvironment('SENTRY_ENVIRONMENT', target === 'dev' ? 'prestaging' : 'staging');
+  resolver.addEnvironment('SENTRY_ENVIRONMENT', target === 'dev' ? 'prestaging' : target === 'test' ? 'staging' : 'production');
   if (settings.sentryTokenSecretArn) {
-    if (!/^arn:aws:secretsmanager:us-east-2:938463256739:secret:[A-Za-z0-9/_+=.@-]+$/.test(settings.sentryTokenSecretArn)) throw new Error('Sentry token must be an existing secret in the approved non-production AWS account.');
+    if (!new RegExp(`^arn:aws:secretsmanager:us-east-2:938463256739:secret:harvest-feedback/${target}/[A-Za-z0-9/_+=.@-]+$`).test(settings.sentryTokenSecretArn)) throw new Error('Sentry token must be a Feedback secret for the matching environment.');
     const sentryToken = Secret.fromSecretCompleteArn(stack, 'SentryReadToken', settings.sentryTokenSecretArn);
     sentryToken.grantRead(resolver);
     resolver.addEnvironment('SENTRY_TOKEN_SECRET_ARN', settings.sentryTokenSecretArn);
   }
   if (settings.ga4SecretArn || settings.ga4PropertyId) {
-    if (!/^arn:aws:secretsmanager:us-east-2:938463256739:secret:harvest-refresh\/staging\/google-analytics-[A-Za-z0-9]{6}$/.test(settings.ga4SecretArn ?? '') || !/^\d+$/.test(settings.ga4PropertyId ?? '')) throw new Error('GA4 must use the verified HARVEST staging credential secret and numeric property ID.');
+    if (!new RegExp(`^arn:aws:secretsmanager:us-east-2:938463256739:secret:harvest-refresh/${production ? 'production' : 'staging'}/google-analytics-[A-Za-z0-9]{6}$`).test(settings.ga4SecretArn ?? '') || !/^\d+$/.test(settings.ga4PropertyId ?? '')) throw new Error('GA4 must use the matching HARVEST credential secret and numeric property ID.');
     const ga4Secret = Secret.fromSecretCompleteArn(stack, 'HarvestGa4Read', settings.ga4SecretArn);
     ga4Secret.grantRead(resolver);
     resolver.addEnvironment('GA4_SECRET_ARN', settings.ga4SecretArn);
@@ -52,12 +57,12 @@ export function integrationStack(app, settings) {
   bucket.grantReadWrite(resolver);
   const pool = UserPool.fromUserPoolId(stack, 'HarvestPool', poolId);
   const directorySecret = new Secret(stack, 'DirectorySecret', { secretName: `harvest-feedback/integration/${target}/directory`, generateSecretString: {
-    secretStringTemplate: JSON.stringify({ username: `harvest_feedback_${target}_directory`, host: 'harvest-refresh-staging.cj6wauecoveq.us-east-2.rds.amazonaws.com', dbname: 'harvest_refresh' }), generateStringKey: 'password', passwordLength: 40,
+    secretStringTemplate: JSON.stringify({ username: `harvest_feedback_${target}_directory`, host: directoryHost, dbname: 'harvest_refresh' }), generateStringKey: 'password', passwordLength: 40,
   } });
-  const stagingVpc = Vpc.fromVpcAttributes(stack, 'StagingVpc', { vpcId: 'vpc-04d2f16f7ea4bf404', availabilityZones: ['us-east-2a', 'us-east-2b'], privateSubnetIds: ['subnet-03e616552e9cabc65', 'subnet-0cda4f70b6ffe757b'] });
-  const stagingGroup = SecurityGroup.fromSecurityGroupId(stack, 'StagingDirectoryNetwork', 'sg-090fc2286105d42e5', { mutable: false });
+  const directoryVpc = Vpc.fromVpcAttributes(stack, 'DirectoryVpc', { vpcId: settings.vpcId, availabilityZones: settings.availabilityZones, privateSubnetIds: settings.subnetIds });
+  const directoryGroup = SecurityGroup.fromSecurityGroupId(stack, 'DirectoryNetwork', settings.securityGroupId, { mutable: false });
   const directory = new NodejsFunction(stack, 'HarvestDirectory', { functionName: `harvest-feedback-${target}-directory`, entry: path.join(root, 'directory.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(20), memorySize: 256,
-    vpc: stagingVpc, securityGroups: [stagingGroup], environment: { FEEDBACK_TARGET: target, DIRECTORY_SECRET_ARN: directorySecret.secretArn }, bundling: { minify: true, sourceMap: false, externalModules: [], commandHooks: {
+    vpc: directoryVpc, securityGroups: [directoryGroup], environment: { FEEDBACK_TARGET: target, ...(production ? { HARVEST_DIRECTORY_HOST: directoryHost } : {}), DIRECTORY_SECRET_ARN: directorySecret.secretArn }, bundling: { minify: true, sourceMap: false, externalModules: [], commandHooks: {
       beforeBundling: () => [], beforeInstall: () => [], afterBundling: (_input, output) => [`node -e "require('node:fs').copyFileSync(process.argv[1], process.argv[2])" "${path.join(root, 'rds-ca.pem')}" "${path.join(output, 'rds-ca.pem')}"`],
     } },
   });
@@ -88,14 +93,17 @@ export function integrationStack(app, settings) {
 
   // The same committed events feed HARVEST's existing operator bell. Delivery
   // is independent of optional email and retries through its own dead-letter queue.
-  const notificationSecretName = 'harvest-refresh/staging/feedback-notifications';
-  const notificationSecret = Secret.fromSecretNameV2(stack, 'HarvestNotificationSecret', notificationSecretName);
-  const notificationFailures = new Queue(stack, 'FailedHarvestNotification', { retentionPeriod: Duration.days(14) });
-  const notificationWorker = new NodejsFunction(stack, 'HarvestNotificationWorker', { entry: path.join(root, 'harvest-notification-worker.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(30), memorySize: 256, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: {
-    HARVEST_API_BASE_URL: apiUrl, HARVEST_NOTIFICATION_SECRET_NAME: notificationSecretName,
-  } });
-  notificationSecret.grantRead(notificationWorker);
-  notificationWorker.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(notificationFailures) }));
+  let notificationFailures;
+  if (!production || settings.harvestNotificationsEnabled === true) {
+    const notificationSecretName = `harvest-refresh/${production ? 'production' : 'staging'}/feedback-notifications`;
+    const notificationSecret = Secret.fromSecretNameV2(stack, 'HarvestNotificationSecret', notificationSecretName);
+    notificationFailures = new Queue(stack, 'FailedHarvestNotification', { retentionPeriod: Duration.days(14) });
+    const notificationWorker = new NodejsFunction(stack, 'HarvestNotificationWorker', { entry: path.join(root, 'harvest-notification-worker.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(30), memorySize: 256, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: {
+      HARVEST_API_BASE_URL: apiUrl, HARVEST_NOTIFICATION_SECRET_NAME: notificationSecretName,
+    } });
+    notificationSecret.grantRead(notificationWorker);
+    notificationWorker.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(notificationFailures) }));
+  }
 
   // This is a private static origin for HARVEST's reverse proxy, not a second login.
   const ui = new Bucket(stack, 'Ui', { blockPublicAccess: BlockPublicAccess.BLOCK_ALL, encryption: BucketEncryption.S3_MANAGED, enforceSSL: true, removalPolicy: RemovalPolicy.RETAIN });
@@ -124,13 +132,8 @@ export function integrationStack(app, settings) {
   new CfnOutput(stack, 'FeedbackSiteOrigin', { value: `https://${site.distributionDomainName}` });
   new CfnOutput(stack, 'DistributionId', { value: site.distributionId });
   new CfnOutput(stack, 'EmailFailureQueue', { value: failures.queueUrl });
-  new CfnOutput(stack, 'HarvestNotificationFailureQueue', { value: notificationFailures.queueUrl });
+  if (notificationFailures) new CfnOutput(stack, 'HarvestNotificationFailureQueue', { value: notificationFailures.queueUrl });
   new CfnOutput(stack, 'DirectorySecretArn', { value: directorySecret.secretArn });
   new CfnOutput(stack, 'DirectoryFunction', { value: directory.functionName });
   return stack;
-}
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const app = new App();
-  integrationStack(app, { target: process.env.FEEDBACK_TARGET, account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION, poolId: process.env.HARVEST_STAGING_USER_POOL_ID, clientId: process.env.HARVEST_STAGING_APP_CLIENT_ID, apiUrl: process.env.HARVEST_API_BASE_URL, origins: (process.env.FEEDBACK_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean) });
-  app.synth();
 }
