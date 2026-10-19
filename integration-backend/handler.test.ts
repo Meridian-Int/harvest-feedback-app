@@ -4,6 +4,7 @@ import { handler } from './handler';
 import { authorize } from './authorization';
 import { readConfiguredSentryIssues } from './sentry-issues';
 import { readConfiguredGa4Traffic } from './ga4-traffic';
+import { readConfiguredLinearTeams } from './linear-teams';
 const sdk = vi.hoisted(() => ({ db: vi.fn(), s3: vi.fn(), sign: vi.fn() }));
 vi.mock('@aws-sdk/client-dynamodb', async original => ({ ...await original<object>(), DynamoDBClient: class { send = sdk.db } }));
 vi.mock('@aws-sdk/client-s3', async original => ({ ...await original<object>(), S3Client: class { send = sdk.s3 } }));
@@ -11,11 +12,13 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: sdk.sign }));
 vi.mock('./authorization', async original => ({ ...await original<object>(), authorize: vi.fn() }));
 vi.mock('./sentry-issues', () => ({ readConfiguredSentryIssues: vi.fn() }));
 vi.mock('./ga4-traffic', () => ({ readConfiguredGa4Traffic: vi.fn() }));
+vi.mock('./linear-teams', () => ({ readConfiguredLinearTeams: vi.fn() }));
 const actor = { sub: 'sub', admin: false, viewer: { person: { id: 'person', name: 'Trusted Name', email: 'trusted@example.com' }, memberships: [{ orgId: 'org', orgKind: 'company' as const, orgName: 'Trusted Company', role: 'user' as const }] } };
 const call = (fieldName: string, args: Record<string, unknown>) => handler({ info: { fieldName }, arguments: args });
 beforeEach(() => {
   vi.clearAllMocks();
   for (const key of ['REPORTS_TABLE', 'READS_TABLE', 'ADMINS_TABLE', 'ATTACHMENTS_TABLE', 'MEDIA_BUCKET']) vi.stubEnv(key, key);
+  vi.stubEnv('LINEAR_TOKEN_SECRET_NAME', '');
   vi.mocked(authorize).mockResolvedValue(actor);
   sdk.db.mockResolvedValue({}); sdk.s3.mockResolvedValue({}); sdk.sign.mockResolvedValue('https://media.example.com/capability');
 });
@@ -88,4 +91,45 @@ it('only lets a verified current admin read HARVEST GA4 traffic', async () => {
   vi.mocked(readConfiguredGa4Traffic).mockResolvedValue({ configured: true, users: 0, sessions: 0, pageViews: 0, days: [], pages: [] });
   await expect(call('trafficInsights', {})).resolves.toMatchObject({ configured: true, users: 0 });
   expect(readConfiguredGa4Traffic).toHaveBeenCalledOnce();
+});
+
+it('keeps Linear teams and routing private to verified admins', async () => {
+  await expect(call('linearTeams', {})).rejects.toThrow('Admin access required.');
+  expect(readConfiguredLinearTeams).not.toHaveBeenCalled();
+  sdk.db.mockResolvedValue({ Item: marshall({ id: 'r', owner: 'sub', organizationId: 'org', status: 'NEW', revision: 0 }) });
+  await expect(call('updateFeedback', { input: { id: 'r', status: 'ASSIGNED', linearTeamId: 'team' } })).rejects.toThrow('Unauthorized report change.');
+  expect(readConfiguredLinearTeams).not.toHaveBeenCalled();
+  vi.mocked(authorize).mockResolvedValue({ ...actor, admin: true });
+  vi.mocked(readConfiguredLinearTeams).mockResolvedValue({ configured: true, teams: [{ id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', name: 'Engineering', key: 'ENG' }] });
+  await expect(call('linearTeams', {})).resolves.toMatchObject({ configured: true, teams: [{ key: 'ENG' }] });
+});
+
+it('validates a selected team server-side and queues one issue when an admin assigns a report', async () => {
+  const team = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  vi.stubEnv('LINEAR_TOKEN_SECRET_NAME', 'harvest-feedback/integration/dev/linear-token');
+  vi.mocked(authorize).mockResolvedValue({ ...actor, admin: true });
+  vi.mocked(readConfiguredLinearTeams).mockResolvedValue({ configured: true, teams: [{ id: team, name: 'Engineering', key: 'ENG' }] });
+  const report = { id: 'r', owner: 'sub', organizationId: 'org', status: 'NEW', revision: 0 };
+  sdk.db.mockResolvedValueOnce({ Item: marshall(report) }).mockResolvedValueOnce({ Attributes: marshall({ ...report, status: 'ASSIGNED', linearTeamId: team, linearSyncStatus: 'PENDING' }) });
+  await expect(call('updateFeedback', { input: { id: 'r', status: 'ASSIGNED', assignee: null, linearTeamId: team } })).resolves.toMatchObject({ linearTeamId: team, linearSyncStatus: 'PENDING' });
+  expect(sdk.db.mock.calls[1][0].input.ExpressionAttributeValues).toEqual(expect.objectContaining({ ':v3': expect.anything() }));
+  sdk.db.mockClear();
+  sdk.db.mockResolvedValue({ Item: marshall(report) });
+  await expect(call('updateFeedback', { input: { id: 'r', status: 'ASSIGNED', linearTeamId: 'wrong-team' } })).rejects.toThrow('Choose a valid Linear team.');
+  expect(sdk.db).toHaveBeenCalledOnce();
+});
+
+it('requires a team before assignment when Linear is enabled', async () => {
+  vi.stubEnv('LINEAR_TOKEN_SECRET_NAME', 'harvest-feedback/integration/dev/linear-token');
+  vi.mocked(authorize).mockResolvedValue({ ...actor, admin: true });
+  sdk.db.mockResolvedValue({ Item: marshall({ id: 'r', owner: 'sub', organizationId: 'org', status: 'NEW', revision: 0 }) });
+  await expect(call('updateFeedback', { input: { id: 'r', status: 'ASSIGNED' } })).rejects.toThrow('Choose a Linear team');
+  expect(sdk.db).toHaveBeenCalledOnce();
+});
+
+it('hides internal Linear fields from client report reads', async () => {
+  sdk.db.mockResolvedValue({ Item: marshall({ id: 'r', owner: 'sub', organizationId: 'org', status: 'ASSIGNED', linearTeamId: 'team', linearIssueId: 'issue', linearIssueUrl: 'https://linear.app/withmeridian/issue/ENG-1/example' }) });
+  const report = await call('getFeedback', { id: 'r' });
+  expect(report).not.toHaveProperty('linearTeamId');
+  expect(report).not.toHaveProperty('linearIssueUrl');
 });

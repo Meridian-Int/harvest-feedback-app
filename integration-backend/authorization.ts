@@ -59,10 +59,10 @@ export function requireReport(actor: Actor, report: { owner?: string; organizati
   if (!report || !canRead(actor, report)) throw new Error('Report unavailable.');
 }
 
-export function updateFields(actor: Actor, report: { owner?: string; organizationId?: string; status: string; updateRequestedAt?: string; adminActivityAt?: string }, input: Record<string, unknown>, now: number, selectedOwners: string[] = []) {
+export function updateFields(actor: Actor, report: { owner?: string; organizationId?: string; status: string; updateRequestedAt?: string; adminActivityAt?: string; linearTeamId?: string; linearIssueId?: string; linearSyncStatus?: string }, input: Record<string, unknown>, now: number, selectedOwners: string[] = [], selectedTeams: string[] = [], requireLinearTeam = false) {
   requireReport(actor, report);
   const keys = Object.keys(input).filter(k => k !== 'id');
-  const allowed = actor.admin ? ['status', 'assignee', 'adminActivityAt'] : ['updateRequestedAt'];
+  const allowed = actor.admin ? ['status', 'assignee', 'adminActivityAt', 'linearTeamId'] : ['updateRequestedAt'];
   if (!keys.length || keys.some(k => !allowed.includes(k))) throw new Error('Unauthorized report change.');
   if (!actor.admin) {
     if (report.owner !== actor.sub || report.status === 'CLOSED') throw new Error('Unauthorized report change.');
@@ -70,12 +70,19 @@ export function updateFields(actor: Actor, report: { owner?: string; organizatio
     return { updateRequestedAt: new Date(Math.max(now, Date.parse(report.adminActivityAt ?? '1970-01-01') + 1)).toISOString() };
   }
   if (!['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'].includes(String(input.status))) throw new Error('Choose a valid status.');
+  const team = input.linearTeamId === undefined ? report.linearTeamId : input.linearTeamId || undefined;
+  if (requireLinearTeam && ['ASSIGNED', 'IN_PROGRESS'].includes(String(input.status)) && !team && !report.linearIssueId) throw new Error('Choose a Linear team before assigning this report.');
+  if (team && (typeof team !== 'string' || (team !== report.linearTeamId && !selectedTeams.includes(team)))) throw new Error('Choose a valid Linear team.');
+  if (report.linearTeamId && team !== report.linearTeamId && (report.status !== 'NEW' || report.linearIssueId || report.linearSyncStatus)) throw new Error('Linear routing has already started.');
+  if (report.linearSyncStatus && input.status === 'NEW') throw new Error('Linear routing has already started.');
   // The preserved Admin option names the queue; it is never an email recipient.
   if (input.assignee != null && input.assignee !== '' && input.assignee !== 'admin@example.com' && !selectedOwners.includes(String(input.assignee))) throw new Error('Choose a valid owner.');
   const activityAt = new Date(Math.max(now, Date.parse(report.updateRequestedAt ?? '1970-01-01') + 1)).toISOString();
   const responding = report.updateRequestedAt && Date.parse(report.updateRequestedAt) > Date.parse(report.adminActivityAt ?? '1970-01-01');
   return {
     status: input.status, assignee: input.assignee || null, adminActivityAt: activityAt,
+    ...(input.linearTeamId !== undefined ? { linearTeamId: team ?? null } : {}),
+    ...(team && ['ASSIGNED', 'IN_PROGRESS'].includes(String(input.status)) && !report.linearIssueId ? { linearSyncStatus: 'PENDING' } : {}),
     ...(responding ? { updateRespondedAt: activityAt } : {}),
   };
 }

@@ -165,3 +165,9 @@
 #view-admin .admin-reports[data-view="grid"] { gap: 12px; }
 #view-admin .admin-reports[data-view="grid"] .admin-report { padding: 16px; gap: 12px; }
 }
+
+.admin-linear-routing { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.admin-linear-routing h3 { margin: 0 0 8px; font-size: 14px; }
+.admin-linear-routing .admin-detail-control { display: grid; gap: 6px; max-width: 320px; }
+.admin-linear-routing .helper { margin: 8px 0 0; }
+.admin-linear-routing a { display: inline-block; margin-top: 8px; text-decoration: underline; }

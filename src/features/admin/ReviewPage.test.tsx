@@ -6,6 +6,8 @@ import { ReviewPage } from './ReviewPage';
 
 const api = vi.hoisted(() => ({ listAllFeedback: vi.fn(), observeAllFeedback: vi.fn(), adminUpdate: vi.fn(), getAttachmentUrl: vi.fn() }));
 vi.mock('../../lib/feedback', () => api);
+const linearApi = vi.hoisted(() => ({ getLinearTeams: vi.fn() }));
+vi.mock('../../lib/linear-teams', () => linearApi);
 
 const reports = [
   makeFeedback({ id: 'report-a001', title: 'Payment failed', productArea: 'Payment — failed or missing payout', priority: 'BLOCKER', severity: 'CRITICAL', persona: 'Company', company: 'Acme', assignee: 'admin@example.com', createdAt: '2026-10-01T00:00:00Z' }),
@@ -18,6 +20,49 @@ beforeEach(() => {
   api.listAllFeedback.mockResolvedValue(reports);
   api.observeAllFeedback.mockReturnValue(() => {});
   api.getAttachmentUrl.mockResolvedValue('https://example.com/file.png');
+  linearApi.getLinearTeams.mockResolvedValue({ configured: false, teams: [] });
+});
+
+it('routes an assigned report to a selected Linear team and shows the pending state', async () => {
+  const team = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  linearApi.getLinearTeams.mockResolvedValue({ configured: true, teams: [{ id: team, name: 'Data & Engineering', key: 'ENG' }] });
+  api.adminUpdate.mockResolvedValue({ ...reports[1], status: 'ASSIGNED', linearTeamId: team, linearSyncStatus: 'PENDING' });
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-b002', user: makeAdminUser() });
+  const dialog = await screen.findByRole('dialog');
+  const teamSelect = await within(dialog).findByRole('combobox', { name: 'Linear team' });
+  await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Report status' }), 'ASSIGNED');
+  expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+  expect(within(dialog).getByText('Choose a Linear team before assigning this report.')).toBeInTheDocument();
+  await user.selectOptions(teamSelect, team);
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+  expect(api.adminUpdate).toHaveBeenCalledWith('report-b002', { status: 'ASSIGNED', assignee: 'admin@example.com', linearTeamId: team });
+  expect(await within(dialog).findByText('Creating the Linear issue…')).toBeInTheDocument();
+});
+
+it('blocks a new assignment without a team when Linear teams cannot be loaded', async () => {
+  linearApi.getLinearTeams.mockRejectedValue(new Error('Linear unavailable'));
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-b002', user: makeAdminUser() });
+  const dialog = await screen.findByRole('dialog');
+  expect(await within(dialog).findByText('Linear teams are unavailable.')).toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled();
+  await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Report status' }), 'ASSIGNED');
+  expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+  expect(api.adminUpdate).not.toHaveBeenCalled();
+});
+
+it('shows a failed sync and the linked Linear issue without allowing team changes', async () => {
+  const team = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  linearApi.getLinearTeams.mockResolvedValue({ configured: true, teams: [{ id: team, name: 'Engineering', key: 'ENG' }] });
+  api.listAllFeedback.mockResolvedValue([{ ...reports[1], status: 'ASSIGNED', linearTeamId: team, linearSyncStatus: 'FAILED' }]);
+  const first = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-b002', user: makeAdminUser() });
+  let dialog = await screen.findByRole('dialog');
+  expect(await within(dialog).findByText('Linear issue creation failed. Save again to retry.')).toBeInTheDocument();
+  expect(within(dialog).getByRole('combobox', { name: 'Linear team' })).toBeDisabled();
+  first.unmount();
+  api.listAllFeedback.mockResolvedValue([{ ...reports[1], status: 'ASSIGNED', linearTeamId: team, linearSyncStatus: 'LINKED', linearIssueId: 'issue-id', linearIssueIdentifier: 'ENG-123', linearIssueUrl: 'https://linear.app/withmeridian/issue/ENG-123/upload-stalls' }]);
+  renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-b002', user: makeAdminUser() });
+  dialog = await screen.findByRole('dialog');
+  expect(await within(dialog).findByRole('link', { name: 'Open ENG-123' })).toHaveAttribute('href', 'https://linear.app/withmeridian/issue/ENG-123/upload-stalls');
 });
 
 it('shows a report delivered by the live subscription', async () => {

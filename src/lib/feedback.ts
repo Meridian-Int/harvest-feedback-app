@@ -70,7 +70,8 @@ async function submitWithHarvestTokens(
 }
 
 // Amplify returns the attachment list as JSON text; the integrated API returns objects.
-type ApiFeedbackRecord = Omit<FeedbackRecord | SubmittedFeedbackRecord, 'attachments'> & { attachments?: unknown };
+type ApiFeedbackRecord = Omit<FeedbackRecord | SubmittedFeedbackRecord, 'attachments'> & { attachments?: unknown } &
+  Partial<Pick<Feedback, 'linearTeamId' | 'linearIssueId' | 'linearIssueIdentifier' | 'linearIssueUrl' | 'linearSyncStatus'>>;
 
 function toFeedback(row: ApiFeedbackRecord): Feedback {
   const attachments = parseAttachments(row.attachments);
@@ -94,6 +95,11 @@ function toFeedback(row: ApiFeedbackRecord): Feedback {
     ...(row.updateRequestedAt ? { updateRequestedAt: row.updateRequestedAt } : {}),
     ...(row.adminActivityAt ? { adminActivityAt: row.adminActivityAt } : {}),
     ...(row.sentryIssueId ? { sentryIssueId: row.sentryIssueId } : {}),
+    ...(row.linearTeamId ? { linearTeamId: row.linearTeamId } : {}),
+    ...(row.linearIssueId ? { linearIssueId: row.linearIssueId } : {}),
+    ...(row.linearIssueIdentifier ? { linearIssueIdentifier: row.linearIssueIdentifier } : {}),
+    ...(row.linearIssueUrl ? { linearIssueUrl: row.linearIssueUrl } : {}),
+    ...(row.linearSyncStatus ? { linearSyncStatus: row.linearSyncStatus } : {}),
     ...(row.attachmentKey ? { attachmentKey: row.attachmentKey } : {}),
     ...(row.attachmentName ? { attachmentName: row.attachmentName } : {}),
     ...(row.attachmentType ? { attachmentType: row.attachmentType } : {}),
@@ -249,6 +255,7 @@ export async function requestUpdate(id: string): Promise<Feedback> {
 
 export async function adminUpdate(id: string, input: AdminUpdateInput): Promise<Feedback> {
   requireAdmin(requireUser());
+  if (input.linearTeamId !== undefined && !isHarvestSharedSessionMode()) throw new Error('Linear routing requires HARVEST Feedback.');
   const assignees = isHarvestSharedSessionMode() && input.assignee && !ASSIGNEES.some(item => item.value === input.assignee)
     ? await feedbackAssignees() : ASSIGNEES;
   if (!STATUS_ORDER.includes(input.status) || (input.assignee && !assignees.some(item => item.value === input.assignee))) {
@@ -257,7 +264,8 @@ export async function adminUpdate(id: string, input: AdminUpdateInput): Promise<
   const report = await getFeedback(id);
   if (!report) throw new Error('Report unavailable.');
   const timestamp = new Date(Math.max(Date.now(), Date.parse(report.updateRequestedAt ?? '') + 1 || 0)).toISOString();
-  const update = { id, status: input.status, assignee: input.assignee || null, adminActivityAt: timestamp };
+  const update = { id, status: input.status, assignee: input.assignee || null, adminActivityAt: timestamp,
+    ...(input.linearTeamId !== undefined ? { linearTeamId: input.linearTeamId || null } : {}) };
   const updated = isHarvestSharedSessionMode()
     ? await updateSharedFeedback(update)
     : resultOrThrow(await client.models.Feedback.update(update));

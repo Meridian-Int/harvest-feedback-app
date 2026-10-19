@@ -58,8 +58,21 @@ it('isolates subjects and revoked organizations', () => {
   expect(canRead(actor, { ...report, owner: 'other' })).toBe(false);
   expect(canRead(actor, { ...report, organizationId: 'removed' })).toBe(false);
 });
-it.each(['owner', 'status', 'assignee', 'reporterEmail', 'adminActivityAt', 'updateRespondedAt', 'description'])('denies client field %s', key => {
+it.each(['owner', 'status', 'assignee', 'reporterEmail', 'adminActivityAt', 'updateRespondedAt', 'description', 'linearTeamId', 'linearIssueId', 'linearIssueUrl', 'linearSyncStatus'])('denies client field %s', key => {
   expect(() => updateFields(actor, report, { id: 'id', [key]: 'forged' }, 1000)).toThrow('Unauthorized report change');
+});
+
+it('locks a routed team and never accepts client supplied Linear issue fields', () => {
+  const admin = { ...actor, admin: true };
+  const team = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  expect(updateFields(admin, report, { status: 'ASSIGNED', linearTeamId: team }, 1000, [], [team])).toMatchObject({ linearTeamId: team, linearSyncStatus: 'PENDING' });
+  expect(() => updateFields(admin, { ...report, status: 'ASSIGNED', linearTeamId: team, linearSyncStatus: 'PENDING' }, { status: 'ASSIGNED', linearTeamId: 'other' }, 1000, [], ['other'])).toThrow('Linear routing has already started.');
+  expect(() => updateFields(admin, report, { status: 'ASSIGNED', linearIssueId: 'forged' }, 1000)).toThrow('Unauthorized report change.');
+});
+it('requires a Linear team for assignment when the integration is configured', () => {
+  const admin = { ...actor, admin: true };
+  expect(() => updateFields(admin, report, { status: 'ASSIGNED' }, 1000, [], [], true)).toThrow('Choose a Linear team');
+  expect(updateFields(admin, report, { status: 'ASSIGNED' }, 1000, [], [], false)).not.toHaveProperty('linearSyncStatus');
 });
 it('generates trusted timestamps and denies closed report requests', () => {
   expect(updateFields(actor, report, { updateRequestedAt: '2999-01-01' }, 1000)).toEqual({ updateRequestedAt: '1970-01-01T00:00:01.000Z' });

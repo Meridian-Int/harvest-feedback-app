@@ -48,6 +48,11 @@ export interface Feedback extends Partial<Attachment> {
   updateRequestedAt?: string;
   adminActivityAt?: string;
   sentryIssueId?: string;
+  linearTeamId?: string;
+  linearIssueId?: string;
+  linearIssueIdentifier?: string;
+  linearIssueUrl?: string;
+  linearSyncStatus?: 'PENDING' | 'FAILED' | 'LINKED';
   owner: string;
   createdAt: string;
   updatedAt: string;
@@ -67,7 +72,11 @@ export interface CreateFeedbackInput extends Partial<Attachment> {
 export interface AdminUpdateInput {
   status: Status;
   assignee?: string;
+  linearTeamId?: string;
 }
+
+export interface LinearTeam { id: string; name: string; key: string }
+export interface LinearTeamsResult { configured: boolean; teams: LinearTeam[] }
 
 export interface SentryIssue {
   id: string;

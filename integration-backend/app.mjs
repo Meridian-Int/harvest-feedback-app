@@ -48,6 +48,10 @@ export function integrationStack(app, settings) {
     resolver.addEnvironment('GA4_SECRET_ARN', settings.ga4SecretArn);
     resolver.addEnvironment('GA4_PROPERTY_ID', settings.ga4PropertyId);
   }
+  const linearEnabled = Boolean(settings.linearTokenSecretName);
+  if (linearEnabled && settings.linearTokenSecretName !== `harvest-feedback/integration/${target}/linear-token`) throw new Error('Linear must use the dedicated non-production Feedback secret.');
+  const linearSecret = linearEnabled ? Secret.fromSecretNameV2(stack, 'LinearIssueToken', settings.linearTokenSecretName) : null;
+  if (linearSecret) { linearSecret.grantRead(resolver); resolver.addEnvironment('LINEAR_TOKEN_SECRET_NAME', settings.linearTokenSecretName); }
   reports.grantReadWriteData(resolver); reads.grantReadWriteData(resolver); attachments.grantReadWriteData(resolver); admins.grantReadData(resolver);
   bucket.grantReadWrite(resolver);
   const pool = UserPool.fromUserPoolId(stack, 'HarvestPool', poolId);
@@ -67,7 +71,7 @@ export function integrationStack(app, settings) {
   resolver.addToRolePolicy(new PolicyStatement({ actions: ['cognito-idp:AdminGetUser'], resources: [pool.userPoolArn] }));
   const api = new GraphqlApi(stack, 'Api', { name: `harvest-feedback-integration-${target}`, definition: Definition.fromFile(path.join(root, 'schema.graphql')), authorizationConfig: { defaultAuthorization: { authorizationType: AuthorizationType.USER_POOL, userPoolConfig: { userPool: pool, appIdClientRegex: `^${clientId}$` } } } });
   const source = api.addLambdaDataSource('Operations', resolver);
-  for (const [typeName, fields] of Object.entries({ Query: ['harvestViewer', 'feedbackAdministrators', 'listFeedbacks', 'getFeedback', 'listNotificationReads', 'getNotificationRead', 'attachmentAccess', 'sentryIssues', 'trafficInsights'], Mutation: ['submitFeedback', 'updateFeedback', 'createNotificationRead', 'prepareAttachment', 'removeAttachment'] })) {
+  for (const [typeName, fields] of Object.entries({ Query: ['harvestViewer', 'feedbackAdministrators', 'linearTeams', 'listFeedbacks', 'getFeedback', 'listNotificationReads', 'getNotificationRead', 'attachmentAccess', 'sentryIssues', 'trafficInsights'], Mutation: ['submitFeedback', 'updateFeedback', 'createNotificationRead', 'prepareAttachment', 'removeAttachment'] })) {
     for (const fieldName of fields) source.createResolver(`${typeName}${fieldName}`, { typeName, fieldName, requestMappingTemplate: MappingTemplate.lambdaRequest(), responseMappingTemplate: MappingTemplate.fromString('#if($ctx.error)\n$util.error($ctx.error.message, $ctx.error.type)\n#end\n$util.toJson($ctx.result)') });
   }
   const receipts = new Table(stack, 'EmailDelivery', { partitionKey: { name: 'id', type: AttributeType.STRING }, billingMode: BillingMode.PAY_PER_REQUEST, timeToLiveAttribute: 'expiresAt', removalPolicy: RemovalPolicy.RETAIN });
@@ -96,6 +100,18 @@ export function integrationStack(app, settings) {
   } });
   notificationSecret.grantRead(notificationWorker);
   notificationWorker.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(notificationFailures) }));
+
+  if (linearSecret) {
+    const linearFailures = new Queue(stack, 'FailedLinearIssue', { retentionPeriod: Duration.days(14) });
+    const linearWorker = new NodejsFunction(stack, 'LinearIssueWorker', { entry: path.join(root, 'linear-worker.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.minutes(15), memorySize: 512,
+      bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: { REPORTS_TABLE: reports.tableName, ATTACHMENTS_TABLE: attachments.tableName, MEDIA_BUCKET: bucket.bucketName, LINEAR_TOKEN_SECRET_NAME: settings.linearTokenSecretName, APP_BASE_URL: baseUrl } });
+    reports.grantReadWriteData(linearWorker);
+    linearWorker.addToRolePolicy(new PolicyStatement({ actions: ['dynamodb:GetItem'], resources: [attachments.tableArn] }));
+    linearWorker.addToRolePolicy(new PolicyStatement({ actions: ['s3:GetObjectVersion'], resources: [bucket.arnForObjects('feedback-media/*')] }));
+    linearSecret.grantRead(linearWorker);
+    linearWorker.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, batchSize: 1, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(linearFailures) }));
+    new CfnOutput(stack, 'LinearFailureQueue', { value: linearFailures.queueUrl });
+  }
 
   // This is a private static origin for HARVEST's reverse proxy, not a second login.
   const ui = new Bucket(stack, 'Ui', { blockPublicAccess: BlockPublicAccess.BLOCK_ALL, encryption: BucketEncryption.S3_MANAGED, enforceSSL: true, removalPolicy: RemovalPolicy.RETAIN });

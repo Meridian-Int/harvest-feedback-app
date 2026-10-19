@@ -7,6 +7,8 @@ const FIELDS = `id title description productArea customArea priority severity re
   attachments { attachmentKey attachmentName attachmentType attachmentSize }
   updateRequestedAt adminActivityAt sentryIssueId owner createdAt updatedAt`;
 
+export const ADMIN_LINEAR_FIELDS = 'linearTeamId linearIssueId linearIssueIdentifier linearIssueUrl linearSyncStatus';
+
 type RawFeedback = Feedback & { customArea?: string | null; assignee?: string | null };
 type FeedbackPage = { items?: RawFeedback[]; nextToken?: string | null };
 
@@ -44,7 +46,7 @@ export async function listSharedFeedback(): Promise<RawFeedback[]> {
   do {
     const data: { listFeedbacks?: FeedbackPage } = await sharedRequest<{ listFeedbacks?: FeedbackPage }>(
       `query ListFeedback($limit: Int, $nextToken: String) {
-        listFeedbacks(limit: $limit, nextToken: $nextToken) { items { ${FIELDS} } nextToken }
+        listFeedbacks(limit: $limit, nextToken: $nextToken) { items { ${FIELDS} ${ADMIN_LINEAR_FIELDS} } nextToken }
       }`, { limit: 100, nextToken },
     );
     const page: FeedbackPage | undefined = data.listFeedbacks;
@@ -59,7 +61,7 @@ export async function listSharedFeedback(): Promise<RawFeedback[]> {
 
 export async function getSharedFeedback(id: string): Promise<RawFeedback | null> {
   const data = await sharedRequest<{ getFeedback?: RawFeedback | null }>(
-    `query GetFeedback($id: ID!) { getFeedback(id: $id) { ${FIELDS} } }`, { id },
+    `query GetFeedback($id: ID!) { getFeedback(id: $id) { ${FIELDS} ${ADMIN_LINEAR_FIELDS} } }`, { id },
   );
   return data.getFeedback ?? null;
 }
@@ -67,7 +69,7 @@ export async function getSharedFeedback(id: string): Promise<RawFeedback | null>
 export async function updateSharedFeedback(input: Record<string, unknown>): Promise<RawFeedback> {
   const data = await sharedRequest<{ updateFeedback?: RawFeedback | null }>(
     `mutation UpdateFeedback($input: UpdateFeedbackInput!) {
-      updateFeedback(input: $input) { ${FIELDS} }
+      updateFeedback(input: $input) { ${FIELDS} ${ADMIN_LINEAR_FIELDS} }
     }`, { input },
   );
   if (!data.updateFeedback) throw new Error('Report unavailable.');

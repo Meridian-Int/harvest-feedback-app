@@ -47,13 +47,13 @@ it('rejects changes to existing report data resources', () => {
 it('rejects changes to existing resolver settings', () => {
   const changed = proposed();
   changed.Resources.ResolverE74F069E.Properties.Environment.Variables.REPORTS_TABLE = 'other';
-  expect(() => verifyDeployScope(live, changed)).toThrow('Unreviewed CloudFormation resource change: ResolverE74F069E');
+  expect(() => verifyDeployScope(live, changed)).toThrow('Linear resolver secret changed.');
 });
 
 it('rejects a broader IAM grant', () => {
   const changed = proposed();
   changed.Resources.ResolverServiceRoleDefaultPolicy2280CADF.Properties.PolicyDocument.Statement.push({ Effect: 'Allow', Action: ['secretsmanager:*'], Resource: '*' });
-  expect(() => verifyDeployScope(live, changed)).toThrow('Unreviewed CloudFormation resource change: ResolverServiceRoleDefaultPolicy2280CADF');
+  expect(() => verifyDeployScope(live, changed)).toThrow('Linear resolver secret grant changed.');
 });
 
 it('rejects a broader notification secret grant or endpoint', () => {
@@ -72,4 +72,71 @@ it('rejects a changed stream or unrelated output', () => {
   const other = proposed();
   (other.Outputs as Record<string, unknown>).Other = { Value: 'unreviewed' };
   expect(() => verifyDeployScope(live, other)).toThrow('Unreviewed stack output added.');
+});
+
+const linearGrant = { Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'], Effect: 'Allow', Resource: { 'Fn::Join': ['', ['arn:', ref('AWS::Partition'), ':secretsmanager:us-east-2:938463256739:secret:harvest-feedback/integration/dev/linear-token-??????']] } };
+const reviewedResolverAsset = '927601b3b9b7e342d68ceb2d9d5c0cf665aa67f456804da12df8209503343b0a.zip';
+function withReviewedLinearUpdates() {
+  const prior: any = structuredClone(live);
+  const next: any = proposed();
+  const priorPolicy = prior.Resources.ResolverServiceRoleDefaultPolicy2280CADF.Properties.PolicyDocument;
+  priorPolicy.Statement = [{ Action: ['dynamodb:GetItem'], Effect: 'Allow', Resource: 'reports' }, { Action: ['s3:GetObject'], Effect: 'Allow', Resource: 'media' }];
+  next.Resources.ResolverServiceRoleDefaultPolicy2280CADF.Properties.PolicyDocument.Statement = [...priorPolicy.Statement, linearGrant];
+  prior.Resources.ResolverE74F069E.Properties.Code = { S3Bucket: 'cdk-hnb659fds-assets-938463256739-us-east-2', S3Key: `${'a'.repeat(64)}.zip` };
+  next.Resources.ResolverE74F069E.Properties.Code = { S3Bucket: 'cdk-hnb659fds-assets-938463256739-us-east-2', S3Key: reviewedResolverAsset };
+  next.Resources.ResolverE74F069E.Properties.Environment.Variables.LINEAR_TOKEN_SECRET_NAME = 'harvest-feedback/integration/dev/linear-token';
+  prior.Resources.ApiSchema510EECD7.Properties.Definition = 'type Feedback {\n  owner: String!\n}\n';
+  next.Resources.ApiSchema510EECD7.Properties.Definition = 'type Feedback {\n  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,\n  owner: String!\n}\n';
+  return { prior, next };
+}
+
+it('permits only the reviewed existing-resource changes for Linear', () => {
+  const { prior, next } = withReviewedLinearUpdates();
+  expect(verifyDeployScope(prior, next)).toEqual(expect.arrayContaining([
+    'ResolverServiceRoleDefaultPolicy2280CADF', 'ResolverE74F069E', 'ApiSchema510EECD7',
+  ]));
+});
+
+it('permits the exact multi-file schema additions already in the Feedback proposal', () => {
+  const { prior, next } = withReviewedLinearUpdates();
+  prior.Resources.ApiSchema510EECD7.Properties.Definition =
+    'type Feedback {\n  owner: String!\n}\ninput Submit { attachmentSize: Int, sentryIssueId: String }\n';
+  next.Resources.ApiSchema510EECD7.Properties.Definition =
+    'type FeedbackAttachment { attachmentKey: String!, attachmentName: String!, attachmentType: String!, attachmentSize: Int! }\n' +
+    'type Feedback {\n  attachments: [FeedbackAttachment!],\n  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,\n  owner: String!\n}\n' +
+    'input Submit { attachmentSize: Int, attachmentKeys: [String!], sentryIssueId: String }\n';
+  expect(verifyDeployScope(prior, next)).toContain('ApiSchema510EECD7');
+  next.Resources.ApiSchema510EECD7.Properties.Definition = next.Resources.ApiSchema510EECD7.Properties.Definition.replace('attachmentKeys: [String!]', 'attachmentKeys: [ID!]');
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed GraphQL schema change.');
+});
+
+it('preserves multi-file fields when they are already deployed', () => {
+  const { prior, next } = withReviewedLinearUpdates();
+  const attachment = 'type FeedbackAttachment { attachmentKey: String!, attachmentName: String!, attachmentType: String!, attachmentSize: Int! }\n';
+  const fields = '  attachments: [FeedbackAttachment!],\n';
+  const submit = 'input Submit { attachmentKeys: [String!] }\n';
+  prior.Resources.ApiSchema510EECD7.Properties.Definition = attachment + 'type Feedback {\n' + fields + '  owner: String!\n}\n' + submit;
+  next.Resources.ApiSchema510EECD7.Properties.Definition = attachment + 'type Feedback {\n' + fields +
+    '  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,\n  owner: String!\n}\n' + submit;
+  expect(verifyDeployScope(prior, next)).toContain('ApiSchema510EECD7');
+  next.Resources.ApiSchema510EECD7.Properties.Definition = next.Resources.ApiSchema510EECD7.Properties.Definition.replace(fields, '');
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed GraphQL schema change.');
+});
+
+it('rejects unrelated resolver settings and permissions during the Linear release', () => {
+  const { prior, next } = withReviewedLinearUpdates();
+  next.Resources.ResolverE74F069E.Properties.Environment.Variables.REPORTS_TABLE = 'other';
+  expect(() => verifyDeployScope(prior, next)).toThrow('Other resolver settings changed.');
+  next.Resources.ResolverE74F069E.Properties.Environment.Variables.REPORTS_TABLE = 'feedback-reports';
+  next.Resources.ResolverServiceRoleDefaultPolicy2280CADF.Properties.PolicyDocument.Statement.push({ Action: 'secretsmanager:*', Effect: 'Allow', Resource: '*' });
+  expect(() => verifyDeployScope(prior, next)).toThrow('Other resolver permissions changed.');
+});
+
+it('rejects unreviewed schema and code assets', () => {
+  const { prior, next } = withReviewedLinearUpdates();
+  next.Resources.ApiSchema510EECD7.Properties.Definition += 'type Other { id: ID! }\n';
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed GraphQL schema change.');
+  next.Resources.ApiSchema510EECD7.Properties.Definition = 'type Feedback {\n  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,\n  owner: String!\n}\n';
+  next.Resources.ResolverE74F069E.Properties.Code.S3Key = `${'b'.repeat(64)}.zip`;
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed resolver code asset.');
 });

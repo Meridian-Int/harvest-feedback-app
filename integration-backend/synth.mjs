@@ -12,6 +12,7 @@ const stack = integrationStack(app, {
   apiUrl: settings.apiUrl, origins: ['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173'],
   emailEnabled: process.env.FEEDBACK_EMAIL_ENABLED === 'true', appBaseUrl: process.env.FEEDBACK_APP_BASE_URL,
   sentryTokenSecretArn: settings.sentryTokenSecretArn, ga4SecretArn: settings.ga4SecretArn, ga4PropertyId: settings.ga4PropertyId,
+  linearTokenSecretName: settings.linearTokenSecretName,
 });
 const assembly = app.synth();
 const template = assembly.getStackArtifact(stack.artifactId).template;
@@ -21,7 +22,7 @@ assert.equal(resources.filter(resource => resource.Type === 'AWS::DynamoDB::Tabl
 const api = resources.find(resource => resource.Type === 'AWS::AppSync::GraphQLApi');
 assert.equal(api.Properties.UserPoolConfig.UserPoolId, settings.poolId);
 assert.equal(api.Properties.AdditionalAuthenticationProviders, undefined);
-assert.equal(resources.filter(resource => resource.Type === 'AWS::AppSync::Resolver').length, 14);
+assert.equal(resources.filter(resource => resource.Type === 'AWS::AppSync::Resolver').length, 15);
 assert.equal(JSON.stringify(template).includes('harvest-refresh-backend-production'), false);
 const resolver = resources.find(resource => resource.Type === 'AWS::Lambda::Function' && resource.Properties.Environment?.Variables.REPORTS_TABLE);
 const hasSecretGrant = arn => resources.some(resource => resource.Type === 'AWS::IAM::Policy' && JSON.stringify(resource.Properties.PolicyDocument).includes(arn));
@@ -34,4 +35,8 @@ if (settings.ga4SecretArn) {
   assert.equal(resolver?.Properties.Environment.Variables.GA4_PROPERTY_ID, settings.ga4PropertyId);
   assert.ok(hasSecretGrant(settings.ga4SecretArn), 'Missing GA4 secret read grant.');
 }
-console.log(`Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 14 guarded operations; email enabled: ${process.env.FEEDBACK_EMAIL_ENABLED === 'true'}.`);
+if (settings.linearTokenSecretName) {
+  assert.equal(resolver?.Properties.Environment.Variables.LINEAR_TOKEN_SECRET_NAME, settings.linearTokenSecretName);
+  assert.ok(Object.entries(template.Resources).some(([id, resource]) => id.startsWith('LinearIssueWorker') && resource.Type === 'AWS::Lambda::Function' && resource.Properties.Environment?.Variables.LINEAR_TOKEN_SECRET_NAME), 'Missing Linear worker.');
+}
+console.log(`Synthesis passed: 0 Cognito resources, 5 separate Feedback tables, private media/static buckets, 15 guarded operations; email enabled: ${process.env.FEEDBACK_EMAIL_ENABLED === 'true'}; Linear enabled: ${Boolean(settings.linearTokenSecretName)}.`);

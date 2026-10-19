@@ -18,5 +18,6 @@ export function synthSettings(file = '.env.integration.local', environment = pro
     sentryTokenSecretArn: get('FEEDBACK_SENTRY_TOKEN_SECRET_ARN'),
     ga4SecretArn: get('FEEDBACK_GA4_SECRET_ARN'),
     ga4PropertyId: get('FEEDBACK_GA4_PROPERTY_ID'),
+    linearTokenSecretName: get('FEEDBACK_LINEAR_TOKEN_SECRET_NAME'),
   };
 }
