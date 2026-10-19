@@ -23,7 +23,9 @@ const linear = {
 const linearSecretName = 'harvest-feedback/integration/dev/linear-token';
 // Release-specific bundle fingerprints. A code change requires a fresh scope review.
 const reviewedAssets = {
-  resolver: '927601b3b9b7e342d68ceb2d9d5c0cf665aa67f456804da12df8209503343b0a.zip',
+  resolver: 'ffbd8b1355cc5da6311bd7f15d59efff84f9f90768e705b96e4105a94219c78a.zip',
+  directory: '409e2d2bc418d81717576a8a38b5772797730b6f0e500a59ba4b499b32bdcd40.zip',
+  emailWorker: '9b249e08c768b08cbe2963fe220c4af8eaa6a3d66fdaaa0d9a6ff8469ed8dbea.zip',
   linearWorker: '39339d9c14ea7bafb48066a0dcaa603e25d4503db6ebae1f6b214647e08ca67c.zip',
 };
 const linearSecretGrant = {
@@ -36,9 +38,12 @@ const permitted = {
   [notification.policy]: { change: 'add', type: 'AWS::IAM::Policy' },
   [notification.worker]: { change: 'add', type: 'AWS::Lambda::Function' },
   [notification.stream]: { change: 'add', type: 'AWS::Lambda::EventSourceMapping' },
+  MediaA721A567: { change: 'update', type: 'AWS::S3::Bucket' },
   ResolverServiceRoleDefaultPolicy2280CADF: { change: 'update', type: 'AWS::IAM::Policy' },
   ResolverE74F069E: { change: 'update', type: 'AWS::Lambda::Function' },
+  HarvestDirectory2165E50A: { change: 'update', type: 'AWS::Lambda::Function' },
   ApiSchema510EECD7: { change: 'update', type: 'AWS::AppSync::GraphQLSchema' },
+  EmailWorker9F0FF8B3: { change: 'update', type: 'AWS::Lambda::Function' },
   [linear.query]: { change: 'add', type: 'AWS::AppSync::Resolver' },
   [linear.queue]: { change: 'add', type: 'AWS::SQS::Queue' },
   [linear.role]: { change: 'add', type: 'AWS::IAM::Role' },
@@ -92,6 +97,12 @@ function verifyNotificationResource(id, resource) {
 
 function verifyLinearResource(id, before, after, proposed) {
   const p = after.Properties;
+  if (id === 'MediaA721A567') {
+    const cors = origins => ({ CorsRules: [{ AllowedHeaders: ['*'], AllowedMethods: ['PUT', 'GET', 'HEAD'], AllowedOrigins: origins, ExposedHeaders: ['ETag'], MaxAge: 60 }] });
+    same(before.Properties.CorsConfiguration, cors(['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173']), 'Deployed dev media CORS changed.');
+    same(p.CorsConfiguration, cors(['https://harvest-refresh-prestaging-meridian.netlify.app', 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app', 'http://localhost:5173']), 'Unreviewed dev media CORS.');
+    same({ ...after, Properties: { ...p, CorsConfiguration: before.Properties.CorsConfiguration } }, before, 'Other dev media settings changed.');
+  }
   if (id === 'ResolverServiceRoleDefaultPolicy2280CADF') {
     const oldStatements = before.Properties.PolicyDocument.Statement;
     const nextStatements = p.PolicyDocument.Statement;
@@ -105,6 +116,12 @@ function verifyLinearResource(id, before, after, proposed) {
     const variables = { ...p.Environment.Variables };
     delete variables.LINEAR_TOKEN_SECRET_NAME;
     same({ ...after, Properties: { ...p, Code: before.Properties.Code, Environment: { Variables: variables } } }, before, 'Other resolver settings changed.');
+  }
+  if (id === 'HarvestDirectory2165E50A' || id === 'EmailWorker9F0FF8B3') {
+    const expected = id === 'HarvestDirectory2165E50A' ? reviewedAssets.directory : reviewedAssets.emailWorker;
+    assert.equal(p.Code?.S3Bucket, 'cdk-hnb659fds-assets-938463256739-us-east-2');
+    assert.equal(p.Code?.S3Key, expected, `Unreviewed ${id} code asset.`);
+    same({ ...after, Properties: { ...p, Code: before.Properties.Code } }, before, `Other ${id} settings changed.`);
   }
   if (id === 'ApiSchema510EECD7') {
     const normalize = value => value.replace(/\r\n/g, '\n');
@@ -163,7 +180,7 @@ function verifyLinearResource(id, before, after, proposed) {
   } }, 'Linear stream changed.');
 }
 
-/** Refuse any stack drift or release outside the reviewed notification and Linear bridge. */
+/** Refuse stack drift outside the exact reviewed combined Feedback dev release. */
 export function verifyDeployScope(live, proposed) {
   const liveOther = { ...live }, proposedOther = { ...proposed };
   delete liveOther.Resources; delete proposedOther.Resources;
