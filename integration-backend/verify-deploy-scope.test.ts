@@ -75,7 +75,7 @@ it('rejects a changed stream or unrelated output', () => {
 });
 
 const linearGrant = { Action: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'], Effect: 'Allow', Resource: { 'Fn::Join': ['', ['arn:', ref('AWS::Partition'), ':secretsmanager:us-east-2:938463256739:secret:harvest-feedback/integration/dev/linear-token-??????']] } };
-const reviewedResolverAsset = '927601b3b9b7e342d68ceb2d9d5c0cf665aa67f456804da12df8209503343b0a.zip';
+const reviewedResolverAsset = 'ffbd8b1355cc5da6311bd7f15d59efff84f9f90768e705b96e4105a94219c78a.zip';
 function withReviewedLinearUpdates() {
   const prior: any = structuredClone(live);
   const next: any = proposed();
@@ -139,4 +139,29 @@ it('rejects unreviewed schema and code assets', () => {
   next.Resources.ApiSchema510EECD7.Properties.Definition = 'type Feedback {\n  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,\n  owner: String!\n}\n';
   next.Resources.ResolverE74F069E.Properties.Code.S3Key = `${'b'.repeat(64)}.zip`;
   expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed resolver code asset.');
+});
+
+it('pins the combined dev media and worker updates without permitting broader changes', () => {
+  const prior: any = structuredClone(live);
+  const next: any = structuredClone(live);
+  const origins = ['https://harvest-refresh-prestaging-meridian.netlify.app', 'http://localhost:5173'];
+  const media = { Type: 'AWS::S3::Bucket', Properties: { BucketEncryption: 'unchanged', CorsConfiguration: { CorsRules: [{ AllowedHeaders: ['*'], AllowedMethods: ['PUT', 'GET', 'HEAD'], AllowedOrigins: origins, ExposedHeaders: ['ETag'], MaxAge: 60 }] } } };
+  prior.Resources.MediaA721A567 = media;
+  next.Resources.MediaA721A567 = structuredClone(media);
+  next.Resources.MediaA721A567.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins.splice(1, 0, 'https://staging.harvestbymeridian.ai', 'https://harvest-refresh-staging-meridian.netlify.app');
+  const workerAssets = {
+    HarvestDirectory2165E50A: '409e2d2bc418d81717576a8a38b5772797730b6f0e500a59ba4b499b32bdcd40.zip',
+    EmailWorker9F0FF8B3: '9b249e08c768b08cbe2963fe220c4af8eaa6a3d66fdaaa0d9a6ff8469ed8dbea.zip',
+  };
+  for (const [id, asset] of Object.entries(workerAssets)) {
+    prior.Resources[id] = { Type: 'AWS::Lambda::Function', Properties: { Code: { S3Bucket: 'cdk-hnb659fds-assets-938463256739-us-east-2', S3Key: `${'a'.repeat(64)}.zip` }, Runtime: 'nodejs22.x' } };
+    next.Resources[id] = structuredClone(prior.Resources[id]);
+    next.Resources[id].Properties.Code.S3Key = asset;
+  }
+  expect(verifyDeployScope(prior, next)).toEqual(['EmailWorker9F0FF8B3', 'HarvestDirectory2165E50A', 'MediaA721A567']);
+  next.Resources.MediaA721A567.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins.push('https://example.com');
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed dev media CORS.');
+  next.Resources.MediaA721A567.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins.pop();
+  next.Resources.EmailWorker9F0FF8B3.Properties.Code.S3Key = `${'b'.repeat(64)}.zip`;
+  expect(() => verifyDeployScope(prior, next)).toThrow('Unreviewed EmailWorker9F0FF8B3 code asset.');
 });
