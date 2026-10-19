@@ -59,6 +59,7 @@ export async function linearRequest<T>(query: string, variables: Record<string, 
   const body = await response.json() as { data?: T; errors?: Array<{ message: string }> };
   if (body.errors?.length) {
     if (body.errors.every(error => /not found|could not find|does not exist/i.test(error.message))) throw new LinearNotFoundError('Linear issue was not found.');
+    if (body.errors.some(error => /invalid scope.*`write` required/i.test(error.message))) throw new Error('Linear API key needs Write permission.');
     throw new Error('Linear API rejected the request.');
   }
   if (!response.ok) throw new Error(`Linear API returned HTTP ${response.status}.`);
@@ -102,6 +103,10 @@ export async function listLinearTeams(token: string, request: typeof fetch = fet
 
 export async function linearAssigneeId(email: string | undefined, token: string, request: typeof fetch = fetch): Promise<string | undefined> {
   if (!email) return undefined;
+  const normalized = email.trim().toLowerCase();
+  const alias = normalized.match(/^([^@+]+)\+[^@]+@([^@]+)$/);
+  const baseEmail = alias ? `${alias[1]}@${alias[2]}` : undefined;
+  let fallbackId: string | undefined;
   let after: string | null = null;
   do {
     const data: { users: { nodes: Array<{ id: string; email: string; active: boolean; isAssignable: boolean }>; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } = await linearRequest(
@@ -109,12 +114,28 @@ export async function linearAssigneeId(email: string | undefined, token: string,
       { after }, token, request,
     );
     if (!data.users?.nodes || !data.users.pageInfo) throw new Error('Linear returned an incomplete user list.');
-    const user = data.users.nodes.find(candidate => candidate.email?.toLowerCase() === email.toLowerCase() && candidate.active === true && candidate.isAssignable === true && uuid.test(candidate.id));
+    const eligible = (candidate: typeof data.users.nodes[number]) => candidate.active === true && candidate.isAssignable === true && uuid.test(candidate.id);
+    const user = data.users.nodes.find(candidate => candidate.email?.trim().toLowerCase() === normalized && eligible(candidate));
     if (user) return user.id;
+    if (baseEmail && !fallbackId) fallbackId = data.users.nodes.find(candidate => candidate.email?.trim().toLowerCase() === baseEmail && eligible(candidate))?.id;
     after = data.users.pageInfo.hasNextPage ? data.users.pageInfo.endCursor : null;
     if (data.users.pageInfo.hasNextPage && !after) throw new Error('Linear returned an invalid user cursor.');
   } while (after);
-  return undefined;
+  return fallbackId;
+}
+
+/** Keep an existing issue's assignee aligned with the Feedback owner. */
+export async function updateLinearAssignee(issueId: string, email: string | undefined, token: string, request: typeof fetch = fetch): Promise<void> {
+  if (!uuid.test(issueId)) throw new Error('Invalid Linear issue.');
+  const assigneeId = await linearAssigneeId(email, token, request);
+  if (email && !assigneeId) throw new Error('Feedback owner has no assignable Linear account.');
+  const data: { issueUpdate: { success: boolean; issue?: { id: string; assignee?: { id: string } | null } | null } } = await linearRequest(
+    'mutation UpdateFeedbackAssignee($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { id assignee { id } } } }',
+    { id: issueId, input: { assigneeId: assigneeId ?? null } }, token, request,
+  );
+  if (!data.issueUpdate?.success || data.issueUpdate.issue?.id !== issueId || (data.issueUpdate.issue.assignee?.id ?? null) !== (assigneeId ?? null)) {
+    throw new Error('Linear issue assignee update did not complete.');
+  }
 }
 
 function validIssue(value: LinearIssue | null | undefined, expectedId: string): LinearIssue | null {

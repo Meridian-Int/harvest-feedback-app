@@ -1,13 +1,13 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { marshall } from '@aws-sdk/util-dynamodb';
-import { handler, pendingLinearReport, uploadReportFiles } from './linear-worker';
-import { createOrFindLinearIssue, uploadLinearFile } from './linear';
+import { handler, linkedAssigneeChange, pendingLinearReport, uploadReportFiles } from './linear-worker';
+import { createOrFindLinearIssue, updateLinearAssignee, uploadLinearFile } from './linear';
 
 const sdk = vi.hoisted(() => ({ db: vi.fn(), s3: vi.fn(), secret: vi.fn() }));
 vi.mock('@aws-sdk/client-dynamodb', async original => ({ ...await original<object>(), DynamoDBClient: class { send = sdk.db } }));
 vi.mock('@aws-sdk/client-s3', async original => ({ ...await original<object>(), S3Client: class { send = sdk.s3 } }));
 vi.mock('@aws-sdk/client-secrets-manager', async original => ({ ...await original<object>(), SecretsManagerClient: class { send = sdk.secret } }));
-vi.mock('./linear', async original => ({ ...await original<object>(), createOrFindLinearIssue: vi.fn(), uploadLinearFile: vi.fn() }));
+vi.mock('./linear', async original => ({ ...await original<object>(), createOrFindLinearIssue: vi.fn(), updateLinearAssignee: vi.fn(), uploadLinearFile: vi.fn() }));
 
 const row = { id: 'report-e247', title: 'Upload stalls', description: 'Upload stalls', productArea: 'Data room', priority: 'BUG', status: 'ASSIGNED', linearTeamId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', linearSyncStatus: 'PENDING' };
 const record = { eventName: 'MODIFY', dynamodb: { NewImage: marshall(row), SequenceNumber: 'sequence-1' } };
@@ -38,6 +38,20 @@ it('links a created issue to the report and ignores its own linked stream event'
   expect(createOrFindLinearIssue).toHaveBeenCalledWith(expect.objectContaining({ id: row.id }), 'https://staging.harvestbymeridian.ai/feedback', 'token', expect.any(Function), expect.any(Function));
   expect(sdk.db.mock.calls[0][0].input.ConditionExpression).toContain('attribute_not_exists(linearIssueId)');
   expect(sdk.db.mock.calls[0][0].input.ExpressionAttributeValues).toMatchObject({ ':id': { S: issue.id }, ':linked': { S: 'LINKED' } });
+});
+
+it('syncs owner changes on the same linked issue and ignores unrelated updates', async () => {
+  const issueId = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+  const old = { ...row, linearIssueId: issueId, linearSyncStatus: 'LINKED' };
+  const current = { ...old, linearAssigneeEmail: 'owner+admin@withmeridian.ai' };
+  const change = { eventName: 'MODIFY', dynamodb: { OldImage: marshall(old), NewImage: marshall(current), SequenceNumber: 'sequence-owner' } };
+  expect(linkedAssigneeChange(change)).toMatchObject({ id: row.id, linearIssueId: issueId, linearAssigneeEmail: current.linearAssigneeEmail });
+  expect(linkedAssigneeChange({ ...change, dynamodb: { ...change.dynamodb, OldImage: marshall(current) } })).toBeNull();
+  expect(await handler({ Records: [change] })).toEqual({ batchItemFailures: [] });
+  expect(updateLinearAssignee).toHaveBeenCalledWith(issueId, current.linearAssigneeEmail, 'token');
+  expect(createOrFindLinearIssue).not.toHaveBeenCalled();
+  vi.mocked(updateLinearAssignee).mockRejectedValueOnce(new Error('Unavailable'));
+  expect(await handler({ Records: [change] })).toEqual({ batchItemFailures: [{ itemIdentifier: 'sequence-owner' }] });
 });
 
 it('copies only a claimed immutable attachment into Linear', async () => {

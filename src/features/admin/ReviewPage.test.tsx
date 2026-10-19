@@ -36,7 +36,10 @@ it('routes an assigned report to a selected Linear team and shows the pending st
   await user.selectOptions(teamSelect, team);
   await user.click(within(dialog).getByRole('button', { name: 'Save' }));
   expect(api.adminUpdate).toHaveBeenCalledWith('report-b002', { status: 'ASSIGNED', assignee: 'admin@example.com', linearTeamId: team });
-  expect(await within(dialog).findByText('Creating the Linear issue…')).toBeInTheDocument();
+  expect(await screen.findByRole('status')).toHaveTextContent('Report saved. Creating the Linear issue…');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'View description: Upload stalled' }));
+  expect(await within(screen.getByRole('dialog')).findByText('Creating the Linear issue…')).toBeInTheDocument();
 });
 
 it('blocks a new assignment without a team when Linear teams cannot be loaded', async () => {
@@ -130,6 +133,16 @@ it('opens the report from its URL, saves status and owner, and shows a toast', a
   await user.click(within(dialog).getByRole('button', { name: 'Save' }));
   expect(api.adminUpdate).toHaveBeenCalledWith('report-a001', { status: 'ASSIGNED', assignee: 'admin@example.com' });
   expect(await screen.findByRole('status')).toHaveTextContent('Report updated.');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+it('keeps the report open with an error when saving fails', async () => {
+  api.adminUpdate.mockRejectedValue(new Error('Could not save the report.'));
+  const { user } = renderWithProviders(<ReviewPage />, { route: '/admin/reviews?report=report-a001', user: makeAdminUser() });
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not save the report.');
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
 });
 
 it('preselects Admin for an untouched new ticket and keeps an explicit Unassigned save', async () => {
@@ -140,7 +153,9 @@ it('preselects Admin for an untouched new ticket and keeps an explicit Unassigne
   await user.selectOptions(owner, '');
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
   expect(api.adminUpdate).toHaveBeenCalledWith('report-b002', { status: 'NEW', assignee: '' });
-  await waitFor(() => expect(owner).toHaveValue(''));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await user.click(screen.getByRole('button', { name: 'View description: Upload stalled' }));
+  expect(within(screen.getByRole('dialog')).getByRole('combobox', { name: 'Report owner' })).toHaveValue('');
 });
 
 it('previews an image, offers a download and shows unavailable media on failure', async () => {

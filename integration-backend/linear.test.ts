@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { createOrFindLinearIssue, linearDescription, linearIssueId, linearPriority, listLinearTeams, uploadLinearFile, type LinearReport } from './linear';
+import { createOrFindLinearIssue, linearAssigneeId, linearDescription, linearIssueId, linearPriority, linearRequest, listLinearTeams, updateLinearAssignee, uploadLinearFile, type LinearReport } from './linear';
 
 const teamId = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
 const userId = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
@@ -42,6 +42,35 @@ it('creates one issue in the chosen team and assigns only a matching active Line
   expect(request.mock.calls.every(call => call[0] === 'https://api.linear.app/graphql')).toBe(true);
 });
 
+it('uses the base address for a plus alias only when no exact eligible Linear user exists', async () => {
+  const aliasId = 'cccccccc-cccc-4ccc-cccc-cccccccccccc';
+  const request = vi.fn()
+    .mockResolvedValueOnce(response({ data: { users: { nodes: [{ id: userId, email: 'owner@withmeridian.ai', active: true, isAssignable: true }], pageInfo: { hasNextPage: true, endCursor: 'next' } } } }))
+    .mockResolvedValueOnce(response({ data: { users: { nodes: [{ id: aliasId, email: 'OWNER+ADMIN@withmeridian.ai', active: true, isAssignable: true }], pageInfo: { hasNextPage: false, endCursor: null } } } }));
+  expect(await linearAssigneeId('owner+admin@withmeridian.ai', 'token', request as typeof fetch)).toBe(aliasId);
+  expect(request).toHaveBeenCalledTimes(2);
+  const fallback = vi.fn().mockResolvedValue(response({ data: { users: { nodes: [{ id: userId, email: 'owner@withmeridian.ai', active: true, isAssignable: true }], pageInfo: { hasNextPage: false, endCursor: null } } } }));
+  expect(await linearAssigneeId('owner+admin@withmeridian.ai', 'token', fallback as typeof fetch)).toBe(userId);
+});
+
+it('updates an existing issue assignee, including clearing an unassigned owner', async () => {
+  const issueId = linearIssueId(report.id);
+  const assign = vi.fn()
+    .mockResolvedValueOnce(response({ data: { users: { nodes: [{ id: userId, email: 'owner@withmeridian.ai', active: true, isAssignable: true }], pageInfo: { hasNextPage: false, endCursor: null } } } }))
+    .mockResolvedValueOnce(response({ data: { issueUpdate: { success: true, issue: { id: issueId, assignee: { id: userId } } } } }));
+  await updateLinearAssignee(issueId, 'owner+admin@withmeridian.ai', 'token', assign as typeof fetch);
+  expect(JSON.parse(assign.mock.calls[1][1].body).variables).toEqual({ id: issueId, input: { assigneeId: userId } });
+  const clear = vi.fn().mockResolvedValue(response({ data: { issueUpdate: { success: true, issue: { id: issueId, assignee: null } } } }));
+  await updateLinearAssignee(issueId, undefined, 'token', clear as typeof fetch);
+  expect(JSON.parse(clear.mock.calls[0][1].body).variables.input).toEqual({ assigneeId: null });
+});
+
+it('refuses to assign an inactive Linear user', async () => {
+  const request = vi.fn().mockResolvedValue(response({ data: { users: { nodes: [{ id: userId, email: 'owner@withmeridian.ai', active: false, isAssignable: true }], pageInfo: { hasNextPage: false, endCursor: null } } } }));
+  await expect(updateLinearAssignee(linearIssueId(report.id), 'owner+admin@withmeridian.ai', 'token', request as typeof fetch)).rejects.toThrow('no assignable Linear account');
+  expect(request).toHaveBeenCalledOnce();
+});
+
 it('finds a previously created deterministic issue before attempting another create', async () => {
   const issue = { id: linearIssueId(report.id), identifier: 'ENG-123', url: 'https://linear.app/withmeridian/issue/ENG-123/upload-stalls' };
   const request = vi.fn().mockResolvedValue(response({ data: { issue } }));
@@ -65,6 +94,11 @@ it('fails a rejected Linear file PUT before an issue can be created', async () =
     .mockResolvedValueOnce(response({ data: { fileUpload: { success: true, uploadFile: { uploadUrl: 'https://storage.googleapis.com/signed', assetUrl: 'https://uploads.linear.app/asset', headers: [] } } } }))
     .mockResolvedValueOnce(new Response('', { status: 403 }));
   await expect(uploadLinearFile({ name: 'screen.webm', type: 'video/webm', bytes: new Uint8Array([1]) }, 'token', request as typeof fetch)).rejects.toThrow('HTTP 403');
+});
+
+it('identifies a Linear key missing the Write scope without exposing the token', async () => {
+  const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ errors: [{ message: 'Invalid scope: `write` required' }] }), { status: 400 }));
+  await expect(linearRequest('mutation { fileUpload { success } }', {}, 'secret-token', request as typeof fetch)).rejects.toThrow('Linear API key needs Write permission.');
 });
 
 it('includes uploaded files in the fixed issue template before creating the issue', async () => {

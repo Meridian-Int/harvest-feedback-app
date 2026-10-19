@@ -109,7 +109,11 @@ export function ReviewPage() {
       </div>
       <Pagination total={visible.length} page={page.page} onPageChange={value => { const next = new URLSearchParams(params); next.set('page', String(value)); setParams(next); }} label="Admin reports pages" />
     </Panel>
-    {selected && <ReviewDetail key={selected.id} report={selected} onClose={closeReport} onSaved={updated => { setReports(current => current.map(report => report.id === updated.id ? updated : report)); setToast('Report updated.'); }} />}
+    {selected && <ReviewDetail key={selected.id} report={selected} onClose={closeReport} onSaved={updated => {
+      setReports(current => current.map(report => report.id === updated.id ? updated : report));
+      closeReport();
+      setToast(updated.linearSyncStatus === 'PENDING' ? 'Report saved. Creating the Linear issue…' : 'Report updated.');
+    }} />}
     <Toast message={toast} onDismiss={() => setToast(null)} />
   </section>;
 }

@@ -3,7 +3,7 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from '../src/lib/options';
-import { createOrFindLinearIssue, uploadLinearFile, type LinearReport, type LinearUploadedFile } from './linear';
+import { createOrFindLinearIssue, updateLinearAssignee, uploadLinearFile, type LinearReport, type LinearUploadedFile } from './linear';
 
 const db = new DynamoDBClient({});
 const s3 = new S3Client({});
@@ -11,13 +11,22 @@ const secrets = new SecretsManagerClient({});
 let cachedToken: { value: string; until: number } | undefined;
 
 type Image = Record<string, { S?: string; N?: string; BOOL?: boolean; NULL?: boolean; M?: Image; L?: unknown[] }>;
-type StreamRecord = { eventName?: string; dynamodb?: { NewImage?: Image; SequenceNumber?: string } };
+type StreamRecord = { eventName?: string; dynamodb?: { NewImage?: Image; OldImage?: Image; SequenceNumber?: string } };
 
 export function pendingLinearReport(record: StreamRecord): (LinearReport & { linearSyncStatus: 'PENDING' }) | null {
   if (record.eventName !== 'MODIFY' || !record.dynamodb?.NewImage) return null;
   const row = unmarshall(record.dynamodb.NewImage as Parameters<typeof unmarshall>[0]);
   if (!['ASSIGNED', 'IN_PROGRESS'].includes(row.status) || !row.linearTeamId || row.linearIssueId || row.linearSyncStatus !== 'PENDING') return null;
   return row as LinearReport & { linearSyncStatus: 'PENDING' };
+}
+
+export function linkedAssigneeChange(record: StreamRecord): (LinearReport & { linearIssueId: string }) | null {
+  if (record.eventName !== 'MODIFY' || !record.dynamodb?.NewImage || !record.dynamodb.OldImage) return null;
+  const current = unmarshall(record.dynamodb.NewImage as Parameters<typeof unmarshall>[0]);
+  const previous = unmarshall(record.dynamodb.OldImage as Parameters<typeof unmarshall>[0]);
+  if (current.linearSyncStatus !== 'LINKED' || !current.linearIssueId || current.linearIssueId !== previous.linearIssueId ||
+      (current.linearAssigneeEmail ?? '') === (previous.linearAssigneeEmail ?? '')) return null;
+  return current as LinearReport & { linearIssueId: string };
 }
 
 async function linearToken(): Promise<string> {
@@ -69,6 +78,16 @@ async function markFailed(report: LinearReport) {
 export async function handler(event: { Records: StreamRecord[] }) {
   const failures: Array<{ itemIdentifier: string }> = [];
   for (const record of event.Records) {
+    const linked = linkedAssigneeChange(record);
+    if (linked) {
+      try {
+        await updateLinearAssignee(linked.linearIssueId, linked.linearAssigneeEmail, await linearToken());
+      } catch {
+        if (!record.dynamodb?.SequenceNumber) throw new Error('Linear stream event has no retry identity.');
+        failures.push({ itemIdentifier: record.dynamodb.SequenceNumber });
+      }
+      continue;
+    }
     const report = pendingLinearReport(record);
     if (!report) continue;
     try {
@@ -86,7 +105,8 @@ export async function handler(event: { Records: StreamRecord[] }) {
         const current = await db.send(new GetItemCommand({ TableName: process.env.REPORTS_TABLE, Key: marshall({ id: report.id }), ConsistentRead: true }));
         if (!current.Item || unmarshall(current.Item).linearIssueId !== issue.id) throw error;
       }
-    } catch {
+    } catch (error) {
+      console.error('Linear issue sync failed', { reportId: report.id, reason: error instanceof Error ? error.message : 'Unknown error' });
       await markFailed(report);
       if (!record.dynamodb?.SequenceNumber) throw new Error('Linear stream event has no retry identity.');
       failures.push({ itemIdentifier: record.dynamodb.SequenceNumber });
