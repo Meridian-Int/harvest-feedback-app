@@ -31,7 +31,7 @@ it('fails before synthesis when the required HARVEST identity setting is absent'
 
 it('requires distinct production identity and directory inputs', () => {
   const production = {
-    FEEDBACK_TARGET: 'production', HARVEST_PRODUCTION_USER_POOL_ID: 'production-pool',
+    FEEDBACK_TARGET: 'production', FEEDBACK_LINEAR_TOKEN_SECRET_NAME: 'harvest-feedback/integration/dev/linear-token', HARVEST_PRODUCTION_USER_POOL_ID: 'production-pool',
     HARVEST_PRODUCTION_APP_CLIENT_ID: 'production-client', HARVEST_PRODUCTION_API_BASE_URL: 'https://production.example/',
     HARVEST_PRODUCTION_DB_HOST: 'harvest-refresh-production.example.us-east-2.rds.amazonaws.com',
     HARVEST_PRODUCTION_VPC_ID: 'vpc-123', HARVEST_PRODUCTION_PRIVATE_SUBNET_IDS: 'subnet-111,subnet-222',
@@ -39,7 +39,7 @@ it('requires distinct production identity and directory inputs', () => {
   };
   expect(synthSettings('missing-in-ci.env', production)).toMatchObject({
     target: 'production', poolId: 'production-pool', clientId: 'production-client',
-    origins: ['https://harvestbymeridian.ai'], subnetIds: ['subnet-111', 'subnet-222'],
+    origins: ['https://harvestbymeridian.ai'], subnetIds: ['subnet-111', 'subnet-222'], linearTokenSecretName: undefined,
   });
   expect(() => synthSettings('missing-in-ci.env', { ...production, HARVEST_PRODUCTION_DB_HOST: '' })).toThrow('HARVEST_PRODUCTION_DB_HOST');
   expect(() => synthSettings('missing-in-ci.env', { ...production, FEEDBACK_TARGET: 'invalid' })).toThrow('Unsupported Feedback target');

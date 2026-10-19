@@ -11,12 +11,13 @@ type Feedback {
   attachmentKey: String, attachmentName: String, attachmentType: String, attachmentSize: Int,
   attachments: [FeedbackAttachment!],
   updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime, sentryIssueId: String,
+  linearTeamId: String, linearIssueId: String, linearIssueIdentifier: String, linearIssueUrl: String, linearSyncStatus: String,
   owner: String!, createdAt: AWSDateTime!, updatedAt: AWSDateTime!
 }
 type FeedbackPage { items: [Feedback!]!, nextToken: String }
 type NotificationRead { id: ID!, eventId: String! }
 type NotificationReadPage { items: [NotificationRead!]!, nextToken: String }
-input UpdateFeedbackInput { id: ID!, status: Status, assignee: String, updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime }
+input UpdateFeedbackInput { id: ID!, status: Status, assignee: String, linearTeamId: String, updateRequestedAt: AWSDateTime, adminActivityAt: AWSDateTime }
 input CreateNotificationReadInput { id: ID!, eventId: String! }
 type AttachmentAccess { key: String!, url: String, size: Int, contentType: String }
 type SentryIssue { id: String!, title: String!, culprit: String!, project: String!, level: String!, count: Int!, userCount: Int!, lastSeen: String!, permalink: String!, trend: [Int!]! }
@@ -25,9 +26,12 @@ type TrafficDay { day: String!, users: Int! }
 type TrafficPage { name: String!, views: Int! }
 type TrafficInsights { configured: Boolean!, users: Int!, sessions: Int!, pageViews: Int!, days: [TrafficDay!]!, pages: [TrafficPage!]! }
 type FeedbackAdministrator { sub: String!, email: String!, name: String }
+type LinearTeam { id: String!, name: String!, key: String! }
+type LinearTeamsResult { configured: Boolean!, teams: [LinearTeam!]! }
 type Query {
   harvestViewer: AWSJSON!
   feedbackAdministrators: [FeedbackAdministrator!]!
+  linearTeams: LinearTeamsResult!
   listFeedbacks(limit: Int, nextToken: String): FeedbackPage!
   getFeedback(id: ID!): Feedback
   listNotificationReads(nextToken: String): NotificationReadPage!

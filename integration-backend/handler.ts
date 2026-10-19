@@ -8,6 +8,7 @@ import { PRODUCT_AREAS, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from '../src/lib
 import { selectedAdministrators } from './administrators';
 import { readConfiguredSentryIssues } from './sentry-issues';
 import { readConfiguredGa4Traffic } from './ga4-traffic';
+import { readConfiguredLinearTeams } from './linear-teams';
 
 const db = new DynamoDBClient({});
 const s3 = new S3Client({});
@@ -20,6 +21,11 @@ const get = async (name: string, id: string) => {
 const timestamp = () => new Date().toISOString();
 const safeId = (value: unknown): string => { if (typeof value !== 'string' || !value || value.length > 1024) throw new Error('Invalid identifier.'); return value; };
 const TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']);
+const visibleReport = (admin: boolean, report: Record<string, any>) => {
+  if (admin) return report;
+  const { linearTeamId, linearIssueId, linearIssueIdentifier, linearIssueUrl, linearSyncStatus, linearAssigneeEmail, ...visible } = report;
+  return visible;
+};
 
 export async function handler(event: Event) {
   // No privileged operation exists before this fresh, fail-closed membership lookup.
@@ -30,6 +36,10 @@ export async function handler(event: Event) {
   if (operation === 'feedbackAdministrators') {
     if (!actor.admin) throw new Error('Admin access required.');
     return selectedAdministrators();
+  }
+  if (operation === 'linearTeams') {
+    if (!actor.admin) throw new Error('Admin access required.');
+    return readConfiguredLinearTeams();
   }
   if (operation === 'sentryIssues') {
     if (!actor.admin) throw new Error('Admin access required.');
@@ -54,12 +64,12 @@ export async function handler(event: Event) {
       ? await db.send(new ScanCommand({ TableName: name, Limit: limit, ExclusiveStartKey: start ? item(start) : undefined, ConsistentRead: true }))
       : await db.send(new QueryCommand({ TableName: name, IndexName: 'byOwner', KeyConditionExpression: '#owner = :sub', ExpressionAttributeNames: { '#owner': 'owner' }, ExpressionAttributeValues: item({ ':sub': actor.sub }), Limit: limit, ExclusiveStartKey: start ? item(start) : undefined }));
     const rows = (result.Items ?? []).map(value => unmarshall(value));
-    return { items: reports ? rows.filter(row => canRead(actor, row)) : rows.filter(row => row.owner === actor.sub), nextToken: result.LastEvaluatedKey ? Buffer.from(JSON.stringify(unmarshall(result.LastEvaluatedKey))).toString('base64url') : null };
+    return { items: reports ? rows.filter(row => canRead(actor, row)).map(row => visibleReport(actor.admin, row)) : rows.filter(row => row.owner === actor.sub), nextToken: result.LastEvaluatedKey ? Buffer.from(JSON.stringify(unmarshall(result.LastEvaluatedKey))).toString('base64url') : null };
   }
   if (operation === 'getFeedback') {
     const report = await get('REPORTS_TABLE', safeId(args.id));
     requireReport(actor, report);
-    return report;
+    return visibleReport(actor.admin, report!);
   }
   if (operation === 'getNotificationRead') {
     const receipt = await get('READS_TABLE', safeId(args.id));
@@ -77,11 +87,16 @@ export async function handler(event: Event) {
     const id = safeId(args.input.id);
     const report = await get('REPORTS_TABLE', id);
     requireReport(actor, report);
-    const owners = actor.admin && args.input.assignee && args.input.assignee !== 'admin@example.com'
-      ? (await selectedAdministrators()).map(admin => admin.sub) : [];
-    const changes = updateFields(actor, report as any, args.input, Date.now(), owners);
-    if (!Object.keys(changes).length) return report;
-    const update = { ...changes, updatedAt: timestamp(), revision: Number(report!.revision ?? 0) + 1 };
+    const administrators = actor.admin && args.input.assignee && args.input.assignee !== 'admin@example.com'
+      ? await selectedAdministrators() : [];
+    const owners = administrators.map(admin => admin.sub);
+    const teams = actor.admin && args.input.linearTeamId && args.input.linearTeamId !== report!.linearTeamId
+      ? (await readConfiguredLinearTeams()).teams.map(team => team.id) : [];
+    const changes = updateFields(actor, report as any, args.input, Date.now(), owners, teams, Boolean(process.env.LINEAR_TOKEN_SECRET_NAME));
+    if (!Object.keys(changes).length) return visibleReport(actor.admin, report!);
+    const update = { ...changes,
+      ...(actor.admin ? { linearAssigneeEmail: administrators.find(admin => admin.sub === args.input.assignee)?.email ?? null } : {}),
+      updatedAt: timestamp(), revision: Number(report!.revision ?? 0) + 1 };
     const entries = Object.entries(update);
     const result = await db.send(new UpdateItemCommand({
       TableName: table('REPORTS_TABLE'), Key: item({ id }),
@@ -91,7 +106,7 @@ export async function handler(event: Event) {
       ExpressionAttributeValues: item({ ...Object.fromEntries(entries.map(([, value], i) => [`:v${i}`, value])), ':revision': report!.revision }),
       ReturnValues: 'ALL_NEW',
     }));
-    return unmarshall(result.Attributes!);
+    return visibleReport(actor.admin, unmarshall(result.Attributes!));
   }
   if (operation === 'prepareAttachment') {
     const org = organization(actor, args.organizationId);

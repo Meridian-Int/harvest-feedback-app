@@ -10,3 +10,15 @@ export function releaseSettings(outputs, target = 'dev') {
   if (!/^[a-z0-9-]+$/.test(settings.UiBucket ?? '') || !/^[A-Z0-9]+$/.test(settings.DistributionId ?? '')) throw new Error('Static release outputs are incomplete.');
   return settings;
 }
+
+/** The HARVEST build accepts only a manifest made from checked stack outputs. */
+export function releaseManifest(outputs, target = 'dev') {
+  const settings = releaseSettings(outputs, target);
+  return {
+    target,
+    userPoolId: settings.UserPoolId,
+    userPoolClientId: settings.UserPoolClientId,
+    graphqlUrl: settings.GraphqlUrl,
+    siteOrigin: settings.FeedbackSiteOrigin,
+  };
+}
