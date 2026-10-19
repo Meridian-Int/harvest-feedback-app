@@ -4,7 +4,7 @@ vi.mock('@aws-sdk/client-secrets-manager', () => ({ SecretsManagerClient: class 
 vi.mock('pg', () => ({ default: { Pool: class { constructor(settings: unknown) { sdk.pool(settings); } connect = async () => ({ query: sdk.query, release: sdk.release }); } } }));
 const sub = 'e18b45b0-6011-70c6-4052-644877433da2';
 beforeEach(() => {
-  vi.clearAllMocks(); vi.resetModules(); vi.stubEnv('FEEDBACK_TARGET', 'dev'); vi.stubEnv('DIRECTORY_SECRET_ARN', 'own-directory-secret');
+  vi.clearAllMocks(); vi.resetModules(); vi.stubEnv('FEEDBACK_TARGET', 'dev'); vi.stubEnv('DIRECTORY_SECRET_ARN', 'own-directory-secret'); vi.stubEnv('HARVEST_DIRECTORY_HOST', 'harvest-refresh-staging.cj6wauecoveq.us-east-2.rds.amazonaws.com');
   sdk.secret.mockResolvedValue({ SecretString: JSON.stringify({ username: 'harvest_feedback_dev_directory', password: 'private-random-password', host: 'harvest-refresh-staging.cj6wauecoveq.us-east-2.rds.amazonaws.com', dbname: 'harvest_refresh' }) });
   sdk.query.mockImplementation(async (sql: string) => ({ rows: sql.startsWith('SELECT') ? [{ sub, email: 'sahil+admin@withmeridian.ai', name: 'Sahil' }] : [] }));
 });
@@ -35,6 +35,14 @@ it('fails closed when the Operator directory exceeds its bound', async () => {
 it('refuses master credentials and rolls back database failures', async () => {
   const { handler } = await import('./directory');
   sdk.secret.mockResolvedValue({ SecretString: JSON.stringify({ username: 'postgres' }) });
+  await expect(handler({ operation: 'harvest-feedback-admin-directory' })).rejects.toThrow('lookup failed');
+  expect(sdk.pool).not.toHaveBeenCalled();
+});
+
+it('rejects a staging directory secret on the production target', async () => {
+  vi.stubEnv('FEEDBACK_TARGET', 'production');
+  vi.stubEnv('HARVEST_DIRECTORY_HOST', 'harvest-refresh-production.example.us-east-2.rds.amazonaws.com');
+  const { handler } = await import('./directory');
   await expect(handler({ operation: 'harvest-feedback-admin-directory' })).rejects.toThrow('lookup failed');
   expect(sdk.pool).not.toHaveBeenCalled();
 });

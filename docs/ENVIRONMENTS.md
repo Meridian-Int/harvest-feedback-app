@@ -1,15 +1,25 @@
 # Environments, branches and deploys
 
-The Feedback repository keeps two remote branches: `dev` for ordinary work and `main` for production. The former `test` branch has been retired. The integrated, same-domain HARVEST Feedback `dev` release has its own AWS stack. HARVEST's existing GitLab CI/CD publishes the HARVEST frontend; it does not update the separate Feedback backend or UI. The standalone Amplify flow described below is legacy and does not publish HARVEST `/feedback`. An integrated Feedback release requires a separately reviewed, approved update to the existing Feedback dev stack and private UI.
+The Feedback repository keeps two remote branches: `dev` for ordinary work and `main` for production. The former `test` branch has been retired. Integrated Feedback uses separate `harvest-feedback-integration-dev` and `harvest-feedback-integration-production` stacks, private static origins, report tables, media buckets and HARVEST identity pools. HARVEST's existing GitLab CI/CD publishes the HARVEST frontend; it does not update the separate Feedback backend or UI. The standalone Amplify flow below is legacy and does not publish HARVEST `/feedback`.
 
-## The picture
+| HARVEST site | Feedback target | HARVEST identity and API | Feedback site route |
+| --- | --- | --- | --- |
+| Prestaging | `dev` | HARVEST staging | Same-domain `/feedback`, proxied to the Feedback `dev` static origin |
+| Staging | `dev` by default; `test` when separately released | HARVEST staging | Same-domain `/feedback`, proxied to the matching nonproduction Feedback static origin |
+| Production | `production` | HARVEST production | Same-domain `/feedback`, proxied to the Feedback production static origin |
+
+An active HARVEST Operator membership grants Feedback admin access, including an Operator `user` role. Active Company or Partner memberships grant client access. An email address, Cognito group or old Feedback assignment does not grant admin. The Feedback API checks current HARVEST membership on every operation, so revoked access is denied. A person with both Operator and Company/Partner memberships has admin access; the selected organization still identifies the company for a client report.
+
+The Feedback release is prepared from one completed stack's public outputs with `FEEDBACK_TARGET=dev|test|production node integration-backend/write-stack-outputs.mjs`, then `FEEDBACK_TARGET=... node integration-backend/prepare-release.mjs`. The settings file contains `FEEDBACK_RELEASE_MANIFEST` and `VITE_FEEDBACK_GRAPHQL_URL` for the matching HARVEST Netlify site. The checked `dev` manifest can be used on both prestaging and staging; both sites use HARVEST's staging identity and API, while the Feedback `dev` media bucket allows both browser origins. A separately released `test` stack remains optional for staging. HARVEST's build rejects a manifest whose target, pool, client or API differs from the site settings. Release the `dev` stack and UI, validate prestaging, then staging, before requesting a separate production deployment review. Do not deploy production as part of the prestaging approval.
+
+## Legacy standalone branches
 
 | Environment | Branch | Site | Who uses it | Goes live when |
 |---|---|---|---|---|
-| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` (legacy standalone URL) | Sahil and Manasa | The standalone deploy runs only when configured; the integrated backend and UI release separately |
-| **production** | `main` | `https://main.<appId>.amplifyapp.com` (legacy standalone URL) | Real users | A reviewed `dev` → `main` PR is merged and Vaish approves deployment |
+| **dev** | `dev` | `https://dev.<appId>.amplifyapp.com` (legacy standalone URL) | Transitional test users | The standalone deploy runs only when configured; the integrated backend and UI release separately |
+| **production** | `main` | `https://main.<appId>.amplifyapp.com` (legacy standalone URL) | Transitional only | A reviewed `dev` → `main` PR is merged and Vaish approves the legacy deployment |
 
-- Feedback `dev` has its own report database and storage, separate from production. The integrated dev release uses HARVEST staging identities. Feedback production needs separate approval and configuration before using HARVEST production identities. See [HARVEST account integration](HARVEST_AUTH_INTEGRATION.md).
+- Feedback `dev` has its own report database and storage, separate from production. The integrated dev release uses HARVEST staging identities. A production stack must use production VPC, private subnets, read-only directory grant, HARVEST production identity and API. See [HARVEST account integration](HARVEST_AUTH_INTEGRATION.md).
 - Each developer also has a private **sandbox** (`npx ampx sandbox`), a personal backend for working on a laptop.
 - **Legacy standalone deploys go through GitHub Actions** (`.github/workflows/deploy.yml`) only when `AMPLIFY_APP_ID` is configured. A push to a configured branch tells Amplify to build it and records the result in GitHub. This workflow does not release the integrated Feedback backend or HARVEST `/feedback` UI.
 - **Production approval:** when the GitHub production environment has a required reviewer, the legacy deploy job pauses for Vaish's approval.
