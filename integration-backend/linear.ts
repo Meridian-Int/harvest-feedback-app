@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 export interface LinearTeam { id: string; name: string; key: string }
 export interface LinearIssue { id: string; identifier: string; url: string }
-export interface LinearUploadedFile { name: string; url: string }
+export interface LinearUploadedFile { name: string; url: string; type: string }
 export interface LinearReport {
   id: string;
   title: string;
@@ -39,8 +39,8 @@ export function linearDescription(report: LinearReport, appBaseUrl: string, file
     const url = new URL(file.url);
     if (url.protocol !== 'https:' || url.hostname !== 'uploads.linear.app') throw new Error('Invalid Linear attachment URL.');
     const name = file.name.replace(/[\\\[\]\r\n]/g, '_');
-    return `- [${name}](${url.href})`;
-  }).join('\n')}` : '';
+    return file.type.startsWith('image/') ? `![${name}](${url.href})` : `- [${name}](${url.href})`;
+  }).join('\n\n')}` : '';
   return `Source: HARVEST Feedback\nFeedback report (support): ${link.href}\n\n## Context\nProduct area: ${area}\nPriority: ${report.priority}\n\n## Reported behavior\n${quote}${attachments}`;
 }
 
@@ -82,7 +82,7 @@ export async function uploadLinearFile(file: { name: string; type: string; bytes
   for (const header of upload.headers) headers.set(header.key, header.value);
   const result = await request(destination.href, { method: 'PUT', headers, body: Buffer.from(file.bytes), signal: AbortSignal.timeout(120_000) });
   if (!result.ok) throw new Error(`Linear file upload returned HTTP ${result.status}.`);
-  return { name: file.name, url: asset.href };
+  return { name: file.name, url: asset.href, type: file.type };
 }
 
 export async function listLinearTeams(token: string, request: typeof fetch = fetch): Promise<LinearTeam[]> {

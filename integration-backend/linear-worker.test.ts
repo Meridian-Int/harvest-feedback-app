@@ -58,8 +58,8 @@ it('copies only a claimed immutable attachment into Linear', async () => {
   const attachment = { attachmentKey: 'feedback-media/reporter/file', attachmentName: 'recording.webm', attachmentType: 'video/webm', attachmentSize: 3 };
   sdk.db.mockResolvedValueOnce({ Item: marshall({ id: attachment.attachmentKey, reportId: row.id, versionId: 'version-1', size: 3, contentType: 'video/webm' }) });
   sdk.s3.mockResolvedValueOnce({ ContentLength: 3, ContentType: 'video/webm', Body: { transformToByteArray: async () => new Uint8Array([1, 2, 3]) } });
-  vi.mocked(uploadLinearFile).mockResolvedValueOnce({ name: 'recording.webm', url: 'https://uploads.linear.app/file' });
-  expect(await uploadReportFiles({ ...row, attachments: [attachment] } as any, 'token')).toEqual([{ name: 'recording.webm', url: 'https://uploads.linear.app/file' }]);
+  vi.mocked(uploadLinearFile).mockResolvedValueOnce({ name: 'recording.webm', url: 'https://uploads.linear.app/file', type: 'video/webm' });
+  expect(await uploadReportFiles({ ...row, attachments: [attachment] } as any, 'token')).toEqual([{ name: 'recording.webm', url: 'https://uploads.linear.app/file', type: 'video/webm' }]);
   expect(sdk.s3.mock.calls[0][0].input).toMatchObject({ Bucket: 'media', Key: attachment.attachmentKey, VersionId: 'version-1' });
   expect(uploadLinearFile).toHaveBeenCalledWith({ name: 'recording.webm', type: 'video/webm', bytes: new Uint8Array([1, 2, 3]) }, 'token');
 });

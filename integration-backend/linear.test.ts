@@ -82,7 +82,7 @@ it('uploads a file to Linear private storage using its signed headers', async ()
   const request = vi.fn()
     .mockResolvedValueOnce(response({ data: { fileUpload: { success: true, uploadFile: { uploadUrl: 'https://storage.googleapis.com/signed', assetUrl: 'https://uploads.linear.app/asset', headers: [{ key: 'x-upload-token', value: 'signed' }] } } } }))
     .mockResolvedValueOnce(new Response('', { status: 200 }));
-  expect(await uploadLinearFile({ name: 'screen.webm', type: 'video/webm', bytes: new Uint8Array([1, 2, 3]) }, 'token', request as typeof fetch)).toEqual({ name: 'screen.webm', url: 'https://uploads.linear.app/asset' });
+  expect(await uploadLinearFile({ name: 'screen.webm', type: 'video/webm', bytes: new Uint8Array([1, 2, 3]) }, 'token', request as typeof fetch)).toEqual({ name: 'screen.webm', url: 'https://uploads.linear.app/asset', type: 'video/webm' });
   expect(JSON.parse(request.mock.calls[0][1].body).variables).toMatchObject({ filename: 'screen.webm', contentType: 'video/webm', size: 3 });
   expect(request.mock.calls[1][0]).toBe('https://storage.googleapis.com/signed');
   expect(request.mock.calls[1][1].headers.get('x-upload-token')).toBe('signed');
@@ -107,10 +107,13 @@ it('includes uploaded files in the fixed issue template before creating the issu
     .mockResolvedValueOnce(response({ data: { issue: null } }))
     .mockResolvedValueOnce(response({ data: { users: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } }))
     .mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue } } }));
-  const loadFiles = vi.fn().mockResolvedValue([{ name: 'screen.webm', url: 'https://uploads.linear.app/asset' }]);
+  const loadFiles = vi.fn().mockResolvedValue([
+    { name: 'screenshot.png', url: 'https://uploads.linear.app/image-asset', type: 'image/png' },
+    { name: 'screen.webm', url: 'https://uploads.linear.app/video-asset', type: 'video/webm' },
+  ]);
   await createOrFindLinearIssue(report, 'https://staging.harvestbymeridian.ai/feedback', 'token', request as typeof fetch, loadFiles);
   expect(loadFiles).toHaveBeenCalledOnce();
-  expect(JSON.parse(request.mock.calls[2][1].body).variables.input.description).toContain('## Attachments\n- [screen.webm](https://uploads.linear.app/asset)');
+  expect(JSON.parse(request.mock.calls[2][1].body).variables.input.description).toContain('## Attachments\n![screenshot.png](https://uploads.linear.app/image-asset)\n\n- [screen.webm](https://uploads.linear.app/video-asset)');
 });
 
 it('skips another file transfer when the deterministic issue already exists', async () => {
