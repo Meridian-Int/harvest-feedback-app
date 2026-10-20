@@ -35,12 +35,23 @@ export function linearDescription(report: LinearReport, appBaseUrl: string, file
   link.searchParams.set('report', report.id);
   const area = report.customArea || report.productArea;
   const quote = report.description.trim().split(/\r?\n/).map(line => `> ${line || ' '}`).join('\n');
-  const attachments = files.length ? `\n\n## Attachments\n${files.map(file => {
+  const assets = files.map(file => {
     const url = new URL(file.url);
     if (url.protocol !== 'https:' || url.hostname !== 'uploads.linear.app') throw new Error('Invalid Linear attachment URL.');
-    const name = file.name.replace(/[\\\[\]\r\n]/g, '_');
-    return file.type.startsWith('image/') ? `![${name}](${url.href})` : `- [${name}](${url.href})`;
-  }).join('\n\n')}` : '';
+    return { name: file.name.replace(/[\\\[\]|\r\n]/g, '_'), url: url.href, image: file.type.startsWith('image/') };
+  });
+  const images = assets.filter(file => file.image);
+  const otherFiles = assets.filter(file => !file.image);
+  const imageRows = Array.from({ length: Math.ceil(images.length / 2) }, (_, row) => {
+    const pair = images.slice(row * 2, row * 2 + 2);
+    return `| ${pair.map(file => `![${file.name}](${file.url})`).join(' | ')}${pair.length === 1 ? ' | ' : ' '}|`;
+  });
+  const imagePreviews = images.length > 1
+    ? [imageRows[0], '| --- | --- |', ...imageRows.slice(1)].join('\n')
+    : images.map(file => `![${file.name}](${file.url})`).join('\n\n');
+  const otherLinks = otherFiles.map(file => `- [${file.name}](${file.url})`).join('\n');
+  const attachmentParts = [imagePreviews, otherLinks].filter(Boolean);
+  const attachments = attachmentParts.length ? `\n\n## Attachments\n${attachmentParts.join('\n\n')}` : '';
   return `Source: HARVEST Feedback\nFeedback report (support): ${link.href}\n\n## Context\nProduct area: ${area}\nPriority: ${report.priority}\n\n## Reported behavior\n${quote}${attachments}`;
 }
 

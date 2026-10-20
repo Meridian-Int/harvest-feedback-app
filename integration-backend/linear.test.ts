@@ -116,6 +116,16 @@ it('includes uploaded files in the fixed issue template before creating the issu
   expect(JSON.parse(request.mock.calls[2][1].body).variables.input.description).toContain('## Attachments\n![screenshot.png](https://uploads.linear.app/image-asset)\n\n- [screen.webm](https://uploads.linear.app/video-asset)');
 });
 
+it('places multiple screenshots in two columns without a text header and keeps recordings below', () => {
+  const url = (number: number) => `https://uploads.linear.app/image-${number}`;
+  const files = [1, 2, 3].map(number => ({ name: `shot-${number}.png`, url: url(number), type: 'image/png' }));
+  files.splice(1, 0, { name: 'screen.webm', url: 'https://uploads.linear.app/video', type: 'video/webm' });
+  const description = linearDescription(report, 'https://staging.harvestbymeridian.ai/feedback', files);
+  expect(description).toContain('| ![shot-1.png](https://uploads.linear.app/image-1) | ![shot-2.png](https://uploads.linear.app/image-2) |\n| --- | --- |\n| ![shot-3.png](https://uploads.linear.app/image-3) | |');
+  expect(description).not.toContain('Open/download image');
+  expect(description).toContain('\n\n- [screen.webm](https://uploads.linear.app/video)');
+});
+
 it('skips another file transfer when the deterministic issue already exists', async () => {
   const issue = { id: linearIssueId(report.id), identifier: 'ENG-123', url: 'https://linear.app/withmeridian/issue/ENG-123/upload-stalls' };
   const request = vi.fn().mockResolvedValue(response({ data: { issue } }));
