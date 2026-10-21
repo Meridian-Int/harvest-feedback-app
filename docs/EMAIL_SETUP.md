@@ -10,19 +10,17 @@ The email worker and an earlier screenshot-based template were deployed to the e
 
 ## Sender configuration
 
-Client-facing mail (including signup verification): `sahil+feedback@withmeridian.ai`.
-Admin-facing mail: `manasa+feedback@withmeridian.ai`.
-Each sender is also its Reply-To address. Confirm that both aliases accept replies in the underlying Sahil/Manasa mailboxes.
+Client and admin mail come from `HARVEST <harvest@withmeridian.ai>`, HARVEST's own support address, never from a personal mailbox. It is also the Reply-To address, so replies reach HARVEST support. The integrated worker refuses any other sender.
 
-In account `938463256739`, region `us-east-2`, verify the `withmeridian.ai` domain in SES (or both individual sender identities). Publish the exact Easy DKIM CNAME records returned by SES. Configure an aligned custom MAIL FROM subdomain with SES's MX and SPF TXT records, and an appropriate DMARC TXT record. Do not overwrite an existing corporate SPF or DMARC policy without the domain owner's review. Verify SES identity status and DKIM success before enabling delivery. SES production access is required to send to unverified recipients; in SES sandbox verify test recipients. Preserve the company's existing inbound MX records so replies continue to arrive.
+The `withmeridian.ai` domain is already verified in SES in account `938463256739`, region `us-east-2` (checked 26 October 2026), so no DNS change is needed for this sender. HARVEST's own app sends through Resend from `harvestbymeridian.ai` addresses; moving Feedback to that domain would first need it verified in SES by whoever manages its DNS. SES production access is required to send to unverified recipients; in SES sandbox verify test recipients.
 
 These settings improve deliverability but do not guarantee inbox placement. Inspect delivered headers for SPF/DKIM/DMARC passes and test Gmail and the company mail provider. Monitor SES bounces, complaints and account suppression. Configure APP_BASE_URL when a usable HTTPS app URL exists: localhost links cannot be used by recipients on other computers. During local testing leave it empty; emails omit the View report button and explain how to open the application.
 
 ## Backend environment values (not VITE variables)
 
 ```
-CLIENT_NOTIFICATION_FROM_EMAIL=sahil+feedback@withmeridian.ai
-ADMIN_NOTIFICATION_FROM_EMAIL=manasa+feedback@withmeridian.ai
+CLIENT_NOTIFICATION_FROM_EMAIL=harvest@withmeridian.ai
+ADMIN_NOTIFICATION_FROM_EMAIL=harvest@withmeridian.ai
 APP_BASE_URL=<HTTPS feedback URL, or leave empty for local testing>
 COGNITO_EMAIL_SOURCE_ARN=<verified SES identity ARN in us-east-2>
 FEEDBACK_EMAIL_ENABLED=true

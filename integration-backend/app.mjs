@@ -85,14 +85,16 @@ export function integrationStack(app, settings) {
   const baseUrl = settings.appBaseUrl ?? `${origins.find(origin => origin.startsWith('https:'))}/feedback`;
   const emailSite = new URL(baseUrl);
   if (!origins.includes(emailSite.origin) || emailSite.pathname !== '/feedback' || emailSite.username || emailSite.password || emailSite.search || emailSite.hash) throw new Error('Email links must use an approved Feedback origin.');
+  // HARVEST's own support address; withmeridian.ai is the domain verified in SES.
+  const sender = 'harvest@withmeridian.ai';
   const email = new NodejsFunction(stack, 'EmailWorker', { entry: path.join(root, 'email-worker.ts'), runtime: Runtime.NODEJS_22_X, timeout: Duration.seconds(60), memorySize: 512, bundling: { minify: true, sourceMap: false, externalModules: [] }, environment: {
     HARVEST_USER_POOL_ID: poolId, ADMINS_TABLE: admins.tableName, HARVEST_DIRECTORY_FUNCTION_ARN: directory.functionArn,
     FEEDBACK_TARGET: target, FEEDBACK_EMAIL_ENABLED: String(emailEnabled), EMAIL_DELIVERY_TABLE: receipts.tableName, APP_BASE_URL: baseUrl,
-    CLIENT_NOTIFICATION_FROM_EMAIL: 'sahil+feedback@withmeridian.ai', ADMIN_NOTIFICATION_FROM_EMAIL: 'manasa+feedback@withmeridian.ai',
+    CLIENT_NOTIFICATION_FROM_EMAIL: sender, ADMIN_NOTIFICATION_FROM_EMAIL: sender,
   } });
   receipts.grantReadWriteData(email); admins.grantReadData(email); directory.grantInvoke(email);
   email.addToRolePolicy(new PolicyStatement({ actions: ['cognito-idp:AdminGetUser'], resources: [pool.userPoolArn] }));
-  email.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: [stack.formatArn({ service: 'ses', resource: 'identity', resourceName: 'withmeridian.ai' })], conditions: { StringEquals: { 'ses:FromAddress': ['sahil+feedback@withmeridian.ai', 'manasa+feedback@withmeridian.ai'] } } }));
+  email.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: [stack.formatArn({ service: 'ses', resource: 'identity', resourceName: 'withmeridian.ai' })], conditions: { StringEquals: { 'ses:FromAddress': [sender] } } }));
   email.addEventSource(new DynamoEventSource(reports, { startingPosition: StartingPosition.LATEST, enabled: emailEnabled, batchSize: 10, reportBatchItemFailures: true, retryAttempts: 10, onFailure: new SqsDlq(failures) }));
 
   // The same committed events feed HARVEST's existing operator bell. Delivery
