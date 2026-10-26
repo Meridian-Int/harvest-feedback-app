@@ -39,7 +39,7 @@ if (process.env.FEEDBACK_EMAIL_ENABLED === 'true') {
     actions: ['cognito-idp:ListUsersInGroup'],
     resources: [Stack.of(delivery.resources.lambda).formatArn({ service: 'cognito-idp', resource: 'userpool', resourceName: process.env.HARVEST_STAGING_USER_POOL_ID })],
   }));
-  delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: ['*'], conditions: { StringEquals: { 'ses:FromAddress': [process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai', process.env.ADMIN_NOTIFICATION_FROM_EMAIL ?? 'manasa+feedback@withmeridian.ai'] } } }));
+  delivery.resources.lambda.addToRolePolicy(new PolicyStatement({ actions: ['ses:SendEmail'], resources: ['*'], conditions: { StringEquals: { 'ses:FromAddress': [process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'harvest@withmeridian.ai', process.env.ADMIN_NOTIFICATION_FROM_EMAIL ?? 'harvest@withmeridian.ai'] } } }));
 }
 
 // Keep the shared sandbox's report table easy to identify in DynamoDB. Amplify
@@ -177,8 +177,8 @@ cfnUserPool.adminCreateUserConfig = { allowAdminCreateUserOnly: true };
 if (process.env.COGNITO_EMAIL_SOURCE_ARN) {
   cfnUserPool.emailConfiguration = {
     emailSendingAccount: 'DEVELOPER', sourceArn: process.env.COGNITO_EMAIL_SOURCE_ARN,
-    from: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai',
-    replyToEmailAddress: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'sahil+feedback@withmeridian.ai',
+    from: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'harvest@withmeridian.ai',
+    replyToEmailAddress: process.env.CLIENT_NOTIFICATION_FROM_EMAIL ?? 'harvest@withmeridian.ai',
   };
 }
 // USER_AUTH offers email OTP by default and PASSWORD after a client sets one.

@@ -8,7 +8,7 @@ const image = Object.fromEntries(Object.entries({ id: 'report-1234', title: 'Upl
 const record = { eventID: 'event1', eventName: 'INSERT', dynamodb: { SequenceNumber: '1', NewImage: image } };
 beforeEach(() => {
   vi.stubEnv('HARVEST_STAGING_USER_POOL_ID', ''); vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'true'); vi.stubEnv('APP_BASE_URL', 'https://feedback.example.com'); vi.stubEnv('EMAIL_DELIVERY_TABLE', 'deliveries'); vi.stubEnv('USER_POOL_ID', 'pool');
-  vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'sahil+feedback@withmeridian.ai'); vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'manasa+feedback@withmeridian.ai');
+  vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'harvest@withmeridian.ai'); vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'harvest@withmeridian.ai');
   mocks.db.mockReset().mockResolvedValue({}); mocks.mail.mockReset().mockResolvedValue({});
   mocks.users.mockReset().mockResolvedValue({ Users: [{ Enabled: true, Attributes: [{ Name: 'email', Value: 'admin@example.com' }] }] });
 });
@@ -16,8 +16,8 @@ it('sends both audiences HTML/text emails with their respective replyable sender
   expect(await handler({ Records: [record] })).toEqual({ batchItemFailures: [] });
   expect(mocks.mail).toHaveBeenCalledTimes(2);
   const client = mocks.mail.mock.calls[0][0].input, admin = mocks.mail.mock.calls[1][0].input;
-  expect(client).toMatchObject({ FromEmailAddress: 'HARVEST <sahil+feedback@withmeridian.ai>', ReplyToAddresses: ['sahil+feedback@withmeridian.ai'], Destination: { ToAddresses: ['client@example.com'] } });
-  expect(admin).toMatchObject({ FromEmailAddress: 'HARVEST <manasa+feedback@withmeridian.ai>', ReplyToAddresses: ['manasa+feedback@withmeridian.ai'], Destination: { ToAddresses: ['admin@example.com'] } });
+  expect(client).toMatchObject({ FromEmailAddress: 'HARVEST <harvest@withmeridian.ai>', ReplyToAddresses: ['harvest@withmeridian.ai'], Destination: { ToAddresses: ['client@example.com'] } });
+  expect(admin).toMatchObject({ FromEmailAddress: 'HARVEST <harvest@withmeridian.ai>', ReplyToAddresses: ['harvest@withmeridian.ai'], Destination: { ToAddresses: ['admin@example.com'] } });
   expect(client.Content.Simple.Body.Html.Data).toContain('background:#fffdf9');
   expect(admin.Content.Simple.Body.Text.Data).toContain('/admin/reviews?report=report-1234');
 });

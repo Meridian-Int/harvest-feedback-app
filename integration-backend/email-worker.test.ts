@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('FEEDBACK_EMAIL_ENABLED', 'true'); vi.stubEnv('EMAIL_DELIVERY_TABLE', 'receipts');
   vi.stubEnv('FEEDBACK_TARGET', 'dev');
   vi.stubEnv('APP_BASE_URL', 'https://harvest-refresh-prestaging-meridian.netlify.app/feedback');
-  vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'sahil+feedback@withmeridian.ai'); vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'manasa+feedback@withmeridian.ai');
+  vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'harvest@withmeridian.ai'); vi.stubEnv('ADMIN_NOTIFICATION_FROM_EMAIL', 'harvest@withmeridian.ai');
   sdk.db.mockResolvedValue({}); sdk.ses.mockResolvedValue({});
   vi.mocked(selectedAdministrators).mockResolvedValue([{ sub: 'sub', email: 'sahil+admin@withmeridian.ai', name: 'Sahil' }]);
 });
@@ -23,7 +23,14 @@ it('preserves the latest templates and routes both audiences through HARVEST', a
   expect(admin.Destination.ToAddresses).toEqual(['sahil+admin@withmeridian.ai']);
   expect(admin.Content.Simple.Body.Text.Data).toContain('/feedback/admin/reviews?report=report-uuid');
   expect(client.Content.Simple.Body.Text.Data).toContain('/feedback/mine?report=report-uuid');
-  expect(admin.ReplyToAddresses).toEqual(['manasa+feedback@withmeridian.ai']);
+  expect(client.FromEmailAddress).toBe('HARVEST <harvest@withmeridian.ai>');
+  expect(admin.FromEmailAddress).toBe('HARVEST <harvest@withmeridian.ai>');
+  expect(admin.ReplyToAddresses).toEqual(['harvest@withmeridian.ai']);
+});
+it('refuses personal sender addresses', async () => {
+  vi.stubEnv('CLIENT_NOTIFICATION_FROM_EMAIL', 'sahil+feedback@withmeridian.ai');
+  expect(await handler({ Records: [record] })).toEqual({ batchItemFailures: [{ itemIdentifier: '1' }] });
+  expect(sdk.ses).not.toHaveBeenCalled();
 });
 it('returns a retry identity when current admin membership cannot be verified', async () => {
   vi.mocked(selectedAdministrators).mockRejectedValue(new Error('Directory unavailable'));

@@ -9,6 +9,9 @@ const db = new DynamoDBClient({});
 const ses = new SESv2Client({});
 type StreamRecord = Parameters<typeof noticesFor>[0] & { eventID?: string; dynamodb?: Parameters<typeof noticesFor>[0]['dynamodb'] & { SequenceNumber?: string } };
 
+// HARVEST's own support address; withmeridian.ai is the domain verified in SES.
+export const HARVEST_SENDER = 'harvest@withmeridian.ai';
+
 export async function handler(event: { Records: StreamRecord[] }) {
   if (process.env.FEEDBACK_EMAIL_ENABLED !== 'true') throw new Error('Feedback email delivery is disabled.');
   const base = new URL(process.env.APP_BASE_URL ?? '');
@@ -23,7 +26,7 @@ export async function handler(event: { Records: StreamRecord[] }) {
         const recipients = notice.audience === 'client' ? [notice.report.reporterEmail] : (await selectedAdministrators()).map(admin => admin.email);
         if (!recipients.length) throw new Error('No active selected Feedback administrators.');
         const from = notice.audience === 'client' ? process.env.CLIENT_NOTIFICATION_FROM_EMAIL : process.env.ADMIN_NOTIFICATION_FROM_EMAIL;
-        if (!from || !['sahil+feedback@withmeridian.ai', 'manasa+feedback@withmeridian.ai'].includes(from)) throw new Error('Feedback sender is not configured.');
+        if (!from || from !== HARVEST_SENDER) throw new Error('Feedback sender is not configured.');
         for (const recipient of recipients) {
           if (!record.eventID || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error('Invalid event recipient.');
           const key = createHash('sha256').update(`${record.eventID}:${notice.kind}:${recipient.toLowerCase()}`).digest('hex');
